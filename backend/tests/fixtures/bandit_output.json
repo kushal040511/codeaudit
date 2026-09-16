@@ -1,0 +1,255 @@
+{
+    "errors": [],
+    "generated_at": "2026-09-16T13:21:43Z",
+    "metrics": {
+        "./api/app.py": {
+            "CONFIDENCE.HIGH": 7,
+            "CONFIDENCE.LOW": 0,
+            "CONFIDENCE.MEDIUM": 4,
+            "CONFIDENCE.UNDEFINED": 0,
+            "SEVERITY.HIGH": 3,
+            "SEVERITY.LOW": 4,
+            "SEVERITY.MEDIUM": 4,
+            "SEVERITY.UNDEFINED": 0,
+            "loc": 41,
+            "nosec": 0,
+            "skipped_tests": 0
+        },
+        "_totals": {
+            "CONFIDENCE.HIGH": 7,
+            "CONFIDENCE.LOW": 0,
+            "CONFIDENCE.MEDIUM": 4,
+            "CONFIDENCE.UNDEFINED": 0,
+            "SEVERITY.HIGH": 3,
+            "SEVERITY.LOW": 4,
+            "SEVERITY.MEDIUM": 4,
+            "SEVERITY.UNDEFINED": 0,
+            "loc": 41,
+            "nosec": 0,
+            "skipped_tests": 0
+        }
+    },
+    "results": [
+        {
+            "code": "7 import os\n8 import pickle\n9 import sqlite3\n",
+            "col_offset": 0,
+            "end_col_offset": 13,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 502,
+                "link": "https://cwe.mitre.org/data/definitions/502.html"
+            },
+            "issue_severity": "LOW",
+            "issue_text": "Consider possible security implications associated with pickle module.",
+            "line_number": 8,
+            "line_range": [
+                8
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b403-import-pickle",
+            "test_id": "B403",
+            "test_name": "blacklist"
+        },
+        {
+            "code": "9 import sqlite3\n10 import subprocess\n11 \n",
+            "col_offset": 0,
+            "end_col_offset": 17,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 78,
+                "link": "https://cwe.mitre.org/data/definitions/78.html"
+            },
+            "issue_severity": "LOW",
+            "issue_text": "Consider possible security implications associated with the subprocess module.",
+            "line_number": 10,
+            "line_range": [
+                10
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+            "test_id": "B404",
+            "test_name": "blacklist"
+        },
+        {
+            "code": "16 \n17 DATABASE_PASSWORD = \"hunter2-hardcoded-password\"\n18 \n",
+            "col_offset": 20,
+            "end_col_offset": 48,
+            "filename": "./api/app.py",
+            "issue_confidence": "MEDIUM",
+            "issue_cwe": {
+                "id": 259,
+                "link": "https://cwe.mitre.org/data/definitions/259.html"
+            },
+            "issue_severity": "LOW",
+            "issue_text": "Possible hardcoded password: 'hunter2-hardcoded-password'",
+            "line_number": 17,
+            "line_range": [
+                17
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+            "test_id": "B105",
+            "test_name": "hardcoded_password_string"
+        },
+        {
+            "code": "28     # SQL injection: request input concatenated into the query\n29     cursor.execute(\"SELECT id, name FROM users WHERE name = '\" + name + \"'\")\n30     return {\"users\": cursor.fetchall()}\n",
+            "col_offset": 19,
+            "end_col_offset": 62,
+            "filename": "./api/app.py",
+            "issue_confidence": "MEDIUM",
+            "issue_cwe": {
+                "id": 89,
+                "link": "https://cwe.mitre.org/data/definitions/89.html"
+            },
+            "issue_severity": "MEDIUM",
+            "issue_text": "Possible SQL injection vector through string-based query construction.",
+            "line_number": 29,
+            "line_range": [
+                29
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+            "test_id": "B608",
+            "test_name": "hardcoded_sql_expressions"
+        },
+        {
+            "code": "36     # Command injection\n37     output = subprocess.check_output(\"ping -c 1 \" + host, shell=True)\n38     return {\"output\": output.decode()}\n",
+            "col_offset": 13,
+            "end_col_offset": 69,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 78,
+                "link": "https://cwe.mitre.org/data/definitions/78.html"
+            },
+            "issue_severity": "HIGH",
+            "issue_text": "subprocess call with shell=True identified, security issue.",
+            "line_number": 37,
+            "line_range": [
+                37
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+            "test_id": "B602",
+            "test_name": "subprocess_popen_with_shell_equals_true"
+        },
+        {
+            "code": "43     # Insecure deserialization\n44     return {\"data\": pickle.loads(request.data)}\n45 \n",
+            "col_offset": 20,
+            "end_col_offset": 46,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 502,
+                "link": "https://cwe.mitre.org/data/definitions/502.html"
+            },
+            "issue_severity": "MEDIUM",
+            "issue_text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.",
+            "line_number": 44,
+            "line_range": [
+                44
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b301-pickle",
+            "test_id": "B301",
+            "test_name": "blacklist"
+        },
+        {
+            "code": "49     # Unsafe YAML load\n50     return {\"config\": yaml.load(request.data, Loader=yaml.Loader)}\n51 \n",
+            "col_offset": 22,
+            "end_col_offset": 65,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 20,
+                "link": "https://cwe.mitre.org/data/definitions/20.html"
+            },
+            "issue_severity": "MEDIUM",
+            "issue_text": "Use of unsafe yaml load. Allows instantiation of arbitrary objects. Consider yaml.safe_load().",
+            "line_number": 50,
+            "line_range": [
+                50
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b506_yaml_load.html",
+            "test_id": "B506",
+            "test_name": "yaml_load"
+        },
+        {
+            "code": "55     salt.append(os.urandom(4))\n56     return hashlib.md5(password.encode()).hexdigest()\n57 \n",
+            "col_offset": 11,
+            "end_col_offset": 41,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 327,
+                "link": "https://cwe.mitre.org/data/definitions/327.html"
+            },
+            "issue_severity": "HIGH",
+            "issue_text": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
+            "line_number": 56,
+            "line_range": [
+                56
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html",
+            "test_id": "B324",
+            "test_name": "hashlib"
+        },
+        {
+            "code": "61         os.remove(path)\n62     except:\n63         pass\n64 \n",
+            "col_offset": 4,
+            "end_col_offset": 12,
+            "filename": "./api/app.py",
+            "issue_confidence": "HIGH",
+            "issue_cwe": {
+                "id": 703,
+                "link": "https://cwe.mitre.org/data/definitions/703.html"
+            },
+            "issue_severity": "LOW",
+            "issue_text": "Try, Except, Pass detected.",
+            "line_number": 62,
+            "line_range": [
+                62,
+                63
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+            "test_id": "B110",
+            "test_name": "try_except_pass"
+        },
+        {
+            "code": "66 if __name__ == \"__main__\":\n67     app.run(host=\"0.0.0.0\", debug=True)\n",
+            "col_offset": 4,
+            "end_col_offset": 39,
+            "filename": "./api/app.py",
+            "issue_confidence": "MEDIUM",
+            "issue_cwe": {
+                "id": 94,
+                "link": "https://cwe.mitre.org/data/definitions/94.html"
+            },
+            "issue_severity": "HIGH",
+            "issue_text": "A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.",
+            "line_number": 67,
+            "line_range": [
+                67
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b201_flask_debug_true.html",
+            "test_id": "B201",
+            "test_name": "flask_debug_true"
+        },
+        {
+            "code": "66 if __name__ == \"__main__\":\n67     app.run(host=\"0.0.0.0\", debug=True)\n",
+            "col_offset": 17,
+            "end_col_offset": 26,
+            "filename": "./api/app.py",
+            "issue_confidence": "MEDIUM",
+            "issue_cwe": {
+                "id": 605,
+                "link": "https://cwe.mitre.org/data/definitions/605.html"
+            },
+            "issue_severity": "MEDIUM",
+            "issue_text": "Possible binding to all interfaces.",
+            "line_number": 67,
+            "line_range": [
+                67
+            ],
+            "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b104_hardcoded_bind_all_interfaces.html",
+            "test_id": "B104",
+            "test_name": "hardcoded_bind_all_interfaces"
+        }
+    ]
+}

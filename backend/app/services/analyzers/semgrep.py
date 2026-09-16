@@ -2,34 +2,33 @@
 
 import json
 import logging
-import os
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from app.config import get_settings
-from app.core.errors import AnalysisError
+from app.config import Settings, get_settings
 from app.models import Severity
-from app.services.analyzers.base import Analyzer, AnalyzerContext, AnalyzerFinding
+from app.services.analyzers.base import Analyzer, AnalyzerResult, FindingData, ScanContext
+from app.services.analyzers.categories import categorize, parse_cwe_ids
+from app.services.analyzers.sandbox import (
+    OUTPUT_FILENAME,
+    OUTPUT_MOUNT,
+    AnalyzerOutputError,
+    SandboxLimits,
+    SandboxMount,
+    run_tool,
+)
 from app.services.analyzers.semgrep_rules import ensure_rule_packs, select_packs
-from app.services.sandbox import SandboxLimits, SandboxMount, run_in_sandbox
+from app.services.analyzers.snippets import normalize_path, strip_nul
 
 logger = logging.getLogger(__name__)
 
 ANALYZER_NAME = "semgrep"
-
-SOURCE_MOUNT = "/src"
 RULES_MOUNT = "/rules"
-OUTPUT_MOUNT = "/out"
-RESULTS_FILENAME = "results.json"
 
 # Semgrep prefixes ids of rules loaded from local files with their directory
 # ("rules.python.flask..."). Strip it so ids match the public registry.
 RULE_ID_PREFIX = RULES_MOUNT.strip("/") + "."
-
-MAX_OUTPUT_BYTES = 100 * 1024 * 1024
-SNIPPET_MAX_LINES = 20
-SNIPPET_MAX_CHARS = 4000
 
 # Semgrep CE returns this instead of `extra.lines` without a registry login.
 _LINES_PLACEHOLDER = "requires login"
@@ -48,68 +47,29 @@ _SEVERITY_MAP = {
 _OK_EXIT_CODES = frozenset({0, 1})
 
 
-class SemgrepError(AnalysisError):
-    """Semgrep failed or produced unusable output."""
-
-
 def map_severity(value: object) -> Severity:
     return _SEVERITY_MAP.get(str(value).upper(), Severity.INFO)
 
 
-def _strip_nul(value: Any) -> Any:
-    """Postgres text and JSONB reject NUL characters."""
-    if isinstance(value, str):
-        return value.replace("\x00", "")
-    if isinstance(value, dict):
-        return {k: _strip_nul(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_strip_nul(v) for v in value]
-    return value
-
-
-def read_snippet(source_root: Path, rel_path: str, start_line: int, end_line: int) -> str | None:
-    """Read lines [start_line, end_line] (capped) from a scanned file."""
-    root = source_root.resolve()
-    path = (root / rel_path).resolve()
-    if not path.is_relative_to(root) or not path.is_file():
-        return None
-
-    last = min(end_line, start_line + SNIPPET_MAX_LINES - 1)
-    lines: list[str] = []
-    try:
-        with path.open(encoding="utf-8", errors="replace") as fh:
-            for lineno, line in enumerate(fh, start=1):
-                if lineno > last:
-                    break
-                if lineno >= start_line:
-                    lines.append(line.rstrip("\r\n"))
-    except OSError:
-        return None
-    snippet = "\n".join(lines)[:SNIPPET_MAX_CHARS]
-    return snippet or None
-
-
 def parse_semgrep_output(
-    payload: dict[str, Any],
-    source_root: Path | None = None,
-    rule_id_prefix: str = RULE_ID_PREFIX,
-) -> list[AnalyzerFinding]:
+    payload: dict[str, Any], rule_id_prefix: str = RULE_ID_PREFIX
+) -> list[FindingData]:
     """Map `semgrep --json` output to findings.
 
     Duplicate results (the same rule at the same location, e.g. from overlapping
     packs) are collapsed. Snippets come from `extra.lines` when semgrep provides
-    them, otherwise they are read from `source_root`.
+    them; otherwise the pipeline reads them from the source tree.
     """
     results = payload.get("results")
     if not isinstance(results, list):
-        raise SemgrepError("Semgrep output is missing the results list.")
+        raise AnalyzerOutputError("Semgrep output is missing the results list.")
 
-    findings: list[AnalyzerFinding] = []
+    findings: list[FindingData] = []
     seen: set[tuple[Any, ...]] = set()
     for result in results:
         try:
             check_id = str(result["check_id"])
-            path = str(result["path"]).removeprefix("./")
+            path = normalize_path(str(result["path"]))
             start, end = result["start"], result["end"]
             start_line, end_line = int(start["line"]), int(end["line"])
             extra = result.get("extra") or {}
@@ -125,19 +85,23 @@ def parse_semgrep_output(
 
         snippet = extra.get("lines")
         if not isinstance(snippet, str) or snippet.strip() in {"", _LINES_PLACEHOLDER}:
-            snippet = read_snippet(source_root, path, start_line, end_line) if source_root else None
+            snippet = None
+        metadata = extra.get("metadata")
+        cwe_ids = parse_cwe_ids(metadata.get("cwe", [])) if isinstance(metadata, dict) else ()
 
         findings.append(
-            AnalyzerFinding(
+            FindingData(
                 analyzer=ANALYZER_NAME,
-                rule_id=_strip_nul(rule_id),
+                rule_id=strip_nul(rule_id),
                 severity=map_severity(extra.get("severity")),
-                file_path=_strip_nul(path),
+                file_path=strip_nul(path),
                 start_line=start_line,
                 end_line=max(end_line, start_line),
-                message=_strip_nul(str(extra.get("message", "")).strip()),
-                code_snippet=_strip_nul(snippet),
-                raw=_strip_nul(result),
+                message=strip_nul(str(extra.get("message", "")).strip()),
+                code_snippet=strip_nul(snippet),
+                category=categorize(rule_id, cwe_ids),
+                cwe_ids=cwe_ids,
+                raw=strip_nul(result),
             )
         )
     return findings
@@ -145,76 +109,87 @@ def parse_semgrep_output(
 
 class SemgrepAnalyzer(Analyzer):
     name = ANALYZER_NAME
+    display_name = "Semgrep"
+    supported_languages = frozenset()  # security-audit and secrets packs apply to any code
 
-    def run(self, ctx: AnalyzerContext) -> list[AnalyzerFinding]:
-        settings = get_settings()
+    def __init__(self, settings: Settings | None = None) -> None:
+        self._settings = settings or get_settings()
+        self.docker_image = self._settings.semgrep_image
+        self.timeout_seconds = self._settings.semgrep_timeout_seconds
 
-        packs = select_packs(lang.language for lang in ctx.languages)
+    def run(self, repo_path: Path, context: ScanContext) -> AnalyzerResult:
+        settings = self._settings
+        packs = select_packs(sorted(context.language_names))
         rules_dir = Path(settings.scan_workspace_dir) / "_rules" / "semgrep"
         rule_files = ensure_rule_packs(
             packs, rules_dir, timedelta(hours=settings.semgrep_rules_max_age_hours)
         )
 
-        out_dir = ctx.work_dir / "semgrep-out"
-        out_dir.mkdir()
-        os.chmod(out_dir, 0o777)  # noqa: S103 - per-scan dir; the sandbox runs as nobody
-
         command = [
             "semgrep",
             "scan",
             *(f"--config={RULES_MOUNT}/{rule_file.name}" for rule_file in rule_files),
-            f"--json-output={OUTPUT_MOUNT}/{RESULTS_FILENAME}",
+            f"--json-output={OUTPUT_MOUNT}/{OUTPUT_FILENAME}",
             "--metrics=off",
             "--disable-version-check",
             f"--jobs={max(1, int(settings.semgrep_cpus))}",
             "--quiet",
             ".",
         ]
-        logger.info("running semgrep for scan %s with packs %s", ctx.scan_id, packs)
-        result = run_in_sandbox(
+        logger.info("running semgrep for scan %s with packs %s", context.scan_id, packs)
+        output = run_tool(
+            display_name=self.display_name,
             image=settings.semgrep_image,
             command=command,
-            working_dir=SOURCE_MOUNT,
-            mounts=[
-                SandboxMount(ctx.source_dir, SOURCE_MOUNT, read_only=True),
-                SandboxMount(rules_dir, RULES_MOUNT, read_only=True),
-                SandboxMount(out_dir, OUTPUT_MOUNT, read_only=False),
-            ],
+            repo_path=repo_path,
+            output_dir=context.work_dir / f"{self.name}-out",
+            extra_mounts=[SandboxMount(rules_dir, RULES_MOUNT, read_only=True)],
             limits=SandboxLimits(
                 cpus=settings.semgrep_cpus,
                 memory=settings.semgrep_memory_limit,
-                timeout_seconds=settings.semgrep_timeout_seconds,
+                timeout_seconds=self.timeout_seconds,
             ),
-            labels={"codeaudit.scan_id": ctx.scan_id, "codeaudit.analyzer": self.name},
+            ok_exit_codes=_OK_EXIT_CODES,
+            labels={"codeaudit.scan_id": context.scan_id, "codeaudit.analyzer": self.name},
+        )
+        payload = _load(output.raw_output)
+        return AnalyzerResult(
+            analyzer=self.name,
+            success=True,
+            findings=parse_semgrep_output(payload),
+            raw_output=output.raw_output,
+            duration_ms=int(output.duration_seconds * 1000),
+            warnings=semgrep_warnings(payload),
         )
 
-        if result.oom_killed:
-            raise SemgrepError(
-                f"Semgrep ran out of memory (limit {settings.semgrep_memory_limit})."
-            )
-        if result.exit_code not in _OK_EXIT_CODES:
-            stderr_tail = result.stderr.strip()[-500:] or "no error output"
-            raise SemgrepError(f"Semgrep exited with code {result.exit_code}: {stderr_tail}")
+    def parse(self, raw_output: str) -> list[FindingData]:
+        return parse_semgrep_output(_load(raw_output))
 
-        results_path = out_dir / RESULTS_FILENAME
-        if not results_path.is_file():
-            raise SemgrepError("Semgrep finished without writing results.")
-        if results_path.stat().st_size > MAX_OUTPUT_BYTES:
-            raise SemgrepError("Semgrep output exceeds the size limit.")
-        try:
-            payload = json.loads(results_path.read_bytes())
-        except json.JSONDecodeError as exc:
-            raise SemgrepError("Semgrep produced invalid JSON output.") from exc
 
-        if errors := payload.get("errors"):
-            logger.warning(
-                "semgrep reported %d non-fatal errors for scan %s", len(errors), ctx.scan_id
-            )
-        findings = parse_semgrep_output(payload, source_root=ctx.source_dir)
-        logger.info(
-            "semgrep finished for scan %s in %ss: %d findings",
-            ctx.scan_id,
-            result.duration_seconds,
-            len(findings),
-        )
-        return findings
+def _load(raw_output: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(raw_output)
+    except json.JSONDecodeError as exc:
+        raise AnalyzerOutputError("Semgrep produced invalid JSON output.") from exc
+    if not isinstance(payload, dict):
+        raise AnalyzerOutputError("Semgrep output is not a JSON object.")
+    return payload
+
+
+def semgrep_warnings(payload: dict[str, Any]) -> tuple[str, ...]:
+    """Summarise non-fatal errors (unparsable files, rule timeouts) that reduce coverage."""
+    errors = payload.get("errors") or []
+    if not isinstance(errors, list) or not errors:
+        return ()
+    paths = sorted(
+        {
+            normalize_path(str(err["path"]))
+            for err in errors
+            if isinstance(err, dict) and err.get("path")
+        }
+    )
+    listed = ", ".join(paths[:5]) + (f" and {len(paths) - 5} more" if len(paths) > 5 else "")
+    detail = f" in {listed}" if paths else ""
+    return (
+        f"Semgrep reported {len(errors)} non-fatal error(s){detail}; coverage may be incomplete.",
+    )

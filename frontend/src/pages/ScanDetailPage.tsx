@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { AnalyzerStatusPanel } from '@/components/scans/AnalyzerStatusPanel'
 import { FindingsTable } from '@/components/scans/FindingsTable'
 import { StatusIndicator } from '@/components/scans/StatusIndicator'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { type ApiError, getScan, isTerminalStatus, type Scan } from '@/lib/api'
+import { describeFailures } from '@/lib/analyzers'
+import { type ApiError, getScan, hasResults, isTerminalStatus, type Scan } from '@/lib/api'
 import { formatDateTime, formatDuration } from '@/lib/format'
 
 const POLL_INTERVAL_MS = 2000
@@ -104,14 +106,34 @@ export function ScanDetailPage() {
         </Card>
       )}
 
+      {scan.status === 'partial' && (
+        <Card role="alert" className="border-amber-300 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30">
+          <CardHeader>
+            <CardTitle className="text-amber-800 dark:text-amber-300">Partial results</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p>
+              {scan.analyzer_summary.completed} of {scan.analyzer_summary.total} analyzers completed.{' '}
+              {describeFailures(scan.analyzer_runs)}.
+            </p>
+            <p className="text-muted-foreground">
+              Issues those analyzers look for were not checked, so a missing finding here does not mean the code is
+              clean.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {!isTerminalStatus(scan.status) && (
         <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          {scan.status === 'queued' ? 'Waiting for a worker to pick up the scan…' : 'Running Semgrep…'} Findings
+          {scan.status === 'queued' ? 'Waiting for a worker to pick up the scan…' : 'Running analyzers…'} Findings
           will appear here when the scan completes.
         </div>
       )}
 
-      {scan.status === 'completed' && <FindingsTable scanId={scan.id} counts={scan.finding_counts} />}
+      <AnalyzerStatusPanel scan={scan} />
+
+      {hasResults(scan.status) && <FindingsTable scan={scan} />}
     </div>
   )
 }

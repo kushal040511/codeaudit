@@ -15,8 +15,30 @@ export type Severity = 'info' | 'warning' | 'error' | 'critical'
 /** Most severe first. */
 export const SEVERITIES: readonly Severity[] = ['critical', 'error', 'warning', 'info']
 
-export type ScanStatus = 'queued' | 'running' | 'completed' | 'failed'
-export const isTerminalStatus = (status: ScanStatus) => status === 'completed' || status === 'failed'
+/** `partial`: finished, but at least one analyzer failed or timed out. Not a clean result. */
+export type ScanStatus = 'queued' | 'running' | 'completed' | 'partial' | 'failed'
+export const isTerminalStatus = (status: ScanStatus) =>
+  status === 'completed' || status === 'partial' || status === 'failed'
+/** The scan produced findings to show (possibly incomplete). */
+export const hasResults = (status: ScanStatus) => status === 'completed' || status === 'partial'
+
+export type AnalyzerRunStatus = 'running' | 'completed' | 'failed' | 'timed_out' | 'skipped'
+
+export type AnalyzerRun = {
+  analyzer: string
+  display_name: string
+  status: AnalyzerRunStatus
+  duration_ms: number | null
+  /** Findings the tool reported, before deduplication across analyzers. */
+  finding_count: number | null
+  error_message: string | null
+  /** Non-fatal problems that reduced coverage. */
+  warnings: string[]
+  started_at: string | null
+  completed_at: string | null
+}
+
+export type AnalyzerSummary = { total: number; completed: number; failed: number; running: number; skipped: number }
 
 export type DetectedLanguage = { language: string; file_count: number; manifests: string[] }
 export type SeverityCounts = Record<Severity, number>
@@ -32,9 +54,33 @@ export type Scan = {
   completed_at: string | null
   finding_counts: SeverityCounts
   total_findings: number
+  /** Deduplicated findings per analyzer whose report was kept. */
+  findings_by_analyzer: Record<string, number>
+  findings_before_dedup: number
+  analyzer_runs: AnalyzerRun[]
+  analyzer_summary: AnalyzerSummary
 }
 
 export type ScanCreated = { scan_id: string; status: ScanStatus }
+
+export type DependencyInfo = {
+  ecosystem: string
+  package: string
+  installed_version: string
+  advisory_id: string
+  aliases: string[]
+  fixed_version: string | null
+  fixed_versions: string[]
+  cvss_score: string | null
+}
+
+export type MergedFinding = {
+  analyzer: string
+  rule_id: string
+  severity: Severity
+  start_line: number | null
+  message: string
+}
 
 export type Finding = {
   id: number
@@ -46,6 +92,11 @@ export type Finding = {
   end_line: number
   message: string
   code_snippet: string | null
+  category: string | null
+  /** Other analyzers that reported the same issue. */
+  corroborated_by: string[]
+  merged_from: MergedFinding[]
+  dependency: DependencyInfo | null
 }
 
 export type FindingPage = { items: Finding[]; total: number; page: number; page_size: number }
@@ -112,13 +163,21 @@ export function getScan(scanId: string): Promise<Scan> {
   return request(() => api.get<Scan>(`/scans/${encodeURIComponent(scanId)}`))
 }
 
-export type FindingsQuery = { severity?: Severity[]; filePath?: string; page?: number; pageSize?: number }
+export type FindingsQuery = {
+  severity?: Severity[]
+  /** Matches findings reported or corroborated by any of these analyzers. */
+  analyzer?: string[]
+  filePath?: string
+  page?: number
+  pageSize?: number
+}
 
 export function getFindings(scanId: string, query: FindingsQuery = {}): Promise<FindingPage> {
   return request(() =>
     api.get<FindingPage>(`/scans/${encodeURIComponent(scanId)}/findings`, {
       params: {
         severity: query.severity?.length ? query.severity : undefined,
+        analyzer: query.analyzer?.length ? query.analyzer : undefined,
         file_path: query.filePath || undefined,
         page: query.page,
         page_size: query.pageSize,

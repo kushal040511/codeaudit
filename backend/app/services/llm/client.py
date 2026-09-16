@@ -3,7 +3,7 @@ from functools import lru_cache
 import anthropic
 
 from app.config import get_settings
-from app.services.analyzers.base import AnalyzerFinding
+from app.services.analyzers.base import FindingData
 
 
 class LLMClient:
@@ -24,7 +24,7 @@ class LLMClient:
         self._client = client or anthropic.Anthropic(api_key=api_key)
         self._model = model or settings.anthropic_model
 
-    def suggest_fix(self, finding: AnalyzerFinding, code_context: str) -> str:
+    def suggest_fix(self, finding: FindingData, code_context: str) -> str:
         """Generate a fix suggestion for one finding.
 
         TODO:

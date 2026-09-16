@@ -5,13 +5,20 @@ from typing import Any
 import pytest
 
 from app.models import Severity
-from app.services.analyzers.base import AnalyzerFinding
-from app.services.analyzers.semgrep import SemgrepError, map_severity, parse_semgrep_output
+from app.services.analyzers.base import FindingData
+from app.services.analyzers.sandbox import AnalyzerOutputError
+from app.services.analyzers.semgrep import (
+    SemgrepAnalyzer,
+    map_severity,
+    parse_semgrep_output,
+    semgrep_warnings,
+)
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
 # Real `semgrep --json` output from scanning fixtures/vulnerable_flask_app in the sandbox.
 SEMGREP_OUTPUT = FIXTURES / "semgrep_output.json"
-SOURCE_ROOT = FIXTURES / "vulnerable_flask_app"
+# Real output from scanning fixtures/polyglot_app (Python + JavaScript).
+POLYGLOT_OUTPUT = FIXTURES / "semgrep_polyglot_output.json"
 
 
 @pytest.fixture
@@ -21,11 +28,11 @@ def payload() -> dict[str, Any]:
 
 
 def test_maps_real_semgrep_output_to_findings(payload: dict[str, Any]) -> None:
-    findings = parse_semgrep_output(payload, source_root=SOURCE_ROOT)
+    findings = parse_semgrep_output(payload)
 
     assert len(findings) == 5
     first_raw = payload["results"][0]
-    assert findings[0] == AnalyzerFinding(
+    assert findings[0] == FindingData(
         analyzer="semgrep",
         # "rules." prefix from the local rules mount is stripped
         rule_id="python.flask.security.audit.hardcoded-config.avoid_hardcoded_config_SECRET_KEY",
@@ -34,28 +41,38 @@ def test_maps_real_semgrep_output_to_findings(payload: dict[str, Any]) -> None:
         start_line=13,
         end_line=13,
         message=first_raw["extra"]["message"].strip(),
-        # semgrep CE returns "requires login" for extra.lines; read from source instead
-        code_snippet='app.config["SECRET_KEY"] = "dev-secret-key-do-not-use-in-prod"',
+        # semgrep CE returns "requires login" for extra.lines; the pipeline reads the source
+        code_snippet=None,
+        category="hardcoded-secret",
+        cwe_ids=(489,),
         raw=first_raw,
     )
 
 
 def test_sql_injection_findings(payload: dict[str, Any]) -> None:
-    findings = parse_semgrep_output(payload, source_root=SOURCE_ROOT)
+    findings = parse_semgrep_output(payload)
 
     sqli = [f for f in findings if f.rule_id.endswith("tainted-sql-string")]
     assert [(f.start_line, f.severity) for f in sqli] == [
         (26, Severity.ERROR),
         (33, Severity.ERROR),
     ]
-    assert sqli[0].code_snippet is not None and "cursor.execute(" in sqli[0].code_snippet
+    # Semgrep tags this rule CWE-704; the keyword category is what dedup needs.
+    assert {f.category for f in sqli} == {"sql-injection"}
     assert sorted(f.severity for f in findings).count(Severity.WARNING) == 2
 
 
-def test_without_source_root_snippet_is_none(payload: dict[str, Any]) -> None:
-    findings = parse_semgrep_output(payload)
+def test_polyglot_output_covers_python_and_javascript() -> None:
+    findings = SemgrepAnalyzer().parse(POLYGLOT_OUTPUT.read_text())
 
-    assert all(f.code_snippet is None for f in findings)
+    assert len(findings) == 16
+    by_file: dict[str, set[str | None]] = {}
+    for finding in findings:
+        by_file.setdefault(finding.file_path, set()).add(finding.category)
+    assert by_file["web/server.js"] == {"command-injection", "code-injection", "xss"}
+    assert {"sql-injection", "command-injection", "insecure-deserialization"} <= by_file[
+        "api/app.py"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -96,8 +113,23 @@ def test_prefers_semgrep_lines_dedupes_and_strips_nul() -> None:
     )
     assert finding.message == "eval is bad"
     assert finding.code_snippet == "eval(x)\n"
+    assert finding.category == "code-injection"
 
 
 def test_missing_results_list_raises() -> None:
-    with pytest.raises(SemgrepError):
+    with pytest.raises(AnalyzerOutputError):
         parse_semgrep_output({"errors": []})
+
+
+def test_invalid_json_raises() -> None:
+    with pytest.raises(AnalyzerOutputError):
+        SemgrepAnalyzer().parse("not json")
+
+
+def test_non_fatal_errors_become_warnings() -> None:
+    payload = {"results": [], "errors": [{"path": "/src/a.py"}, {"path": "b.js"}, {"code": 3}]}
+
+    assert semgrep_warnings(payload) == (
+        "Semgrep reported 3 non-fatal error(s) in a.py, b.js; coverage may be incomplete.",
+    )
+    assert semgrep_warnings({"results": [], "errors": []}) == ()

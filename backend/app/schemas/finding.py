@@ -3,6 +3,25 @@ from pydantic import BaseModel, ConfigDict
 from app.models import Severity
 
 
+class DependencyInfo(BaseModel):
+    ecosystem: str
+    package: str
+    installed_version: str
+    advisory_id: str
+    aliases: list[str] = []
+    fixed_version: str | None = None
+    fixed_versions: list[str] = []
+    cvss_score: str | None = None
+
+
+class MergedFinding(BaseModel):
+    analyzer: str
+    rule_id: str
+    severity: Severity
+    start_line: int | None = None
+    message: str
+
+
 class FindingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -15,6 +34,11 @@ class FindingRead(BaseModel):
     end_line: int
     message: str
     code_snippet: str | None
+    category: str | None
+    # Other analyzers that reported the same issue.
+    corroborated_by: list[str]
+    merged_from: list[MergedFinding]
+    dependency: DependencyInfo | None
 
 
 class FindingPage(BaseModel):

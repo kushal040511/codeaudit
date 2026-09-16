@@ -13,3 +13,10 @@ export function formatDuration(startIso: string | null, endIso: string | null): 
   const seconds = Math.max(0, Math.round((Date.parse(endIso) - Date.parse(startIso)) / 1000))
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
+
+export function formatMilliseconds(ms: number | null): string {
+  if (ms === null) return '—'
+  if (ms < 1000) return `${ms} ms`
+  const seconds = ms / 1000
+  return seconds < 60 ? `${seconds.toFixed(1)} s` : `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
+}

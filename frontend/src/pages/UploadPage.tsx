@@ -53,7 +53,7 @@ export function UploadPage() {
     <Card className="mx-auto max-w-xl">
       <CardHeader>
         <CardTitle>New scan</CardTitle>
-        <CardDescription>Upload a zipped codebase to scan it with Semgrep.</CardDescription>
+        <CardDescription>Upload a zipped codebase to scan it with Semgrep, Bandit, Ruff and OSV-Scanner.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <label

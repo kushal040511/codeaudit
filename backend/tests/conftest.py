@@ -21,7 +21,10 @@ _base_url = make_url(_base_settings.database_url)
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL") or _base_url.set(
     database=f"{_base_url.database}_test"
 ).render_as_string(hide_password=False)
-TEST_WORKSPACE = Path(tempfile.mkdtemp(prefix="codeaudit-test-workspace-"))
+# Stable across runs so downloaded rule packs and vulnerability databases (~240 MB)
+# stay cached; only per-scan directories are removed after the session.
+TEST_WORKSPACE = Path(tempfile.gettempdir()) / "codeaudit-test-workspace"
+TEST_WORKSPACE.mkdir(exist_ok=True)
 
 os.environ.update(
     {
@@ -53,4 +56,5 @@ if "DOCKER_HOST" not in os.environ and not Path("/var/run/docker.sock").exists()
 @pytest.fixture(scope="session", autouse=True)
 def _cleanup_test_workspace() -> Iterator[None]:
     yield
-    shutil.rmtree(TEST_WORKSPACE, ignore_errors=True)
+    for scan_dir in TEST_WORKSPACE.glob("scan-*"):
+        shutil.rmtree(scan_dir, ignore_errors=True)

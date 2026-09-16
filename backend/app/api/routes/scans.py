@@ -6,7 +6,8 @@ from typing import Annotated, Any, BinaryIO
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from kombu.exceptions import OperationalError as BrokerError
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, literal, or_, select
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -14,10 +15,24 @@ from app.api.errors import AppError, NotFoundError, PayloadTooLargeError, Servic
 from app.config import get_settings
 from app.core.db import get_db
 from app.core.storage import StorageError, delete_object, upload_fileobj
-from app.models import Finding, Scan, ScanStatus, Severity
+from app.models import (
+    FAILED_RUN_STATUSES,
+    AnalyzerRunStatus,
+    Finding,
+    Scan,
+    ScanStatus,
+    Severity,
+)
 from app.schemas.errors import ErrorResponse
 from app.schemas.finding import FindingPage, FindingRead
-from app.schemas.scan import ScanCreated, ScanRead, SeverityCounts
+from app.schemas.scan import (
+    AnalyzerRunRead,
+    AnalyzerSummary,
+    ScanCreated,
+    ScanRead,
+    SeverityCounts,
+)
+from app.services.analyzers.registry import DISPLAY_NAMES
 from app.services.archive import UnsafeArchiveError, archive_limits_from_settings, inspect_zip
 from app.workers.tasks import run_scan
 
@@ -129,14 +144,31 @@ def create_scan(
 
 @router.get("/{scan_id}", response_model=ScanRead, responses=_errors(404, 422))
 def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
-    """Scan status, timestamps, detected languages and finding counts by severity."""
+    """Scan status, per-analyzer runs, detected languages and finding counts."""
     scan = _get_scan_or_404(db, scan_id)
     rows = db.execute(
         select(Finding.severity, func.count())
         .where(Finding.scan_id == scan_id)
         .group_by(Finding.severity)
     ).all()
-    counts = {severity.value: count for severity, count in rows}
+    by_severity = {severity.value: count for severity, count in rows}
+    # Same semantics as the findings `analyzer` filter: reported or corroborated.
+    reporter = func.unnest(func.array_append(Finding.corroborated_by, Finding.analyzer)).alias(
+        "reporter"
+    )
+    by_analyzer = {
+        str(name): count
+        for name, count in db.execute(
+            select(reporter.column, func.count())
+            .select_from(Finding)
+            .join(reporter, literal(True))
+            .where(Finding.scan_id == scan_id)
+            .group_by(reporter.column)
+        ).all()
+    }
+
+    runs = scan.analyzer_runs
+    applicable = [r for r in runs if r.status is not AnalyzerRunStatus.SKIPPED]
     return ScanRead(
         id=scan.id,
         status=scan.status,
@@ -146,8 +178,31 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
         created_at=scan.created_at,
         started_at=scan.started_at,
         completed_at=scan.completed_at,
-        finding_counts=SeverityCounts(**counts),
-        total_findings=sum(counts.values()),
+        finding_counts=SeverityCounts(**by_severity),
+        total_findings=sum(by_severity.values()),
+        findings_by_analyzer=by_analyzer,
+        findings_before_dedup=sum(r.finding_count or 0 for r in runs),
+        analyzer_runs=[
+            AnalyzerRunRead(
+                analyzer=run.analyzer_name,
+                display_name=DISPLAY_NAMES.get(run.analyzer_name, run.analyzer_name),
+                status=run.status,
+                duration_ms=run.duration_ms,
+                finding_count=run.finding_count,
+                error_message=run.error_message,
+                warnings=run.warnings or [],
+                started_at=run.started_at,
+                completed_at=run.completed_at,
+            )
+            for run in runs
+        ],
+        analyzer_summary=AnalyzerSummary(
+            total=len(applicable),
+            completed=sum(r.status is AnalyzerRunStatus.COMPLETED for r in runs),
+            failed=sum(r.status in FAILED_RUN_STATUSES for r in runs),
+            running=sum(r.status is AnalyzerRunStatus.RUNNING for r in runs),
+            skipped=len(runs) - len(applicable),
+        ),
     )
 
 
@@ -158,18 +213,35 @@ def list_findings(
     severity: Annotated[
         list[Severity] | None, Query(description="Repeat to include several severities")
     ] = None,
+    analyzer: Annotated[
+        list[Annotated[str, Query(max_length=64)]] | None,
+        Query(
+            description=(
+                "Repeat to include several analyzers. Matches findings reported by the "
+                "analyzer, including ones kept from another analyzer that it corroborated."
+            ),
+            max_length=20,
+        ),
+    ] = None,
     file_path: Annotated[
         str | None, Query(max_length=1024, description="Case-insensitive substring match")
     ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> FindingPage:
-    """Findings for a scan, most severe first."""
+    """Findings for a scan, most severe first, then by corroboration and location."""
     _get_scan_or_404(db, scan_id)
 
     conditions = [Finding.scan_id == scan_id]
     if severity:
         conditions.append(Finding.severity.in_(severity))
+    if analyzer:
+        conditions.append(
+            or_(
+                Finding.analyzer.in_(analyzer),
+                Finding.corroborated_by.overlap(cast(analyzer, ARRAY(String(64)))),
+            )
+        )
     if file_path:
         conditions.append(Finding.file_path.ilike(f"%{_escape_like(file_path)}%", escape="\\"))
 
@@ -177,7 +249,13 @@ def list_findings(
     findings = db.scalars(
         select(Finding)
         .where(*conditions)
-        .order_by(Finding.severity.desc(), Finding.file_path, Finding.start_line, Finding.id)
+        .order_by(
+            Finding.severity.desc(),
+            func.cardinality(Finding.corroborated_by).desc(),
+            Finding.file_path,
+            Finding.start_line,
+            Finding.id,
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()

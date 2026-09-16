@@ -2,7 +2,7 @@
 
 Upload a codebase and get security findings, architectural quality and code-health signals, a validated score, and LLM-generated fix suggestions.
 
-> **Status:** the first end-to-end pipeline works: zip upload → queue → Semgrep in a sandbox container → Postgres → read API and UI. Scoring, the other analyzers, the dependency graph and the LLM layer are still stubs.
+> **Status:** zip upload → queue → four analyzers (Semgrep, Bandit, Ruff, OSV-Scanner) running concurrently in sandbox containers → cross-analyzer dedup → Postgres → read API and UI. Scoring, the dependency graph and the LLM layer are still stubs.
 
 ## Stack
 
@@ -12,8 +12,8 @@ Upload a codebase and get security findings, architectural quality and code-heal
 | Jobs | Celery 5 + Redis 7 |
 | Data | PostgreSQL 16, SQLAlchemy 2.0, Alembic |
 | Object storage | MinIO (S3 API via boto3, so any S3-compatible store works) |
-| Sandbox | Throwaway Docker containers via the Docker SDK (`returntocorp/semgrep:1.177.0`) |
-| Analysis | semgrep (live); bandit, ruff, pip-audit, tree-sitter and networkx installed but not wired up yet |
+| Sandbox | Throwaway Docker containers via the Docker SDK, one per analyzer run |
+| Analysis | Semgrep 1.177, Bandit 1.9.4, Ruff 0.16.7, OSV-Scanner 2.5.1 (each in its own image); tree-sitter and networkx not wired up yet |
 | LLM | Anthropic SDK (stub) |
 | Frontend | Vite 8, React 18, TypeScript 6, Tailwind CSS 4, shadcn/ui, TanStack Query 5, React Router 7 |
 
@@ -28,10 +28,33 @@ Browser ──POST /api/scans (zip)──▶ API
                                    ▼
 Celery worker  run_scan(scan_id)
   mark running ─▶ download zip ─▶ safe_extract (re-validates, enforces real byte limits)
-  ─▶ detect languages (extensions + manifests) ─▶ fetch/cached Semgrep rule packs for those languages
-  ─▶ Semgrep in sandbox container ─▶ parse JSON ─▶ bulk INSERT findings + mark completed (one transaction)
-  on error: mark failed with message · always: remove workspace; container removed by the runner
+  ─▶ detect languages (extensions + manifests) ─▶ registry picks analyzers via applies_to(languages)
+  ─▶ run them concurrently (thread pool), each in its own sandbox container; record an analyzer_runs
+     row (completed / failed / timed_out / skipped, duration, count, warnings) as each finishes
+  ─▶ fill snippets from source ─▶ deduplicate ─▶ bulk INSERT findings + mark completed | partial
+  every analyzer failed: mark failed (retry if infrastructure) · always: remove workspace
 ```
+
+### Analyzers
+
+| Analyzer | Applies to | Command (in sandbox) | Severity normalisation |
+|---|---|---|---|
+| Semgrep | any | registry packs for the detected languages | INFO/LOW→info, WARNING/MEDIUM→warning, ERROR/HIGH→error, CRITICAL→critical |
+| Bandit | Python | `bandit -r . -f json --ini /dev/null --ignore-nosec` | LOW→info, MEDIUM→warning, HIGH→error; one step lower at LOW confidence |
+| Ruff | Python | `ruff check --isolated --select E4,E7,E9,F,B,C90,PLE` | by rule code: syntax/undefined names/pylint errors→error, bugbear/bare except→warning, hygiene→info |
+| OSV-Scanner | any lockfile | `osv-scanner scan source -r --offline --no-resolve` | CVSS ≥9 critical, ≥7 error, ≥4 warning; unscored→GHSA label, else warning |
+
+All share `services/analyzers/base.py` (`Analyzer`: `applies_to`, `run`, `parse`; `AnalyzerResult`; `FindingData`) and `services/analyzers/sandbox.py` (`run_tool`: read-only repo at `/src`, writable `/out`, limits, exit-code and output checks, guaranteed container removal). A new tool is one module plus a line in `registry.py`.
+
+**Uploaded code can't switch checks off:** a repo's `.bandit` file would otherwise be auto-loaded and can skip every test (verified: 11 findings → 0), hence `--ini /dev/null`; Ruff runs `--isolated` so the project's config (including `extend` paths) is ignored; `# nosec` is ignored.
+
+**Failure isolation:** an analyzer that crashes, times out or can't start is recorded on its `analyzer_runs` row and the scan becomes `partial` (not `completed`). The UI shows which tools failed and says the result is not clean.
+
+**OSV offline databases:** the worker downloads `https://osv-vulnerabilities.storage.googleapis.com/<ecosystem>/all.zip` for the ecosystems whose lockfiles are present (npm ≈ 200 MB, PyPI ≈ 35 MB), caches them for 24 h under `<workspace>/_vulndb/osv` (file-locked, atomic replace, stale copy used if refresh fails) and mounts them read-only. OSV-Scanner *silently skips* ecosystems without a database, so that case is surfaced as a run warning.
+
+### Deduplication
+
+Findings are merged when they share a normalised file path, an issue category and a location (same start line, or a ≤5-line range containing the other's start line). Categories come from rule-id keywords first, then CWE ids: Semgrep's CWE tags are unreliable (its Flask SQL-injection rule is CWE-704). The finding with the longest message is kept at the group's highest severity; the other analyzers go into `findings.corroborated_by` and every merged finding into `merged_from`, for scoring to use as confidence. Ruff and dependency findings have unique categories and are never merged with other tools.
 
 Semgrep runs in its own container with **no network, a read-only root fs, a tmpfs `/tmp`, uid `nobody`, all capabilities dropped, no-new-privileges, 2 GB memory with no swap, 2 CPUs, a 512 PID limit and a 5-minute wall-clock timeout** (the container is killed when it's reached). The code is mounted read-only. Only a per-scan output directory is writable.
 
@@ -42,8 +65,8 @@ Semgrep runs in its own container with **no network, a read-only root fs, a tmpf
 | Method | Path | Notes |
 |---|---|---|
 | `POST` | `/api/scans` | multipart field `file` (.zip, ≤50 MB). `202 {"scan_id", "status": "queued"}` |
-| `GET` | `/api/scans/{id}` | status, timestamps, `detected_languages`, `finding_counts` by severity, `total_findings` |
-| `GET` | `/api/scans/{id}/findings` | `?severity=error&severity=critical&file_path=app.py&page=1&page_size=50`, most severe first |
+| `GET` | `/api/scans/{id}` | status (`queued`, `running`, `completed`, `partial`, `failed`), timestamps, `detected_languages`, `analyzer_runs` (status, `duration_ms`, `finding_count`, `error_message`, `warnings`), `analyzer_summary`, `finding_counts` by severity, `findings_by_analyzer`, `total_findings`, `findings_before_dedup` |
+| `GET` | `/api/scans/{id}/findings` | `?severity=error&analyzer=bandit&file_path=app.py&page=1&page_size=50`. `analyzer` also matches findings that analyzer corroborated. Items include `analyzer`, `category`, `corroborated_by`, `merged_from`, `dependency` (package, installed/fixed version, advisory id). Most severe first, corroborated first. |
 | `GET` | `/health` | DB + Redis check, 200 or 503 |
 
 Every error has the shape `{"error": {"code", "message", "details?"}}`, with codes `invalid_file_type`, `invalid_archive`, `payload_too_large` (413), `not_found` (404), `validation_error` (422) and `service_unavailable` (503). Interactive docs are at http://localhost:8000/docs.
@@ -74,18 +97,19 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 │   │   │   ├── archive.py         # zip validation + safe extraction
 │   │   │   ├── languages.py       # language detection
 │   │   │   ├── scan_pipeline.py   # download → extract → detect → analyze → persist
-│   │   │   ├── sandbox/runner.py  # isolated container execution
-│   │   │   ├── analyzers/         # semgrep.py (+ parser), semgrep_rules.py; bandit/dependency stubs
+│   │   │   ├── analyzers/         # base, sandbox (container runner), registry, orchestrator, dedup,
+│   │   │   │                      # categories, snippets; semgrep(+_rules), bandit, ruff, dependency(+osv_db)
 │   │   │   ├── graph/ scoring/ llm/   # stubs
 │   │   └── workers/tasks.py   # run_scan (status, retries, cleanup), crash cleanup on worker start
 │   └── tests/
-│       ├── unit/              # archive safety, language detection, semgrep parser, rule-pack cache
-│       ├── integration/       # upload → eager Celery → real sandboxed Semgrep → DB
-│       └── fixtures/          # vulnerable_flask_app/ (intentionally insecure), semgrep_output.json (real output)
+│       ├── unit/              # parsers (real tool output), dedup, orchestrator (fake analyzers), caches
+│       ├── integration/       # persistence with fake analyzers (Postgres only); upload → all real analyzers → DB
+│       ├── fakes.py           # FakeAnalyzer: the analyzer interface without Docker
+│       └── fixtures/          # polyglot_app/ + vulnerable_flask_app/ (intentionally insecure), real tool outputs
 └── frontend/src/
     ├── lib/api.ts             # typed API client + ApiError
     ├── pages/                 # UploadPage (drag & drop, progress), ScanDetailPage (2 s polling)
-    └── components/scans/      # FindingsTable, SeverityBadge, StatusIndicator
+    └── components/scans/      # AnalyzerStatusPanel, FindingsTable (severity + analyzer filters), SeverityBadge, StatusIndicator
 ```
 
 ## Prerequisites
@@ -98,7 +122,8 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 
 ```bash
 cp .env.example .env          # then change the passwords
-docker pull returntocorp/semgrep:1.177.0   # optional: otherwise pulled on the first scan
+# optional: otherwise pulled on the first scan (image digests/tags in .env.example)
+docker pull returntocorp/semgrep:1.177.0 && docker pull ghcr.io/astral-sh/ruff:0.16.7 && docker pull ghcr.io/google/osv-scanner:v2.5.1
 docker compose up -d --build --wait
 ```
 
@@ -125,7 +150,7 @@ npm run dev             # http://localhost:5173 (proxies /api and /health to :80
 ```
 
 - `/upload`: drag and drop (or browse for) a zip, with upload progress. Redirects to the scan when done.
-- `/scans/:id`: status indicator, polling every 2 s until completed or failed, detected languages, and a findings table with severity filter and pagination. Failed scans show the error message.
+- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, and a findings table with severity and analyzer filters, "also found by" corroboration and dependency upgrade hints. Failed scans show the error message.
 
 Scripts: `npm run build`, `npm run typecheck`, `npm run lint`.
 
@@ -152,7 +177,7 @@ uv run pytest -m integration           # needs the compose stack (Postgres, MinI
 uv run ruff check . && uv run black --check . && uv run mypy app
 ```
 
-The integration tests recreate a separate `<db>_test` database and migrate it to head, use a `codeaudit-test-uploads` bucket, run Celery eagerly (`CELERY_TASK_ALWAYS_EAGER`), and run the real sandboxed Semgrep against `tests/fixtures/vulnerable_flask_app`. They skip if a service is unreachable.
+The integration tests recreate a separate `<db>_test` database and migrate it to head, use a `codeaudit-test-uploads` bucket, run Celery eagerly (`CELERY_TASK_ALWAYS_EAGER`), and run the real sandboxed Semgrep against `tests/fixtures/vulnerable_flask_app`. They skip if a service is unreachable. The workspace is kept under the system temp dir so rule packs and OSV databases (~240 MB, first run only) stay cached between runs.
 
 **Dependencies:** `pyproject.toml` is the source of truth, and `uv.lock` pins exact versions. `requirements*.txt` mirror the direct dependencies with major-version pins. Keep them in sync.
 

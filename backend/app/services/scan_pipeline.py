@@ -10,6 +10,7 @@ import tempfile
 import time
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,24 +18,32 @@ from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.core.errors import AnalysisError, TransientInfraError
 from app.core.storage import download_file
-from app.models import Finding, Scan, ScanStatus
-from app.services.analyzers.base import Analyzer, AnalyzerContext, AnalyzerFinding
-from app.services.analyzers.semgrep import SemgrepAnalyzer
+from app.models import AnalyzerRun, AnalyzerRunStatus, Finding, Scan, ScanStatus
+from app.services.analyzers.base import AnalyzerResult, FindingData, ScanContext
+from app.services.analyzers.dedup import deduplicate
+from app.services.analyzers.orchestrator import run_analyzers
+from app.services.analyzers.registry import AnalyzerRegistry, default_registry
+from app.services.analyzers.snippets import fill_snippets
 from app.services.archive import archive_limits_from_settings, safe_extract
-from app.services.languages import detect_languages
+from app.services.languages import DetectedLanguage, detect_languages
 
 logger = logging.getLogger(__name__)
 
 WORKSPACE_PREFIX = "scan-"
 
 
+@dataclass(frozen=True)
+class PipelineOutcome:
+    status: ScanStatus
+    findings_before_dedup: int
+    findings_after_dedup: int
+    results: list[AnalyzerResult]
+
+
 def utcnow() -> datetime:
     return datetime.now(UTC)
-
-
-def default_analyzers() -> list[Analyzer]:
-    return [SemgrepAnalyzer()]
 
 
 def create_workspace(scan_id: uuid.UUID) -> Path:
@@ -67,11 +76,11 @@ def run_pipeline(
     db: Session,
     scan: Scan,
     workdir: Path,
-    analyzers: Sequence[Analyzer] | None = None,
-) -> int:
-    """Run every analyzer against the scan's archive and persist the findings.
+    registry: AnalyzerRegistry | None = None,
+) -> PipelineOutcome:
+    """Download and extract the scan's archive, then analyze it and persist the results.
 
-    Returns the number of findings. Raises AnalysisError / TransientInfraError.
+    Raises AnalysisError / TransientInfraError when the scan as a whole fails.
     """
     settings = get_settings()
     archive_path = workdir / "source.zip"
@@ -86,19 +95,109 @@ def run_pipeline(
     scan.detected_languages = [lang.to_dict() for lang in languages]
     db.commit()
 
-    ctx = AnalyzerContext(
-        scan_id=str(scan.id), source_dir=source_dir, work_dir=workdir, languages=languages
+    return analyze_and_persist(
+        db, scan, source_dir, workdir, languages, registry or default_registry()
     )
-    findings: list[AnalyzerFinding] = []
-    for analyzer in analyzers if analyzers is not None else default_analyzers():
-        findings.extend(analyzer.run(ctx))
-
-    persist_results(db, scan, findings)
-    return len(findings)
 
 
-def persist_results(db: Session, scan: Scan, findings: Sequence[AnalyzerFinding]) -> None:
-    """Replace the scan's findings and mark it completed in one transaction.
+def analyze_and_persist(
+    db: Session,
+    scan: Scan,
+    source_dir: Path,
+    workdir: Path,
+    languages: Sequence[DetectedLanguage],
+    registry: AnalyzerRegistry,
+) -> PipelineOutcome:
+    """Run the applicable analyzers concurrently, recording each one's status as it finishes.
+
+    A failing analyzer never fails the scan on its own: the scan is `partial`. Only
+    when every analyzer failed is the scan failed, and retried if the cause was
+    infrastructure.
+    """
+    context = ScanContext(scan_id=str(scan.id), work_dir=workdir, languages=list(languages))
+    applicable, skipped = registry.select(context.language_names)
+
+    # A retried task starts from scratch.
+    db.execute(delete(AnalyzerRun).where(AnalyzerRun.scan_id == scan.id))
+    started_at = utcnow()
+    runs = {
+        analyzer.name: AnalyzerRun(
+            scan_id=scan.id,
+            analyzer_name=analyzer.name,
+            status=AnalyzerRunStatus.RUNNING,
+            started_at=started_at,
+        )
+        for analyzer in applicable
+    }
+    for analyzer in skipped:
+        languages_text = ", ".join(sorted(analyzer.supported_languages))
+        db.add(
+            AnalyzerRun(
+                scan_id=scan.id,
+                analyzer_name=analyzer.name,
+                status=AnalyzerRunStatus.SKIPPED,
+                error_message=f"Not applicable: no {languages_text} code detected.",
+            )
+        )
+    db.add_all(runs.values())
+    db.commit()
+
+    def record(result: AnalyzerResult) -> None:
+        run = runs[result.analyzer]
+        if result.success:
+            run.status = AnalyzerRunStatus.COMPLETED
+            run.finding_count = len(result.findings)
+        else:
+            run.status = (
+                AnalyzerRunStatus.TIMED_OUT if result.timed_out else AnalyzerRunStatus.FAILED
+            )
+        run.duration_ms = result.duration_ms
+        run.error_message = result.error_message
+        run.warnings = list(result.warnings)
+        run.completed_at = utcnow()
+        db.commit()
+
+    results = run_analyzers(
+        applicable,
+        source_dir,
+        context,
+        max_workers=get_settings().analyzer_max_workers,
+        on_result=record,
+    )
+
+    succeeded = [r for r in results if r.success]
+    failed = [r for r in results if not r.success]
+    if applicable and not succeeded:
+        reasons = "; ".join(f"{r.error_message}" for r in failed)
+        if any(r.transient for r in failed):
+            raise TransientInfraError(f"No analyzer could run: {reasons}")
+        raise AnalysisError(f"Every analyzer failed: {reasons}")
+
+    findings = fill_snippets([f for r in succeeded for f in r.findings], source_dir)
+    unique = deduplicate(findings)
+    status = ScanStatus.PARTIAL if failed else ScanStatus.COMPLETED
+    persist_results(db, scan, unique, status)
+    logger.info(
+        "scan %s %s: %d/%d analyzers succeeded, %d findings (%d before dedup)",
+        scan.id,
+        status.value,
+        len(succeeded),
+        len(results),
+        len(unique),
+        len(findings),
+    )
+    return PipelineOutcome(
+        status=status,
+        findings_before_dedup=len(findings),
+        findings_after_dedup=len(unique),
+        results=results,
+    )
+
+
+def persist_results(
+    db: Session, scan: Scan, findings: Sequence[FindingData], status: ScanStatus
+) -> None:
+    """Replace the scan's findings and mark it finished in one transaction.
 
     Deleting first keeps a retried task from duplicating findings.
     """
@@ -117,12 +216,16 @@ def persist_results(db: Session, scan: Scan, findings: Sequence[AnalyzerFinding]
                     "end_line": f.end_line,
                     "message": f.message,
                     "code_snippet": f.code_snippet,
+                    "category": f.category[:512] if f.category else None,
+                    "corroborated_by": list(f.corroborated_by),
+                    "merged_from": list(f.merged_from),
+                    "dependency": f.dependency,
                     "raw": f.raw,
                 }
                 for f in findings
             ],
         )
-    scan.status = ScanStatus.COMPLETED
+    scan.status = status
     scan.completed_at = utcnow()
     scan.error_message = None
     db.commit()

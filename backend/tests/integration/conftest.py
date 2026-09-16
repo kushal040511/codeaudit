@@ -46,23 +46,36 @@ def _prepare_bucket() -> None:
 
 
 def _prepare_docker() -> None:
+    settings = get_settings()
     client = docker.from_env(version="auto")
     try:
         client.ping()
-        client.images.get(get_settings().semgrep_image)
-    except docker.errors.ImageNotFound:
-        client.images.pull(get_settings().semgrep_image)
+        for image in (
+            settings.semgrep_image,
+            settings.bandit_image,
+            settings.ruff_image,
+            settings.osv_scanner_image,
+        ):
+            try:
+                client.images.get(image)
+            except docker.errors.ImageNotFound:
+                client.images.pull(image)
     finally:
         client.close()
 
 
 @pytest.fixture(scope="session")
-def integration_env() -> None:
-    """Postgres + MinIO (docker compose stack) and a Docker daemon, or skip."""
+def database() -> None:
+    """A freshly migrated test database, or skip."""
     try:
         _prepare_database()
     except SQLAlchemyError as exc:
         pytest.skip(f"Postgres unavailable: {exc}")
+
+
+@pytest.fixture(scope="session")
+def integration_env(database: None) -> None:
+    """Postgres + MinIO (docker compose stack) and a Docker daemon, or skip."""
     try:
         _prepare_bucket()
     except (BotoCoreError, ClientError) as exc:
@@ -75,6 +88,15 @@ def integration_env() -> None:
 
 @pytest.fixture
 def client(integration_env: None) -> Iterator[TestClient]:
+    from app.main import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def api(database: None) -> Iterator[TestClient]:
+    """API client for read endpoints; needs only the database."""
     from app.main import app
 
     with TestClient(app) as test_client:

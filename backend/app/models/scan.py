@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, pg_enum
 
 if TYPE_CHECKING:
+    from app.models.analyzer_run import AnalyzerRun
     from app.models.finding import Finding
 
 
@@ -17,10 +18,12 @@ class ScanStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
+    # Finished, but at least one analyzer failed or timed out: not a clean result.
+    PARTIAL = "partial"
     FAILED = "failed"
 
 
-TERMINAL_STATUSES = frozenset({ScanStatus.COMPLETED, ScanStatus.FAILED})
+TERMINAL_STATUSES = frozenset({ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.FAILED})
 
 
 class Scan(Base):
@@ -42,4 +45,10 @@ class Scan(Base):
 
     findings: Mapped[list["Finding"]] = relationship(
         back_populates="scan", cascade="all, delete-orphan", passive_deletes=True
+    )
+    analyzer_runs: Mapped[list["AnalyzerRun"]] = relationship(
+        back_populates="scan",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="AnalyzerRun.id",
     )

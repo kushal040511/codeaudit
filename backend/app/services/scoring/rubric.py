@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from app.services.analyzers.base import AnalyzerFinding
+from app.services.analyzers.base import FindingData
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class ScoreReport:
     rubric_version: str
 
 
-def score(findings: list[AnalyzerFinding], graph_metrics: dict[str, float]) -> ScoreReport:
+def score(findings: list[FindingData], graph_metrics: dict[str, float]) -> ScoreReport:
     """Deterministic rubric scoring. The score must never depend on LLM output.
 
     TODO: versioned rubric (weights per category/severity), normalisation by

@@ -1,5 +1,9 @@
 """Run analysis tools against untrusted code in throwaway Docker containers.
 
+Shared by every analyzer: `run_tool` mounts the repository read-only, gives the
+tool a writable output directory, enforces the limits below and returns the
+tool's output file. `run_in_sandbox` is the lower-level container runner.
+
 Every container gets:
 - no network, a read-only root filesystem, and a size-capped tmpfs for /tmp
 - an unprivileged user (nobody), all capabilities dropped, no-new-privileges
@@ -12,6 +16,7 @@ share the host kernel. gVisor/Kata or a dedicated runner service is still TODO.
 """
 
 import logging
+import os
 import socket
 import time
 from collections.abc import Mapping, Sequence
@@ -47,6 +52,10 @@ class SandboxTimeoutError(AnalysisError):
     """The tool exceeded its time limit and the container was killed."""
 
 
+class AnalyzerOutputError(AnalysisError):
+    """The tool ran but its output could not be parsed."""
+
+
 @dataclass(frozen=True)
 class SandboxMount:
     source: Path  # must live inside settings.scan_workspace_dir
@@ -68,6 +77,14 @@ class SandboxResult:
     exit_code: int
     stderr: str
     oom_killed: bool
+    duration_seconds: float
+
+
+@dataclass(frozen=True)
+class ToolOutput:
+    raw_output: str
+    exit_code: int
+    stderr: str
     duration_seconds: float
 
 
@@ -137,6 +154,8 @@ def run_in_sandbox(
     limits: SandboxLimits,
     working_dir: str,
     labels: Mapping[str, str] | None = None,
+    entrypoint: Sequence[str] | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> SandboxResult:
     """Run `command` in an isolated container and wait for it, killing it on timeout.
 
@@ -156,9 +175,10 @@ def run_in_sandbox(
         container = client.containers.create(
             image=image,
             command=list(command),
+            entrypoint=list(entrypoint) if entrypoint is not None else None,
             working_dir=working_dir,
             user=SANDBOX_USER,
-            environment={"HOME": "/tmp"},  # noqa: S108 - tmpfs inside the container
+            environment={**(environment or {}), "HOME": "/tmp"},  # noqa: S108 - tmpfs
             network_mode="none",
             read_only=True,
             tmpfs={"/tmp": f"rw,nosuid,nodev,size={limits.tmpfs_size}"},  # noqa: S108
@@ -184,7 +204,7 @@ def run_in_sandbox(
             except DockerException:
                 logger.warning("could not kill timed-out container %s", container.id)
             raise SandboxTimeoutError(
-                f"Analyzer exceeded the {limits.timeout_seconds}s time limit and was stopped."
+                f"Exceeded the {limits.timeout_seconds}s time limit and was stopped."
             ) from exc
 
         container.reload()
@@ -204,6 +224,71 @@ def run_in_sandbox(
         if container is not None:
             _remove_quietly(container)
         client.close()
+
+
+SOURCE_MOUNT = "/src"
+OUTPUT_MOUNT = "/out"
+OUTPUT_FILENAME = "results.json"
+MAX_OUTPUT_BYTES = 100 * 1024 * 1024
+
+
+def run_tool(
+    *,
+    display_name: str,
+    image: str,
+    command: Sequence[str],
+    repo_path: Path,
+    output_dir: Path,
+    limits: SandboxLimits,
+    ok_exit_codes: frozenset[int],
+    labels: Mapping[str, str],
+    extra_mounts: Sequence[SandboxMount] = (),
+    entrypoint: Sequence[str] | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> ToolOutput:
+    """Run one analysis tool against `repo_path` and return the output file it wrote.
+
+    The repository is mounted read-only at SOURCE_MOUNT (also the working directory);
+    `output_dir` is mounted writable at OUTPUT_MOUNT, and the tool must write
+    OUTPUT_MOUNT/OUTPUT_FILENAME. Raises SandboxTimeoutError when the tool is
+    killed for exceeding its time limit and SandboxError for crashes, OOM kills,
+    unexpected exit codes and missing or oversized output.
+    """
+    output_dir.mkdir(parents=True, exist_ok=False)
+    os.chmod(output_dir, 0o777)  # noqa: S103 - per-scan dir; the sandbox runs as nobody
+
+    result = run_in_sandbox(
+        image=image,
+        command=command,
+        entrypoint=entrypoint,
+        environment=environment,
+        working_dir=SOURCE_MOUNT,
+        mounts=[
+            SandboxMount(repo_path, SOURCE_MOUNT, read_only=True),
+            *extra_mounts,
+            SandboxMount(output_dir, OUTPUT_MOUNT, read_only=False),
+        ],
+        limits=limits,
+        labels=labels,
+    )
+
+    if result.oom_killed:
+        raise SandboxError(f"{display_name} ran out of memory (limit {limits.memory}).")
+    if result.exit_code not in ok_exit_codes:
+        stderr_tail = result.stderr.strip()[-500:] or "no error output"
+        raise SandboxError(f"{display_name} exited with code {result.exit_code}: {stderr_tail}")
+
+    output_path = output_dir / OUTPUT_FILENAME
+    if not output_path.is_file():
+        raise SandboxError(f"{display_name} finished without writing results.")
+    if output_path.stat().st_size > MAX_OUTPUT_BYTES:
+        raise SandboxError(f"{display_name} output exceeds the size limit.")
+    return ToolOutput(
+        raw_output=output_path.read_bytes().decode("utf-8", "replace"),
+        exit_code=result.exit_code,
+        stderr=result.stderr,
+        duration_seconds=result.duration_seconds,
+    )
 
 
 def remove_orphaned_sandboxes() -> int:

@@ -1,0 +1,67 @@
+[
+    {
+        "cell": null,
+        "code": "B006",
+        "end_location": {
+            "column": 36,
+            "row": 53
+        },
+        "filename": "/src/api/app.py",
+        "fix": {
+            "applicability": "unsafe",
+            "edits": [
+                {
+                    "content": "None",
+                    "end_location": {
+                        "column": 36,
+                        "row": 53
+                    },
+                    "location": {
+                        "column": 34,
+                        "row": 53
+                    }
+                },
+                {
+                    "content": "    if salt is None:\n        salt = []\n",
+                    "end_location": {
+                        "column": 1,
+                        "row": 55
+                    },
+                    "location": {
+                        "column": 1,
+                        "row": 55
+                    }
+                }
+            ],
+            "message": "Replace with `None`; initialize within function"
+        },
+        "location": {
+            "column": 34,
+            "row": 53
+        },
+        "message": "Do not use mutable data structures for argument defaults",
+        "name": "mutable-argument-default",
+        "noqa_row": 53,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/mutable-argument-default"
+    },
+    {
+        "cell": null,
+        "code": "E722",
+        "end_location": {
+            "column": 11,
+            "row": 62
+        },
+        "filename": "/src/api/app.py",
+        "fix": null,
+        "location": {
+            "column": 5,
+            "row": 62
+        },
+        "message": "Do not use bare `except`",
+        "name": "bare-except",
+        "noqa_row": 62,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/bare-except"
+    }
+]

@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, Clock, LoaderCircle, type LucideIcon } from 'lucide-react'
+import { CircleCheck, CircleX, Clock, LoaderCircle, type LucideIcon, TriangleAlert } from 'lucide-react'
 import type { ScanStatus } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -6,6 +6,7 @@ const STATUS_DISPLAY: Record<ScanStatus, { label: string; icon: LucideIcon; clas
   queued: { label: 'Queued', icon: Clock, className: 'text-muted-foreground' },
   running: { label: 'Running', icon: LoaderCircle, className: 'text-blue-600 dark:text-blue-400', spin: true },
   completed: { label: 'Completed', icon: CircleCheck, className: 'text-emerald-600 dark:text-emerald-400' },
+  partial: { label: 'Partial results', icon: TriangleAlert, className: 'text-amber-700 dark:text-amber-400' },
   failed: { label: 'Failed', icon: CircleX, className: 'text-destructive' },
 }
 

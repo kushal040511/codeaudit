@@ -1,0 +1,962 @@
+{
+    "version": "1.177.0",
+    "results": [
+        {
+            "check_id": "rules.python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+            "path": "api/app.py",
+            "start": {
+                "line": 29,
+                "col": 20,
+                "offset": 567
+            },
+            "end": {
+                "line": 29,
+                "col": 76,
+                "offset": 623
+            },
+            "extra": {
+                "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as SQLAlchemy which will protect your queries.",
+                "metadata": {
+                    "cwe": [
+                        "CWE-704: Incorrect Type Conversion or Cast"
+                    ],
+                    "owasp": [
+                        "A01:2017 - Injection",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "references": [
+                        "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+                        "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+                        "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "sqlalchemy",
+                        "flask"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "impact": "MEDIUM",
+                    "likelihood": "MEDIUM",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Improper Validation"
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+                    "shortlink": "https://sg.run/JxZj"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.flask.security.injection.subprocess-injection.subprocess-injection",
+            "path": "api/app.py",
+            "start": {
+                "line": 37,
+                "col": 14,
+                "offset": 785
+            },
+            "end": {
+                "line": 37,
+                "col": 70,
+                "offset": 841
+            },
+            "extra": {
+                "message": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+                "metadata": {
+                    "category": "security",
+                    "technology": [
+                        "flask"
+                    ],
+                    "owasp": [
+                        "A01:2017 - Injection",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "cwe": [
+                        "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+                    ],
+                    "references": [
+                        "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+                    ],
+                    "confidence": "HIGH",
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Command Injection"
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.injection.subprocess-injection.subprocess-injection",
+                    "shortlink": "https://sg.run/5gW3"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+            "path": "api/app.py",
+            "start": {
+                "line": 37,
+                "col": 38,
+                "offset": 809
+            },
+            "end": {
+                "line": 37,
+                "col": 57,
+                "offset": 828
+            },
+            "extra": {
+                "message": "Detected subprocess function 'check_output' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.escape()'.",
+                "metadata": {
+                    "owasp": [
+                        "A01:2017 - Injection",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "cwe": [
+                        "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+                    ],
+                    "asvs": {
+                        "control_id": "5.3.8 OS Command Injection",
+                        "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements",
+                        "section": "V5: Validation, Sanitization and Encoding Verification Requirements",
+                        "version": "4"
+                    },
+                    "references": [
+                        "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+                        "https://docs.python.org/3/library/subprocess.html",
+                        "https://docs.python.org/3/library/shlex.html",
+                        "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "python"
+                    ],
+                    "confidence": "MEDIUM",
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "MEDIUM",
+                    "impact": "HIGH",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Command Injection"
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+                    "shortlink": "https://sg.run/NWxp"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+            "path": "api/app.py",
+            "start": {
+                "line": 37,
+                "col": 65,
+                "offset": 836
+            },
+            "end": {
+                "line": 37,
+                "col": 69,
+                "offset": 840
+            },
+            "extra": {
+                "message": "Found 'subprocess' function 'check_output' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+                "fix": "False",
+                "metadata": {
+                    "source-rule-url": "https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+                    "owasp": [
+                        "A01:2017 - Injection",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "cwe": [
+                        "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+                    ],
+                    "references": [
+                        "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+                        "https://docs.python.org/3/library/subprocess.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "python"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "secure default"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "LOW",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Command Injection"
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+                    "shortlink": "https://sg.run/J92w"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.flask.security.insecure-deserialization.insecure-deserialization",
+            "path": "api/app.py",
+            "start": {
+                "line": 44,
+                "col": 21,
+                "offset": 993
+            },
+            "end": {
+                "line": 44,
+                "col": 47,
+                "offset": 1019
+            },
+            "extra": {
+                "message": "Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vulnerabilities. Ensure user data does not enter this function. To fix this, try to avoid serializing whole objects. Consider instead using a serializer such as JSON.",
+                "metadata": {
+                    "owasp": [
+                        "A08:2017 - Insecure Deserialization",
+                        "A08:2021 - Software and Data Integrity Failures",
+                        "A08:2025 - Software or Data Integrity Failures"
+                    ],
+                    "cwe": [
+                        "CWE-502: Deserialization of Untrusted Data"
+                    ],
+                    "references": [
+                        "https://docs.python.org/3/library/pickle.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "flask"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "audit"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "MEDIUM",
+                    "confidence": "LOW",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Insecure Deserialization "
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.insecure-deserialization.insecure-deserialization",
+                    "shortlink": "https://sg.run/N45z"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.deserialization.pickle.avoid-pickle",
+            "path": "api/app.py",
+            "start": {
+                "line": 44,
+                "col": 21,
+                "offset": 993
+            },
+            "end": {
+                "line": 44,
+                "col": 47,
+                "offset": 1019
+            },
+            "extra": {
+                "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+                "metadata": {
+                    "owasp": [
+                        "A08:2017 - Insecure Deserialization",
+                        "A08:2021 - Software and Data Integrity Failures",
+                        "A08:2025 - Software or Data Integrity Failures"
+                    ],
+                    "cwe": [
+                        "CWE-502: Deserialization of Untrusted Data"
+                    ],
+                    "references": [
+                        "https://docs.python.org/3/library/pickle.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "python"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "audit"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "MEDIUM",
+                    "confidence": "LOW",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Insecure Deserialization "
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.deserialization.pickle.avoid-pickle",
+                    "shortlink": "https://sg.run/OPwB"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.flask.security.insecure-deserialization.insecure-deserialization",
+            "path": "api/app.py",
+            "start": {
+                "line": 50,
+                "col": 23,
+                "offset": 1127
+            },
+            "end": {
+                "line": 50,
+                "col": 66,
+                "offset": 1170
+            },
+            "extra": {
+                "message": "Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vulnerabilities. Ensure user data does not enter this function. To fix this, try to avoid serializing whole objects. Consider instead using a serializer such as JSON.",
+                "metadata": {
+                    "owasp": [
+                        "A08:2017 - Insecure Deserialization",
+                        "A08:2021 - Software and Data Integrity Failures",
+                        "A08:2025 - Software or Data Integrity Failures"
+                    ],
+                    "cwe": [
+                        "CWE-502: Deserialization of Untrusted Data"
+                    ],
+                    "references": [
+                        "https://docs.python.org/3/library/pickle.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "flask"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "audit"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "MEDIUM",
+                    "confidence": "LOW",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Insecure Deserialization "
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.insecure-deserialization.insecure-deserialization",
+                    "shortlink": "https://sg.run/N45z"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.deserialization.avoid-pyyaml-load.avoid-pyyaml-load",
+            "path": "api/app.py",
+            "start": {
+                "line": 50,
+                "col": 23,
+                "offset": 1127
+            },
+            "end": {
+                "line": 50,
+                "col": 66,
+                "offset": 1170
+            },
+            "extra": {
+                "message": "Detected a possible YAML deserialization vulnerability. `yaml.unsafe_load`, `yaml.Loader`, `yaml.CLoader`, and `yaml.UnsafeLoader` are all known to be unsafe methods of deserializing YAML. An attacker with control over the YAML input could create special YAML input that allows the attacker to run arbitrary Python code. This would allow the attacker to steal files, download and install malware, or otherwise take over the machine. Use `yaml.safe_load` or `yaml.SafeLoader` instead.",
+                "fix": "yaml.load(request.data, Loader=yaml.Loader)",
+                "metadata": {
+                    "owasp": [
+                        "A08:2017 - Insecure Deserialization",
+                        "A08:2021 - Software and Data Integrity Failures",
+                        "A08:2025 - Software or Data Integrity Failures"
+                    ],
+                    "cwe": [
+                        "CWE-502: Deserialization of Untrusted Data"
+                    ],
+                    "references": [
+                        "https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation",
+                        "https://nvd.nist.gov/vuln/detail/CVE-2017-18342"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "pyyaml"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "audit"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "MEDIUM",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Insecure Deserialization "
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.deserialization.avoid-pyyaml-load.avoid-pyyaml-load",
+                    "shortlink": "https://sg.run/we9Y"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+            "path": "api/app.py",
+            "start": {
+                "line": 56,
+                "col": 12,
+                "offset": 1296
+            },
+            "end": {
+                "line": 56,
+                "col": 42,
+                "offset": 1326
+            },
+            "extra": {
+                "message": "Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is therefore not suitable as a cryptographic signature. Use SHA256 or SHA3 instead.",
+                "metadata": {
+                    "source-rule-url": "https://github.com/PyCQA/bandit/blob/d5f8fa0d89d7b11442fc6ec80ca42953974354c8/bandit/blacklists/calls.py#L59",
+                    "cwe": [
+                        "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+                    ],
+                    "owasp": [
+                        "A03:2017 - Sensitive Data Exposure",
+                        "A02:2021 - Cryptographic Failures",
+                        "A04:2025 - Cryptographic Failures"
+                    ],
+                    "bandit-code": "B303",
+                    "asvs": {
+                        "control_id": "6.2.2 Insecure Custom Algorithm",
+                        "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x14-V6-Cryptography.md#v62-algorithms",
+                        "section": "V6 Stored Cryptography Verification Requirements",
+                        "version": "4"
+                    },
+                    "references": [
+                        "https://www.schneier.com/blog/archives/2012/10/when_will_we_se.html",
+                        "https://www.trendmicro.com/vinfo/us/security/news/vulnerabilities-and-exploits/sha-1-collision-signals-the-end-of-the-algorithm-s-viability",
+                        "http://2012.sharcs.org/slides/stevens.pdf",
+                        "https://pycryptodome.readthedocs.io/en/latest/src/hash/sha3_256.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "python"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "MEDIUM",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Cryptographic Issues"
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5",
+                    "shortlink": "https://sg.run/vYrY"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.lang.security.audit.md5-used-as-password.md5-used-as-password",
+            "path": "api/app.py",
+            "start": {
+                "line": 56,
+                "col": 12,
+                "offset": 1296
+            },
+            "end": {
+                "line": 56,
+                "col": 54,
+                "offset": 1338
+            },
+            "extra": {
+                "message": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.",
+                "metadata": {
+                    "cwe": [
+                        "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+                    ],
+                    "owasp": [
+                        "A03:2017 - Sensitive Data Exposure",
+                        "A02:2021 - Cryptographic Failures",
+                        "A04:2025 - Cryptographic Failures"
+                    ],
+                    "references": [
+                        "https://tools.ietf.org/html/rfc6151",
+                        "https://crypto.stackexchange.com/questions/44151/how-does-the-flame-malware-take-advantage-of-md5-collision",
+                        "https://pycryptodome.readthedocs.io/en/latest/src/hash/sha3_256.html",
+                        "https://security.stackexchange.com/questions/211/how-to-securely-hash-passwords",
+                        "https://github.com/returntocorp/semgrep-rules/issues/1609",
+                        "https://docs.python.org/3/library/hashlib.html#hashlib.scrypt"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "pycryptodome",
+                        "hashlib",
+                        "md5"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "LOW",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Cryptographic Issues"
+                    ],
+                    "source": "https://semgrep.dev/r/python.lang.security.audit.md5-used-as-password.md5-used-as-password",
+                    "shortlink": "https://sg.run/5DwD"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
+            "path": "api/app.py",
+            "start": {
+                "line": 67,
+                "col": 5,
+                "offset": 1451
+            },
+            "end": {
+                "line": 67,
+                "col": 40,
+                "offset": 1486
+            },
+            "extra": {
+                "message": "Running flask app with host 0.0.0.0 could expose the server publicly.",
+                "metadata": {
+                    "cwe": [
+                        "CWE-668: Exposure of Resource to Wrong Sphere"
+                    ],
+                    "owasp": [
+                        "A01:2021 - Broken Access Control",
+                        "A01:2025 - Broken Access Control"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "flask"
+                    ],
+                    "references": [
+                        "https://owasp.org/Top10/A01_2021-Broken_Access_Control"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "MEDIUM",
+                    "confidence": "HIGH",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Other"
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host",
+                    "shortlink": "https://sg.run/eLby"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.python.flask.security.audit.debug-enabled.debug-enabled",
+            "path": "api/app.py",
+            "start": {
+                "line": 67,
+                "col": 5,
+                "offset": 1451
+            },
+            "end": {
+                "line": 67,
+                "col": 40,
+                "offset": 1486
+            },
+            "extra": {
+                "message": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.",
+                "metadata": {
+                    "cwe": [
+                        "CWE-489: Active Debug Code"
+                    ],
+                    "owasp": "A06:2017 - Security Misconfiguration",
+                    "references": [
+                        "https://labs.detectify.com/2015/10/02/how-patreon-got-hacked-publicly-exposed-werkzeug-debugger/"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "flask"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "MEDIUM",
+                    "confidence": "HIGH",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Active Debug Code"
+                    ],
+                    "source": "https://semgrep.dev/r/python.flask.security.audit.debug-enabled.debug-enabled",
+                    "shortlink": "https://sg.run/dKrd"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.javascript.lang.security.detect-child-process.detect-child-process",
+            "path": "web/server.js",
+            "start": {
+                "line": 14,
+                "col": 8,
+                "offset": 393
+            },
+            "end": {
+                "line": 14,
+                "col": 29,
+                "offset": 414
+            },
+            "extra": {
+                "message": "Detected calls to child_process from a function argument `req`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. ",
+                "metadata": {
+                    "cwe": [
+                        "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+                    ],
+                    "owasp": [
+                        "A01:2017 - Injection",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "references": [
+                        "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html#do-not-use-dangerous-functions"
+                    ],
+                    "source-rule-url": "https://github.com/nodesecurity/eslint-plugin-security/blob/master/rules/detect-child-process.js",
+                    "category": "security",
+                    "technology": [
+                        "javascript"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "audit"
+                    ],
+                    "likelihood": "LOW",
+                    "impact": "HIGH",
+                    "confidence": "LOW",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Command Injection"
+                    ],
+                    "source": "https://semgrep.dev/r/javascript.lang.security.detect-child-process.detect-child-process",
+                    "shortlink": "https://sg.run/l2lo"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.javascript.lang.security.audit.code-string-concat.code-string-concat",
+            "path": "web/server.js",
+            "start": {
+                "line": 19,
+                "col": 22,
+                "offset": 530
+            },
+            "end": {
+                "line": 19,
+                "col": 47,
+                "offset": 555
+            },
+            "extra": {
+                "message": "Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.",
+                "metadata": {
+                    "interfile": true,
+                    "confidence": "HIGH",
+                    "owasp": [
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "cwe": [
+                        "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+                    ],
+                    "references": [
+                        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval",
+                        "https://nodejs.org/api/child_process.html#child_processexeccommand-options-callback",
+                        "https://www.stackhawk.com/blog/nodejs-command-injection-examples-and-prevention/",
+                        "https://ckarande.gitbooks.io/owasp-nodegoat-tutorial/content/tutorial/a1_-_server_side_js_injection.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "node.js",
+                        "Express",
+                        "Next.js"
+                    ],
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "MEDIUM",
+                    "impact": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Code Injection"
+                    ],
+                    "source": "https://semgrep.dev/r/javascript.lang.security.audit.code-string-concat.code-string-concat",
+                    "shortlink": "https://sg.run/96Yk"
+                },
+                "severity": "ERROR",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.javascript.express.security.injection.raw-html-format.raw-html-format",
+            "path": "web/server.js",
+            "start": {
+                "line": 24,
+                "col": 12,
+                "offset": 627
+            },
+            "end": {
+                "line": 24,
+                "col": 41,
+                "offset": 656
+            },
+            "extra": {
+                "message": "User data flows into the host portion of this manually-constructed HTML. This can introduce a Cross-Site-Scripting (XSS) vulnerability if this comes from user-provided input. Consider using a sanitization library such as DOMPurify to sanitize the HTML within.",
+                "metadata": {
+                    "cwe": [
+                        "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+                    ],
+                    "owasp": [
+                        "A07:2017 - Cross-Site Scripting (XSS)",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "references": [
+                        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "express"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "HIGH",
+                    "impact": "MEDIUM",
+                    "confidence": "MEDIUM",
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "vulnerability_class": [
+                        "Cross-Site-Scripting (XSS)"
+                    ],
+                    "source": "https://semgrep.dev/r/javascript.express.security.injection.raw-html-format.raw-html-format",
+                    "shortlink": "https://sg.run/5DO3"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        },
+        {
+            "check_id": "rules.javascript.express.security.audit.xss.direct-response-write.direct-response-write",
+            "path": "web/server.js",
+            "start": {
+                "line": 24,
+                "col": 12,
+                "offset": 627
+            },
+            "end": {
+                "line": 24,
+                "col": 51,
+                "offset": 666
+            },
+            "extra": {
+                "message": "Detected directly writing to a Response object from user-defined input. This bypasses any HTML escaping and may expose your application to a Cross-Site-scripting (XSS) vulnerability. Instead, use 'resp.render()' to render safely escaped HTML.",
+                "metadata": {
+                    "interfile": true,
+                    "references": [
+                        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+                    ],
+                    "owasp": [
+                        "A07:2017 - Cross-Site Scripting (XSS)",
+                        "A03:2021 - Injection",
+                        "A05:2025 - Injection"
+                    ],
+                    "cwe": [
+                        "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+                    ],
+                    "category": "security",
+                    "technology": [
+                        "express"
+                    ],
+                    "cwe2022-top25": true,
+                    "cwe2021-top25": true,
+                    "subcategory": [
+                        "vuln"
+                    ],
+                    "likelihood": "MEDIUM",
+                    "impact": "MEDIUM",
+                    "confidence": "MEDIUM",
+                    "vulnerability_class": [
+                        "Cross-Site-Scripting (XSS)"
+                    ],
+                    "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+                    "source": "https://semgrep.dev/r/javascript.express.security.audit.xss.direct-response-write.direct-response-write",
+                    "shortlink": "https://sg.run/vzGl"
+                },
+                "severity": "WARNING",
+                "fingerprint": "requires login",
+                "lines": "requires login",
+                "validation_state": "NO_VALIDATOR",
+                "engine_kind": "OSS"
+            }
+        }
+    ],
+    "errors": [],
+    "paths": {
+        "scanned": [
+            "README.md",
+            "api/app.py",
+            "api/requirements.txt",
+            "web/package-lock.json",
+            "web/package.json",
+            "web/server.js"
+        ]
+    },
+    "time": {
+        "rules": [],
+        "rules_parse_time": 0.10429096221923828,
+        "profiling_times": {
+            "config_time": 0.8232645988464355,
+            "core_time": 0.3542823791503906,
+            "ignores_time": 0.0003063678741455078,
+            "total_time": 1.1861755847930908
+        },
+        "parsing_time": {
+            "total_time": 0.0,
+            "per_file_time": {
+                "mean": 0.0,
+                "std_dev": 0.0
+            },
+            "very_slow_stats": {
+                "time_ratio": 0.0,
+                "count_ratio": 0.0
+            },
+            "very_slow_files": []
+        },
+        "scanning_time": {
+            "total_time": 0.07481932640075684,
+            "per_file_time": {
+                "mean": 0.004676207900047302,
+                "std_dev": 0.00013799532814551263
+            },
+            "very_slow_stats": {
+                "time_ratio": 0.0,
+                "count_ratio": 0.0
+            },
+            "very_slow_files": []
+        },
+        "matching_time": {
+            "total_time": 0.0,
+            "per_file_and_rule_time": {
+                "mean": 0.0,
+                "std_dev": 0.0
+            },
+            "very_slow_stats": {
+                "time_ratio": 0.0,
+                "count_ratio": 0.0
+            },
+            "very_slow_rules_on_files": []
+        },
+        "tainting_time": {
+            "total_time": 0.0,
+            "per_def_and_rule_time": {
+                "mean": 0.0,
+                "std_dev": 0.0
+            },
+            "very_slow_stats": {
+                "time_ratio": 0.0,
+                "count_ratio": 0.0
+            },
+            "very_slow_rules_on_defs": []
+        },
+        "fixpoint_timeouts": [],
+        "prefiltering": {
+            "project_level_time": 0.0,
+            "file_level_time": 0.0,
+            "rules_with_project_prefilters_ratio": 0.0,
+            "rules_with_file_prefilters_ratio": 0.9880715705765407,
+            "rules_selected_ratio": 0.08946322067594434,
+            "rules_matched_ratio": 0.08946322067594434
+        },
+        "targets": [],
+        "total_bytes": 0,
+        "max_memory_bytes": 418215296
+    },
+    "engine_requested": "OSS",
+    "skipped_rules": [],
+    "profiling_results": []
+}

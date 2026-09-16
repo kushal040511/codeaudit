@@ -71,6 +71,28 @@ class Settings(BaseSettings):
     semgrep_cpus: float = 2.0
     semgrep_rules_max_age_hours: int = 24
 
+    # --- Analyzers ---
+    # Analyzers of one scan run concurrently, each in its own sandbox container.
+    analyzer_max_workers: int = 4
+    # No version tags are published for this image; pinned by digest (bandit 1.9.4).
+    bandit_image: str = (
+        "ghcr.io/pycqa/bandit/bandit"
+        "@sha256:67e9ecb7cfa64a398b59f125d27a193a13679affc79edf6bcb95f05cb82d2600"
+    )
+    bandit_timeout_seconds: int = 180
+    bandit_memory_limit: str = "1g"
+    bandit_cpus: float = 1.0
+    ruff_image: str = "ghcr.io/astral-sh/ruff:0.16.7"
+    ruff_timeout_seconds: int = 120
+    ruff_memory_limit: str = "512m"
+    ruff_cpus: float = 1.0
+    osv_scanner_image: str = "ghcr.io/google/osv-scanner:v2.5.1"
+    osv_scanner_timeout_seconds: int = 300
+    osv_scanner_memory_limit: str = "2g"
+    osv_scanner_cpus: float = 1.0
+    # Offline vulnerability databases are fetched by the worker and cached.
+    osv_db_max_age_hours: int = 24
+
     @property
     def max_upload_bytes(self) -> int:
         return self.max_upload_size_mb * MB

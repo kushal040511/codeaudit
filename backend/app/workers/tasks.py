@@ -7,14 +7,15 @@ from typing import Any
 from celery import Task
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.signals import worker_ready
+from sqlalchemy import update
 from sqlalchemy.exc import InterfaceError, OperationalError, SQLAlchemyError
 
 from app.config import get_settings
 from app.core.celery_app import celery_app
 from app.core.db import SessionLocal
 from app.core.errors import AnalysisError, TransientInfraError
-from app.models import Scan, ScanStatus
-from app.services.sandbox import SandboxUnavailableError, remove_orphaned_sandboxes
+from app.models import AnalyzerRun, AnalyzerRunStatus, Scan, ScanStatus
+from app.services.analyzers.sandbox import SandboxUnavailableError, remove_orphaned_sandboxes
 from app.services.scan_pipeline import (
     create_workspace,
     remove_stale_workspaces,
@@ -26,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Retried with backoff. Analysis failures (bad archive, semgrep crash or timeout)
-# are deliberately not in this list: retrying them only burns resources.
+# Retried with backoff. Analysis failures (bad archive, every analyzer crashed or
+# timed out) are deliberately not in this list: retrying them only burns resources.
+# A single failing analyzer never reaches here; the scan is marked partial.
 TRANSIENT_ERRORS: tuple[type[Exception], ...] = (
     TransientInfraError,
     OperationalError,
@@ -54,6 +56,19 @@ def _set_status(scan_id: uuid.UUID, status: ScanStatus, error_message: str | Non
             scan.error_message = error_message[:MAX_ERROR_MESSAGE_CHARS] if error_message else None
             if status is ScanStatus.FAILED:
                 scan.completed_at = utcnow()
+                # Analyzers still marked running will never report back.
+                db.execute(
+                    update(AnalyzerRun)
+                    .where(
+                        AnalyzerRun.scan_id == scan_id,
+                        AnalyzerRun.status == AnalyzerRunStatus.RUNNING,
+                    )
+                    .values(
+                        status=AnalyzerRunStatus.FAILED,
+                        error_message="The scan stopped before this analyzer finished.",
+                        completed_at=utcnow(),
+                    )
+                )
             db.commit()
     except SQLAlchemyError:
         logger.exception("could not record status %s for scan %s", status, scan_id)
@@ -63,9 +78,11 @@ def _set_status(scan_id: uuid.UUID, status: ScanStatus, error_message: str | Non
 def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
     """Download, extract, analyze and persist one scan.
 
-    Transient infrastructure errors are retried (max `scan_max_retries`). Every
-    other failure marks the scan failed with a message. The workspace is always
-    removed, and sandbox containers are removed by the sandbox runner itself.
+    Analyzers run concurrently and fail independently (the scan is then `partial`).
+    Transient infrastructure errors that stop the whole scan are retried (max
+    `scan_max_retries`). Every other failure marks the scan failed with a message.
+    The workspace is always removed, and sandbox containers are removed by the
+    sandbox runner itself.
     """
     scan_uuid = uuid.UUID(scan_id)
     workdir: Path | None = None
@@ -75,7 +92,7 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
             if scan is None:
                 logger.warning("scan %s no longer exists; skipping", scan_id)
                 return {"scan_id": scan_id, "status": "missing"}
-            if scan.status is ScanStatus.COMPLETED:
+            if scan.status in (ScanStatus.COMPLETED, ScanStatus.PARTIAL):
                 # Redelivery after a worker restart (acks_late): nothing to do.
                 return {"scan_id": scan_id, "status": scan.status.value}
 
@@ -86,10 +103,18 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
             db.commit()
 
             workdir = create_workspace(scan_uuid)
-            finding_count = run_pipeline(db, scan, workdir)
+            outcome = run_pipeline(db, scan, workdir)
 
-        logger.info("scan %s completed with %d findings", scan_id, finding_count)
-        return {"scan_id": scan_id, "status": "completed", "findings": finding_count}
+        return {
+            "scan_id": scan_id,
+            "status": outcome.status.value,
+            "findings": outcome.findings_after_dedup,
+            "findings_before_dedup": outcome.findings_before_dedup,
+            "analyzers": {
+                r.analyzer: "ok" if r.success else ("timed_out" if r.timed_out else "failed")
+                for r in outcome.results
+            },
+        }
 
     except TRANSIENT_ERRORS as exc:
         attempt = self.request.retries
