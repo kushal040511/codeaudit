@@ -20,7 +20,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.core.errors import AnalysisError, TransientInfraError
 from app.core.storage import download_file
-from app.models import AnalyzerRun, AnalyzerRunStatus, Finding, Scan, ScanStatus
+from app.models import (
+    AnalyzerRun,
+    AnalyzerRunStatus,
+    EnrichmentStatus,
+    Finding,
+    Scan,
+    ScanStatus,
+)
 from app.services.analyzers.base import AnalyzerResult, FindingData, ScanContext
 from app.services.analyzers.dedup import deduplicate
 from app.services.analyzers.orchestrator import run_analyzers
@@ -30,6 +37,7 @@ from app.services.archive import archive_limits_from_settings, safe_extract
 from app.services.graph.analysis import ArchitectureReport
 from app.services.graph.persistence import delete_architecture, persist_architecture
 from app.services.languages import DetectedLanguage, detect_languages
+from app.services.llm.client import llm_configured
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +82,18 @@ def remove_stale_workspaces(max_age_seconds: float) -> int:
     return removed
 
 
+def extract_source(scan: Scan, workdir: Path) -> Path:
+    """Download the scan's archive into `workdir` and safely extract it. Returns the source dir."""
+    settings = get_settings()
+    archive_path = workdir / "source.zip"
+    source_dir = workdir / "src"
+    download_file(scan.storage_key, archive_path)
+    summary = safe_extract(archive_path, source_dir, archive_limits_from_settings(settings))
+    archive_path.unlink()
+    logger.info("extracted scan %s: %d files", scan.id, summary.file_count)
+    return source_dir
+
+
 def run_pipeline(
     db: Session,
     scan: Scan,
@@ -84,15 +104,7 @@ def run_pipeline(
 
     Raises AnalysisError / TransientInfraError when the scan as a whole fails.
     """
-    settings = get_settings()
-    archive_path = workdir / "source.zip"
-    source_dir = workdir / "src"
-
-    download_file(scan.storage_key, archive_path)
-    summary = safe_extract(archive_path, source_dir, archive_limits_from_settings(settings))
-    archive_path.unlink()
-    logger.info("extracted scan %s: %d files", scan.id, summary.file_count)
-
+    source_dir = extract_source(scan, workdir)
     languages = detect_languages(source_dir)
     scan.detected_languages = [lang.to_dict() for lang in languages]
     db.commit()
@@ -181,7 +193,13 @@ def analyze_and_persist(
     architecture = next(
         (r.artifact for r in succeeded if isinstance(r.artifact, ArchitectureReport)), None
     )
-    persist_results(db, scan, unique, status, architecture)
+    # With LLM enrichment to come, findings are readable now but the scan isn't final.
+    skip_reason = llm_configured()
+    scan.analysis_partial = bool(failed)
+    scan.enrichment_status = EnrichmentStatus.SKIPPED if skip_reason else EnrichmentStatus.PENDING
+    scan.enrichment_error = skip_reason
+    stored_status = status if skip_reason else ScanStatus.ANALYSIS_COMPLETE
+    persist_results(db, scan, unique, stored_status, architecture)
     logger.info(
         "scan %s %s: %d/%d analyzers succeeded, %d findings (%d before dedup)",
         scan.id,

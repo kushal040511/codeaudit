@@ -12,7 +12,10 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo } from 'react'
 import { type ModuleFlowNode, ModuleNode } from '@/components/architecture/ModuleNode'
 import { layoutGraph } from '@/lib/architecture'
-import type { ArchitectureGraph, GraphIssueRef } from '@/lib/api'
+import type { ArchitectureGraph } from '@/lib/api'
+
+/** Nodes and edges to emphasise; everything else is dimmed. */
+export type GraphHighlight = { node_ids: string[]; edge_ids: string[] }
 
 const nodeTypes = { module: ModuleNode }
 const PROBLEM_COLOR = '#dc2626'
@@ -20,18 +23,18 @@ const EDGE_COLOR = '#94a3b8'
 
 type Props = {
   graph: ArchitectureGraph
-  highlightedIssue: GraphIssueRef | null
+  highlight: GraphHighlight | null
   selectedNodeId: string | null
   onNodeClick: (nodeId: string) => void
 }
 
-function GraphCanvas({ graph, highlightedIssue, selectedNodeId, onNodeClick }: Props) {
+function GraphCanvas({ graph, highlight, selectedNodeId, onNodeClick }: Props) {
   const { fitView } = useReactFlow()
   const positions = useMemo(() => layoutGraph(graph.nodes, graph.edges), [graph.nodes, graph.edges])
 
-  const highlightNodes = useMemo(() => new Set(highlightedIssue?.node_ids ?? []), [highlightedIssue])
-  const highlightEdges = useMemo(() => new Set(highlightedIssue?.edge_ids ?? []), [highlightedIssue])
-  const highlighting = highlightedIssue !== null
+  const highlightNodes = useMemo(() => new Set(highlight?.node_ids ?? []), [highlight])
+  const highlightEdges = useMemo(() => new Set(highlight?.edge_ids ?? []), [highlight])
+  const highlighting = highlight !== null
 
   const nodes: ModuleFlowNode[] = useMemo(
     () =>
@@ -85,11 +88,11 @@ function GraphCanvas({ graph, highlightedIssue, selectedNodeId, onNodeClick }: P
     return () => cancelAnimationFrame(frame)
   }, [positions, fitView])
 
-  // Bring a highlighted issue into view.
+  // Bring highlighted nodes into view.
   useEffect(() => {
-    if (!highlightedIssue?.node_ids.length) return
-    fitView({ nodes: highlightedIssue.node_ids.map((id) => ({ id })), padding: 0.4, duration: 300, maxZoom: 1.2 })
-  }, [highlightedIssue, fitView])
+    if (!highlight?.node_ids.length) return
+    fitView({ nodes: highlight.node_ids.map((id) => ({ id })), padding: 0.4, duration: 300, maxZoom: 1.2 })
+  }, [highlight, fitView])
 
   return (
     <ReactFlow

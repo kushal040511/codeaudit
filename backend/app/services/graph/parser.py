@@ -102,7 +102,7 @@ class ParsedModule:
 
 
 @cache
-def _language(grammar: str) -> Language:
+def grammar_language(grammar: str) -> Language:
     if grammar == "python":
         return Language(tree_sitter_python.language())
     if grammar == "javascript":
@@ -184,7 +184,7 @@ def parse_file(root: Path, rel_path: str) -> ParsedModule:
 
     module.loc = _count_loc(source)
     try:
-        tree = Parser(_language(grammar)).parse(source)
+        tree = Parser(grammar_language(grammar)).parse(source)
         if tree.root_node.has_error:
             line = _first_error_line(tree.root_node)
             # Invalid code, or syntax the grammar doesn't support yet.

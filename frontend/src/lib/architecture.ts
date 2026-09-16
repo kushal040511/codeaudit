@@ -1,5 +1,5 @@
 import dagre from '@dagrejs/dagre'
-import type { ArchitectureIssueType, GraphEdge, GraphNode } from '@/lib/api'
+import type { ArchitectureGraph, ArchitectureIssueType, GraphEdge, GraphNode } from '@/lib/api'
 
 export const ISSUE_TYPE_LABELS: Record<ArchitectureIssueType, string> = {
   circular_dependency: 'Circular dependencies',
@@ -98,4 +98,33 @@ export function directoryOf(path: string): string {
 
 export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(value >= 0.995 || value === 0 ? 0 : 1)}%`
+}
+
+export type Highlight = { key: string; node_ids: string[]; edge_ids: string[] }
+
+/** Map a cited module, directory or import onto the nodes/edges currently in view. */
+export function citationHighlight(evidence: string, graph: ArchitectureGraph): Highlight {
+  const nodeFor = (reference: string): string[] => {
+    const ref = reference.trim().replace(/^[`'"]|[`'"]$/g, '').replace(/^\.\//, '').replace(/\/$/, '')
+    const exact = graph.nodes.find((n) => n.kind === 'module' && (n.path === ref || n.id === ref))
+    if (exact) return [exact.id]
+    // Inside an aggregated directory node (the deepest one containing it).
+    const containing = graph.nodes
+      .filter((n) => n.kind === 'directory' && (ref === n.path || ref.startsWith(`${n.path}/`)))
+      .sort((a, b) => b.path.length - a.path.length)[0]
+    if (containing) return [containing.id]
+    // A directory citation shown at module level: everything under it.
+    return graph.nodes.filter((n) => n.path.startsWith(`${ref}/`)).map((n) => n.id)
+  }
+  const sides = evidence.split(/\s*(?:->|→|=>)\s*/).map(nodeFor)
+  const edgeIds: string[] = []
+  for (let i = 0; i + 1 < sides.length; i++) {
+    for (const source of sides[i]) {
+      for (const target of sides[i + 1]) {
+        const edge = graph.edges.find((e) => e.source === source && e.target === target)
+        if (edge) edgeIds.push(edge.id)
+      }
+    }
+  }
+  return { key: `citation:${evidence}`, node_ids: [...new Set(sides.flat())], edge_ids: edgeIds }
 }

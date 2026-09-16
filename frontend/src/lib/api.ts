@@ -15,12 +15,18 @@ export type Severity = 'info' | 'warning' | 'error' | 'critical'
 /** Most severe first. */
 export const SEVERITIES: readonly Severity[] = ['critical', 'error', 'warning', 'info']
 
-/** `partial`: finished, but at least one analyzer failed or timed out. Not a clean result. */
-export type ScanStatus = 'queued' | 'running' | 'completed' | 'partial' | 'failed'
+/**
+ * `analysis_complete` / `enriching`: findings are ready, LLM suggestions are still coming.
+ * `partial`: finished, but at least one analyzer failed or timed out. Not a clean result.
+ */
+export type ScanStatus = 'queued' | 'running' | 'analysis_complete' | 'enriching' | 'completed' | 'partial' | 'failed'
 export const isTerminalStatus = (status: ScanStatus) =>
   status === 'completed' || status === 'partial' || status === 'failed'
-/** The scan produced findings to show (possibly incomplete). */
-export const hasResults = (status: ScanStatus) => status === 'completed' || status === 'partial'
+/** The scan produced findings to show (possibly incomplete, possibly still being enriched). */
+export const hasResults = (status: ScanStatus) =>
+  status === 'analysis_complete' || status === 'enriching' || status === 'completed' || status === 'partial'
+
+export type EnrichmentStatus = 'pending' | 'running' | 'completed' | 'partial' | 'failed' | 'skipped'
 
 export type AnalyzerRunStatus = 'running' | 'completed' | 'failed' | 'timed_out' | 'skipped'
 
@@ -59,6 +65,17 @@ export type Scan = {
   findings_before_dedup: number
   analyzer_runs: AnalyzerRun[]
   analyzer_summary: AnalyzerSummary
+  enrichment_status: EnrichmentStatus | null
+  enrichment_error: string | null
+  llm_usage: LlmUsageSummary
+}
+
+export type LlmUsageSummary = {
+  tokens: number
+  cost_usd: number
+  calls: number
+  fix_suggestions: number
+  valid_fix_suggestions: number
 }
 
 export type ScanCreated = { scan_id: string; status: ScanStatus }
@@ -97,6 +114,82 @@ export type Finding = {
   corroborated_by: string[]
   merged_from: MergedFinding[]
   dependency: DependencyInfo | null
+  fix_status: FixStatus | null
+  fix_validation_status: ValidationStatus | null
+}
+
+// ---------- LLM enrichment ----------
+
+export type FixStatus = 'generating' | 'ready' | 'failed'
+export type ValidationStatus = 'valid' | 'failed_to_apply' | 'syntax_error' | 'no_patch' | 'not_validated'
+
+export type FileChange = { path: string; start_line: number; original: string; patched: string }
+
+export type FixSuggestion = {
+  finding_id: number
+  status: FixStatus
+  validation_status: ValidationStatus
+  /** True only if the patch applies cleanly to the scanned code and the result parses. */
+  patch_verified: boolean
+  validation_detail: string | null
+  explanation: string | null
+  confidence: 'high' | 'medium' | 'low' | null
+  /** Present only when verified. */
+  patch: string | null
+  /** The unverified patch, for transparency. Never offer it as a fix. */
+  rejected_patch: string | null
+  breaking_risk: 'none' | 'low' | 'high' | null
+  test_suggestion: string | null
+  file_changes: FileChange[]
+  shared_with_finding_ids: number[]
+  user_hint: string | null
+  version: number
+  model: string | null
+  error_message: string | null
+  updated_at: string
+}
+
+export type ReviewIssue = {
+  title: string
+  severity: string
+  evidence: string[]
+  why_it_matters: string
+  refactor_steps: string[]
+  rejected_evidence: { evidence: string; reason: string }[]
+  unverified_mentions: string[]
+}
+
+export type ArchitectureReview = {
+  status: 'ready' | 'failed'
+  summary: string | null
+  strengths: string[]
+  issues: ReviewIssue[]
+  dropped_issues: ReviewIssue[]
+  suggested_target_structure: string | null
+  citations_total: number
+  citations_invalid: number
+  hallucination_rate: number | null
+  model: string | null
+  error_message: string | null
+  created_at: string
+}
+
+export type LlmPurpose = 'fix_suggestion' | 'fix_regeneration' | 'architecture_review'
+
+export type LlmUsage = {
+  enrichment_status: EnrichmentStatus | null
+  enrichment_error: string | null
+  model: string | null
+  token_budget: number
+  tokens_used: number
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number
+  calls: number
+  failed_calls: number
+  total_duration_ms: number
+  pricing_note: string
+  by_purpose: { purpose: LlmPurpose; calls: number; failed_calls: number; input_tokens: number; output_tokens: number; cost_usd: number }[]
 }
 
 export type FindingPage = { items: Finding[]; total: number; page: number; page_size: number }
@@ -335,6 +428,26 @@ export function getFindings(scanId: string, query: FindingsQuery = {}): Promise<
       },
     }),
   )
+}
+
+export function getFix(scanId: string, findingId: number): Promise<FixSuggestion> {
+  return request(() => api.get<FixSuggestion>(`/scans/${encodeURIComponent(scanId)}/findings/${findingId}/fix`))
+}
+
+export function regenerateFix(scanId: string, findingId: number, hint?: string): Promise<FixSuggestion> {
+  return request(() =>
+    api.post<FixSuggestion>(`/scans/${encodeURIComponent(scanId)}/findings/${findingId}/fix/regenerate`, {
+      hint: hint?.trim() || null,
+    }),
+  )
+}
+
+export function getArchitectureReview(scanId: string): Promise<ArchitectureReview> {
+  return request(() => api.get<ArchitectureReview>(`/scans/${encodeURIComponent(scanId)}/architecture-review`))
+}
+
+export function getLlmUsage(scanId: string): Promise<LlmUsage> {
+  return request(() => api.get<LlmUsage>(`/scans/${encodeURIComponent(scanId)}/llm-usage`))
 }
 
 export type GraphQuery = { maxNodes?: number; expand?: string[]; collapse?: string[] }

@@ -45,9 +45,27 @@ class Settings(BaseSettings):
     s3_secret_access_key: SecretStr = SecretStr("codeaudit-secret")
     s3_bucket_uploads: str = "codeaudit-uploads"
 
-    # --- LLM ---
+    # --- LLM (fix suggestions, architecture review) ---
     anthropic_api_key: SecretStr | None = None
-    anthropic_model: str = "claude-opus-5"
+    anthropic_model: str = "claude-sonnet-4-6"
+    # Master switch; the stage is also skipped when no API key is configured.
+    llm_enabled: bool = True
+    # Hard ceiling on input + output tokens across all calls for one scan. A call that
+    # could exceed it (counted input + max output) is refused, not sent.
+    llm_token_budget_per_scan: int = 400_000
+    llm_max_output_tokens: int = 16_000
+    # Adaptive thinking effort: low | medium | high | max (Sonnet 4.6).
+    llm_effort: str = "medium"
+    llm_timeout_seconds: float = 180.0
+    llm_max_retries: int = 4  # rate limits, overload, 5xx, connection errors
+    llm_retry_max_delay_seconds: float = 60.0
+    # Findings that get fix suggestions (highest priority first) and the most
+    # similar findings sent together in one request.
+    llm_max_fix_findings: int = 20
+    llm_max_findings_per_request: int = 5
+    llm_context_lines: int = 20
+    # Hard limit for the enrichment task (download, fixes, review).
+    llm_task_timeout_seconds: int = 1800
 
     # --- Uploads ---
     max_upload_size_mb: int = 50

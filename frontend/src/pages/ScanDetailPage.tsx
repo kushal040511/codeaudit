@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
 import { Link, useParams } from 'react-router'
+import { EnrichmentCard } from '@/components/llm/EnrichmentCard'
 import { AnalyzerStatusPanel } from '@/components/scans/AnalyzerStatusPanel'
 import { FindingsTable } from '@/components/scans/FindingsTable'
 import { StatusIndicator } from '@/components/scans/StatusIndicator'
@@ -140,6 +141,8 @@ export function ScanDetailPage() {
 
       <AnalyzerStatusPanel scan={scan} />
 
+      <EnrichmentCard scan={scan} />
+
       {hasResults(scan.status) && <ResultTabs scan={scan} />}
     </div>
   )
@@ -162,7 +165,14 @@ function ResultTabs({ scan }: { scan: Scan }) {
       <TabsContent value="architecture">
         {graphAvailable ? (
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading architecture view…</p>}>
-            <ArchitectureTab scanId={scan.id} />
+            <ArchitectureTab
+              scanId={scan.id}
+              enrichmentNote={
+                scan.enrichment_status === 'running' || scan.enrichment_status === 'pending'
+                  ? 'It is still being generated.'
+                  : (scan.enrichment_error ?? '')
+              }
+            />
           </Suspense>
         ) : (
           <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">

@@ -7,6 +7,7 @@ from typing import Any
 from celery import Task
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.signals import worker_ready
+from kombu.exceptions import OperationalError as BrokerError
 from sqlalchemy import update
 from sqlalchemy.exc import InterfaceError, OperationalError, SQLAlchemyError
 
@@ -14,10 +15,25 @@ from app.config import get_settings
 from app.core.celery_app import celery_app
 from app.core.db import SessionLocal
 from app.core.errors import AnalysisError, TransientInfraError
-from app.models import AnalyzerRun, AnalyzerRunStatus, Scan, ScanStatus
+from app.models import (
+    AnalyzerRun,
+    AnalyzerRunStatus,
+    EnrichmentStatus,
+    Finding,
+    FixStatus,
+    FixSuggestion,
+    Scan,
+    ScanStatus,
+    ValidationStatus,
+)
 from app.services.analyzers.sandbox import SandboxUnavailableError, remove_orphaned_sandboxes
+from app.services.llm.client import LLMClient, LLMError, LLMUnavailableError
+from app.services.llm.context import detect_conventions
+from app.services.llm.enrichment import finish_enrichment, run_enrichment, start_enrichment
+from app.services.llm.fix_suggester import regenerate_fix
 from app.services.scan_pipeline import (
     create_workspace,
+    extract_source,
     remove_stale_workspaces,
     run_pipeline,
     utcnow,
@@ -92,8 +108,12 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
             if scan is None:
                 logger.warning("scan %s no longer exists; skipping", scan_id)
                 return {"scan_id": scan_id, "status": "missing"}
-            if scan.status in (ScanStatus.COMPLETED, ScanStatus.PARTIAL):
+            if scan.status in (ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.ENRICHING):
                 # Redelivery after a worker restart (acks_late): nothing to do.
+                return {"scan_id": scan_id, "status": scan.status.value}
+            if scan.status is ScanStatus.ANALYSIS_COMPLETE:
+                # Analysis finished but the enrichment task may never have been queued.
+                _queue_enrichment(scan_uuid)
                 return {"scan_id": scan_id, "status": scan.status.value}
 
             scan.status = ScanStatus.RUNNING
@@ -104,6 +124,11 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
 
             workdir = create_workspace(scan_uuid)
             outcome = run_pipeline(db, scan, workdir)
+            enrich = scan.status is ScanStatus.ANALYSIS_COMPLETE
+
+        if enrich:
+            # Queued only after the analysis is committed; never blocks the scan.
+            _queue_enrichment(scan_uuid)
 
         return {
             "scan_id": scan_id,
@@ -160,6 +185,115 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
     finally:
         if workdir is not None:
             shutil.rmtree(workdir, ignore_errors=True)
+
+
+def _queue_enrichment(scan_id: uuid.UUID) -> None:
+    try:
+        enrich_scan.delay(str(scan_id))
+    except BrokerError as exc:
+        logger.error("could not queue enrichment for scan %s: %s", scan_id, exc)
+        with SessionLocal() as db:
+            finish_enrichment(
+                db, scan_id, EnrichmentStatus.FAILED, "Could not queue the enrichment job."
+            )
+
+
+@celery_app.task(
+    name="codeaudit.enrich_scan",
+    soft_time_limit=settings.llm_task_timeout_seconds,
+    time_limit=settings.llm_task_timeout_seconds + 60,
+)
+def enrich_scan(scan_id: str) -> dict[str, Any]:
+    """LLM stage: fix suggestions and architecture review. Never fails the scan.
+
+    Not retried: a failure leaves the scan complete without (some) suggestions.
+    """
+    scan_uuid = uuid.UUID(scan_id)
+    workdir: Path | None = None
+    status = EnrichmentStatus.FAILED
+    message: str | None = "Internal error during enrichment."
+    with SessionLocal() as db:
+        try:
+            scan = db.get(Scan, scan_uuid)
+            if scan is None or not start_enrichment(db, scan):
+                return {"scan_id": scan_id, "status": "skipped"}
+            llm = LLMClient()
+            workdir = create_workspace(scan_uuid)
+            source_dir = extract_source(scan, workdir)
+            outcome = run_enrichment(db, scan, source_dir, llm)
+            status = outcome.status
+            message = " ".join(outcome.problems) or None
+            logger.info("scan %s enrichment %s: %s", scan_id, status.value, outcome.fixes)
+        except LLMUnavailableError as exc:
+            status, message = EnrichmentStatus.SKIPPED, str(exc)
+        except SoftTimeLimitExceeded:
+            message = f"Enrichment exceeded the {settings.llm_task_timeout_seconds}s time limit."
+            logger.warning("scan %s: %s", scan_id, message)
+        except (AnalysisError, TransientInfraError, LLMError) as exc:
+            message = f"Enrichment failed: {exc}"
+            logger.warning("scan %s: %s", scan_id, message)
+        except Exception:
+            logger.exception("scan %s: enrichment crashed", scan_id)
+        finally:
+            try:
+                finish_enrichment(db, scan_uuid, status, message)
+            except SQLAlchemyError:
+                logger.exception("could not finish enrichment for scan %s", scan_id)
+            if workdir is not None:
+                shutil.rmtree(workdir, ignore_errors=True)
+    return {"scan_id": scan_id, "enrichment": status.value, "message": message}
+
+
+@celery_app.task(
+    name="codeaudit.regenerate_fix",
+    soft_time_limit=settings.llm_task_timeout_seconds,
+    time_limit=settings.llm_task_timeout_seconds + 60,
+)
+def regenerate_fix_task(
+    scan_id: str, finding_id: int, user_hint: str | None = None
+) -> dict[str, Any]:
+    """Regenerate one finding's suggestion (optionally guided by a reviewer hint)."""
+    scan_uuid = uuid.UUID(scan_id)
+    workdir: Path | None = None
+    with SessionLocal() as db:
+        try:
+            scan = db.get(Scan, scan_uuid)
+            finding = db.get(Finding, finding_id)
+            if scan is None or finding is None or finding.scan_id != scan_uuid:
+                return {"status": "missing"}
+            llm = LLMClient()
+            workdir = create_workspace(scan_uuid)
+            source_dir = extract_source(scan, workdir)
+            languages = [lang["language"] for lang in scan.detected_languages or []]
+            stats = regenerate_fix(
+                db,
+                scan_uuid,
+                finding,
+                source_dir,
+                detect_conventions(source_dir, languages),
+                llm,
+                user_hint,
+            )
+            return {"status": "done", "validation": stats.by_validation, "errors": stats.errors}
+        except Exception as exc:
+            logger.warning("scan %s finding %s: regeneration failed: %s", scan_id, finding_id, exc)
+            db.rollback()
+            suggestion = db.query(FixSuggestion).filter_by(finding_id=finding_id).one_or_none()
+            if suggestion is not None and suggestion.status is FixStatus.GENERATING:
+                suggestion.status = FixStatus.FAILED
+                suggestion.validation_status = ValidationStatus.NOT_VALIDATED
+                suggestion.error_message = f"Regeneration failed: {exc}"[:2000]
+                db.commit()
+            if not isinstance(
+                exc, (AnalysisError, TransientInfraError, LLMError, SoftTimeLimitExceeded)
+            ):
+                raise
+            return {"status": "failed", "error": str(exc)}
+        finally:
+            # Budget errors are stored on the suggestion by regenerate_fix itself.
+            db.rollback()
+            if workdir is not None:
+                shutil.rmtree(workdir, ignore_errors=True)
 
 
 @worker_ready.connect

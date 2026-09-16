@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,13 +17,35 @@ if TYPE_CHECKING:
 class ScanStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
+    # Findings are stored and readable; LLM enrichment is queued.
+    ANALYSIS_COMPLETE = "analysis_complete"
+    # LLM enrichment (fix suggestions, architecture review) is running.
+    ENRICHING = "enriching"
     COMPLETED = "completed"
     # Finished, but at least one analyzer failed or timed out: not a clean result.
     PARTIAL = "partial"
     FAILED = "failed"
 
 
+class EnrichmentStatus(enum.StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    PARTIAL = "partial"  # some suggestions or the review could not be generated
+    FAILED = "failed"
+    SKIPPED = "skipped"  # disabled, no API key, or nothing to enrich
+
+
 TERMINAL_STATUSES = frozenset({ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.FAILED})
+# Findings can be shown in these states.
+RESULT_STATUSES = frozenset(
+    {
+        ScanStatus.ANALYSIS_COMPLETE,
+        ScanStatus.ENRICHING,
+        ScanStatus.COMPLETED,
+        ScanStatus.PARTIAL,
+    }
+)
 
 
 class Scan(Base):
@@ -42,6 +64,13 @@ class Scan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Whether analyzers failed; decides `partial` vs `completed` once enrichment ends.
+    analysis_partial: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    enrichment_status: Mapped[EnrichmentStatus | None] = mapped_column(
+        pg_enum(EnrichmentStatus, "enrichment_status")
+    )
+    # Why enrichment was skipped, degraded or failed. Never makes the scan invalid.
+    enrichment_error: Mapped[str | None] = mapped_column(Text)
 
     findings: Mapped[list["Finding"]] = relationship(
         back_populates="scan", cascade="all, delete-orphan", passive_deletes=True

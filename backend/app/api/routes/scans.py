@@ -19,6 +19,7 @@ from app.models import (
     FAILED_RUN_STATUSES,
     AnalyzerRunStatus,
     Finding,
+    FixSuggestion,
     Scan,
     ScanStatus,
     Severity,
@@ -34,6 +35,7 @@ from app.schemas.scan import (
 )
 from app.services.analyzers.registry import DISPLAY_NAMES
 from app.services.archive import UnsafeArchiveError, archive_limits_from_settings, inspect_zip
+from app.services.llm.usage import llm_usage_summary
 from app.workers.tasks import run_scan
 
 logger = logging.getLogger(__name__)
@@ -203,6 +205,9 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
             running=sum(r.status is AnalyzerRunStatus.RUNNING for r in runs),
             skipped=len(runs) - len(applicable),
         ),
+        enrichment_status=scan.enrichment_status,
+        enrichment_error=scan.enrichment_error,
+        llm_usage=llm_usage_summary(db, scan_id),
     )
 
 
@@ -260,8 +265,23 @@ def list_findings(
         .limit(page_size)
     ).all()
 
+    fixes = {
+        finding_id: (status, validation)
+        for finding_id, status, validation in db.execute(
+            select(
+                FixSuggestion.finding_id, FixSuggestion.status, FixSuggestion.validation_status
+            ).where(FixSuggestion.finding_id.in_([f.id for f in findings]))
+        ).all()
+    }
+
+    def to_read(finding: Finding) -> FindingRead:
+        item = FindingRead.model_validate(finding)
+        if finding.id in fixes:
+            item.fix_status, item.fix_validation_status = fixes[finding.id]
+        return item
+
     return FindingPage(
-        items=[FindingRead.model_validate(f) for f in findings],
+        items=[to_read(f) for f in findings],
         total=total,
         page=page,
         page_size=page_size,

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from app.models import Severity
+from app.models import FixStatus, Severity, ValidationStatus
 
 
 class DependencyInfo(BaseModel):
@@ -39,6 +39,8 @@ class FindingRead(BaseModel):
     corroborated_by: list[str]
     merged_from: list[MergedFinding]
     dependency: DependencyInfo | None
+    fix_status: FixStatus | None = None
+    fix_validation_status: ValidationStatus | None = None
 
 
 class FindingPage(BaseModel):

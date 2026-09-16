@@ -2,7 +2,7 @@
 
 Upload a codebase and get security findings, architectural quality and code-health signals, a validated score, and LLM-generated fix suggestions.
 
-> **Status:** zip upload → queue → five analyzers running concurrently (Semgrep, Bandit, Ruff, OSV-Scanner in sandbox containers; the architecture graph in a child process) → cross-analyzer dedup → Postgres → read API and UI with an interactive dependency graph. Scoring and the LLM layer are still stubs.
+> **Status:** zip upload → queue → five analyzers running concurrently (Semgrep, Bandit, Ruff, OSV-Scanner in sandbox containers; the architecture graph in a child process) → cross-analyzer dedup → Postgres → read API and UI with an interactive dependency graph → optional LLM enrichment (validated fix suggestions, citation-checked architecture review). The scoring rubric is still a stub; an interim deterministic prioritizer picks which findings get fixes.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Upload a codebase and get security findings, architectural quality and code-heal
 | Object storage | MinIO (S3 API via boto3, so any S3-compatible store works) |
 | Sandbox | Throwaway Docker containers via the Docker SDK, one per analyzer run |
 | Analysis | Semgrep 1.177, Bandit 1.9.4, Ruff 0.16.7, OSV-Scanner 2.5.1 (each in its own image); tree-sitter 0.25 + networkx for the architecture graph |
-| LLM | Anthropic SDK (stub) |
+| LLM | Anthropic Python SDK 1.x, `claude-sonnet-4-6` by default (`ANTHROPIC_MODEL`) |
 | Frontend | Vite 8, React 18, TypeScript 6, Tailwind CSS 4, shadcn/ui, TanStack Query 5, React Router 7, React Flow 12 + dagre |
 
 ## How a scan works
@@ -81,6 +81,23 @@ Through the whole stack, pydantic (uploaded as a zip) finished all five analyzer
 
 Known limits: 3 valid excalidraw test files are skipped because tree-sitter-typescript 0.23 can't parse `fn<typeof import("x")>()`; layers are path heuristics; modules loaded by string (plugins, Celery `include`, framework conventions) show up as orphans (severity info).
 
+### LLM enrichment
+
+After analysis the scan is `analysis_complete`: findings, graph and issues are readable. A separate Celery task (`enrich_scan`) then moves it to `enriching` and finally `completed` (or `partial` if analyzers failed). `enrichment_status` (`pending`, `running`, `completed`, `partial`, `failed`, `skipped`) and `enrichment_error` record how the LLM stage went; **nothing in it can fail the scan**. Without `ANTHROPIC_API_KEY`, or with `LLM_ENABLED=false`, scans go straight to `completed` with enrichment `skipped`.
+
+**Client** (`services/llm/client.py`): every request is logged as an `llm_calls` row (purpose, model, input/output/cache tokens, cost at list price, latency, attempts, stop reason, request id, prompt and response, truncated). Before each call the input is counted (`count_tokens`, free) and *input + max output* is reserved against `LLM_TOKEN_BUDGET_PER_SCAN` under a row lock on the scan; a call that could exceed the budget is refused and logged, never sent. Rate limits, 408/409, every 5xx (including 529 overloaded) and connection errors are retried with exponential backoff honouring `retry-after`. Responses must be JSON: fences and surrounding prose are stripped, the result is validated with Pydantic, and unparsable output gets exactly one correction request. Refusals and `max_tokens` truncation are recorded and surfaced as failures. Adaptive thinking is on (`LLM_EFFORT`). Uploaded code only ever appears inside the user message, delimited, with instructions to treat it as data.
+
+**Fix suggestions** (`fix_suggester.py`): the top `LLM_MAX_FIX_FINDINGS` findings by priority (`services/scoring/priority.py`: severity × analyzer weight + corroboration; *interim until the scoring rubric exists*; structural findings are left to the review) are grouped, same rule in the same file, or all advisories for one package, up to `LLM_MAX_FINDINGS_PER_REQUEST` per request. Each request carries the findings, ±`LLM_CONTEXT_LINES` lines of code (merged when they overlap), detected frameworks and style configuration, and for dependencies the installed/fixed versions, whether that's a major bump, and which manifest to edit (`package.json` for npm lockfiles). Output per fix: explanation, confidence, unified diff, breaking risk, regression-test suggestion.
+
+**Patch validation** (`patches.py`), before anything is stored as usable:
+- Paths must be existing files inside the repository (no absolute paths, `..`, symlinks, new or deleted files).
+- `git apply --check --recount` on a throwaway copy (no system/global git config), then applied to get the result. `--recount` forgives wrong hunk line counts; the context lines must still match.
+- Python results must pass `ast.parse`; JS/TS results must have no tree-sitter error nodes (a file that didn't parse before isn't blamed on the patch).
+- `validation_status`: `valid`, `failed_to_apply`, `syntax_error`, `no_patch` or `not_validated`, with the git or parser message. The API returns `patch` only when `valid` (the unverified diff is in `rejected_patch`), and the UI marks unverified suggestions clearly and never offers them as copyable fixes.
+- **Limits:** "valid" means "applies and parses", not "compiles, type-checks and passes tests". tree-sitter is error-tolerant: it misses some syntax errors (it accepts `{ a: 1,, }`).
+
+**Architecture review** (`architect.py`): the model gets a digest of the stored graph, never the code: stack, layer inventory, cycles with import statements, layering violations with the statements, god modules, orphans, top modules by fan-in / fan-out / centrality / LOC, a depth-3 directory tree and the most used external packages. It returns a summary, strengths, issues (severity, evidence, why it matters, ordered refactor steps) and a suggested target structure. **Every citation is verified** against that scan's `graph_nodes`/`graph_edges`: a module path or id, a directory, or an import `a -> b` that actually exists (directory-to-directory imports count if some module pair backs them). Invalid citations are removed and logged; an issue left without valid evidence is dropped. `hallucination_rate` = invalid module references ÷ all module references, stored per review; path-like mentions in the prose that aren't in the graph are listed separately.
+
 ### Deduplication
 
 Findings are merged when they share a normalised file path, an issue category and a location (same start line, or a ≤5-line range containing the other's start line). Categories come from rule-id keywords first, then CWE ids: Semgrep's CWE tags are unreliable (its Flask SQL-injection rule is CWE-704). The finding with the longest message is kept at the group's highest severity; the other analyzers go into `findings.corroborated_by` and every merged finding into `merged_from`, for scoring to use as confidence. Ruff and dependency findings have unique categories and are never merged with other tools.
@@ -94,11 +111,15 @@ Semgrep runs in its own container with **no network, a read-only root fs, a tmpf
 | Method | Path | Notes |
 |---|---|---|
 | `POST` | `/api/scans` | multipart field `file` (.zip, ≤50 MB). `202 {"scan_id", "status": "queued"}` |
-| `GET` | `/api/scans/{id}` | status (`queued`, `running`, `completed`, `partial`, `failed`), timestamps, `detected_languages`, `analyzer_runs` (status, `duration_ms`, `finding_count`, `error_message`, `warnings`), `analyzer_summary`, `finding_counts` by severity, `findings_by_analyzer`, `total_findings`, `findings_before_dedup` |
+| `GET` | `/api/scans/{id}` | status (`queued`, `running`, `analysis_complete`, `enriching`, `completed`, `partial`, `failed`), `enrichment_status`, `enrichment_error`, `llm_usage` (tokens, cost, calls, verified fixes), timestamps, `detected_languages`, `analyzer_runs` (status, `duration_ms`, `finding_count`, `error_message`, `warnings`), `analyzer_summary`, `finding_counts` by severity, `findings_by_analyzer`, `total_findings`, `findings_before_dedup` |
 | `GET` | `/api/scans/{id}/findings` | `?severity=error&analyzer=bandit&file_path=app.py&page=1&page_size=50`. `analyzer` also matches findings that analyzer corroborated. Items include `analyzer`, `category`, `corroborated_by`, `merged_from`, `dependency` (package, installed/fixed version, advisory id). Most severe first, corroborated first. |
 | `GET` | `/api/scans/{id}/graph` | nodes, edges, issue highlights, external dependencies and the summary. `?max_nodes=300` (10–2000): above it modules are grouped by directory at the deepest level that fits, then the largest directories are opened while the view still fits. `&expand=dir` shows a directory one level deeper, `&collapse=dir` folds it into one node |
 | `GET` | `/api/scans/{id}/graph/module?module_id=` | one module: metrics, importers, internal/external/unresolved imports, issues |
 | `GET` | `/api/scans/{id}/architecture-issues` | `?issue_type=circular_dependency&severity=error` |
+| `GET` | `/api/scans/{id}/findings/{finding_id}/fix` | the suggestion: `status`, `validation_status`, `patch_verified`, `explanation`, `confidence`, `patch` (verified only) / `rejected_patch`, `breaking_risk`, `test_suggestion`, `file_changes` (before/after excerpts), `version`. 404 if none |
+| `POST` | `/api/scans/{id}/findings/{finding_id}/fix/regenerate` | body `{"hint": "…"}` (optional). 202, generated by a Celery task; the prompt includes the previous patch and why it failed validation. 409 while generating, for structural findings, or when the token budget is spent; 503 without an API key |
+| `GET` | `/api/scans/{id}/architecture-review` | summary, strengths, verified issues, dropped issues, suggested structure, `citations_total`, `citations_invalid`, `hallucination_rate` |
+| `GET` | `/api/scans/{id}/llm-usage` | budget, tokens used (including in-flight reservations), tokens and cost by purpose, failed calls, the last 100 calls |
 | `GET` | `/health` | DB + Redis check, 200 or 503 |
 
 Every error has the shape `{"error": {"code", "message", "details?"}}`, with codes `invalid_file_type`, `invalid_archive`, `payload_too_large` (413), `not_found` (404), `validation_error` (422) and `service_unavailable` (503). Interactive docs are at http://localhost:8000/docs.
@@ -132,7 +153,9 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 │   │   │   ├── analyzers/         # base, sandbox (container runner), registry, orchestrator, dedup,
 │   │   │   │                      # categories, snippets; semgrep(+_rules), bandit, ruff, dependency(+osv_db)
 │   │   │   ├── graph/             # parser, resolver, layers, builder, metrics, analysis, isolated, persistence, view
-│   │   │   ├── scoring/ llm/      # stubs
+│   │   │   ├── llm/               # client (budget, retries, logging), json_output, pricing, context, patches,
+│   │   │   │                      # fix_suggester, architect, enrichment, usage
+│   │   │   ├── scoring/           # priority.py (interim); rubric.py still a stub
 │   │   └── workers/tasks.py   # run_scan (status, retries, cleanup), crash cleanup on worker start
 │   └── tests/
 │       ├── unit/              # parsers (real tool output), dedup, orchestrator (fake analyzers), caches
@@ -185,7 +208,7 @@ npm run dev             # http://localhost:5173 (proxies /api and /health to :80
 ```
 
 - `/upload`: drag and drop (or browse for) a zip, with upload progress. Redirects to the scan when done.
-- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, and two tabs: **Findings** (severity and analyzer filters, "also found by" corroboration, dependency upgrade hints) and **Architecture** (loaded on demand): summary metrics and coverage warnings, the issue list, and a layered React Flow graph. Node size is LOC, color is the inferred layer, red edges are cycles or violations, dashed edges are type-only. Selecting an issue highlights its modules and dims the rest; clicking a module opens its metrics, importers and imports; directories can be expanded and collapsed. Failed scans show the error message.
+- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, an **AI suggestions** card (status, cost, tokens, verified fixes, budget use), and two tabs: **Findings** (severity and analyzer filters, "also found by" corroboration, dependency upgrade hints, fix status per row; clicking a finding opens a drawer with the explanation, confidence, breaking-risk warning, a side-by-side Monaco diff and copy button for verified patches only, a clear "not verified" state with the validator's reason otherwise, and regenerate-with-hint) and **Architecture** (loaded on demand): summary metrics and coverage warnings, the issue list, and a layered React Flow graph. Node size is LOC, color is the inferred layer, red edges are cycles or violations, dashed edges are type-only. Selecting an issue highlights its modules and dims the rest; clicking a module opens its metrics, importers and imports; directories can be expanded and collapsed. Its **AI review** sub-tab shows the critique, the hallucination rate and removed citations; clicking a cited module or import highlights it in the graph. Failed scans show the error message. Monaco is bundled locally (no CDN) and loaded only when a diff is opened.
 
 Scripts: `npm run build`, `npm run typecheck`, `npm run lint`.
 
@@ -212,7 +235,7 @@ uv run pytest -m integration           # needs the compose stack (Postgres, MinI
 uv run ruff check . && uv run black --check . && uv run mypy app
 ```
 
-The integration tests recreate a separate `<db>_test` database and migrate it to head, use a `codeaudit-test-uploads` bucket, run Celery eagerly (`CELERY_TASK_ALWAYS_EAGER`), and run the real sandboxed Semgrep against `tests/fixtures/vulnerable_flask_app`. They skip if a service is unreachable. The workspace is kept under the system temp dir so rule packs and OSV databases (~240 MB, first run only) stay cached between runs.
+LLM tests never call the real API: the real SDK client talks to an in-process fake (`tests/llm_fakes.py`, an `httpx2.MockTransport`), and a guard fails any test that builds a networked client. The integration tests recreate a separate `<db>_test` database and migrate it to head, use a `codeaudit-test-uploads` bucket, run Celery eagerly (`CELERY_TASK_ALWAYS_EAGER`), and run the real sandboxed Semgrep against `tests/fixtures/vulnerable_flask_app`. They skip if a service is unreachable. The workspace is kept under the system temp dir so rule packs and OSV databases (~240 MB, first run only) stay cached between runs.
 
 **Dependencies:** `pyproject.toml` is the source of truth, and `uv.lock` pins exact versions. `requirements*.txt` mirror the direct dependencies with major-version pins. Keep them in sync.
 

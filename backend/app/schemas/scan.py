@@ -3,7 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.models import AnalyzerRunStatus, ScanStatus
+from app.models import AnalyzerRunStatus, EnrichmentStatus, ScanStatus
+from app.schemas.llm import LLMUsageSummary
 
 
 class ScanCreated(BaseModel):
@@ -63,3 +64,7 @@ class ScanRead(BaseModel):
     findings_before_dedup: int
     analyzer_runs: list[AnalyzerRunRead]
     analyzer_summary: AnalyzerSummary
+    # LLM stage: None for scans created before it existed.
+    enrichment_status: EnrichmentStatus | None
+    enrichment_error: str | None
+    llm_usage: LLMUsageSummary

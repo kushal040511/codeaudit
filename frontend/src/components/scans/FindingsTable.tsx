@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { ArrowRight, ShieldCheck } from 'lucide-react'
+import { ArrowRight, CircleX, LoaderCircle, ShieldCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import { FindingDrawer } from '@/components/fixes/FindingDrawer'
 import { SeverityBadge } from '@/components/scans/SeverityBadge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -25,6 +26,30 @@ function formatLines(finding: Finding): string {
 
 function toggle<T>(values: T[], value: T): T[] {
   return values.includes(value) ? values.filter((v) => v !== value) : [...values, value]
+}
+
+function FixBadge({ finding }: { finding: Finding }) {
+  if (finding.fix_status === 'generating') {
+    return (
+      <span className="inline-flex items-center gap-1 text-violet-700 dark:text-violet-400">
+        <LoaderCircle aria-hidden className="size-3.5 animate-spin" /> Generating fix
+      </span>
+    )
+  }
+  if (finding.fix_status !== 'ready') return null
+  if (finding.fix_validation_status === 'valid') {
+    return (
+      <span className="inline-flex items-center gap-1 text-violet-700 dark:text-violet-400">
+        <Sparkles aria-hidden className="size-3.5" /> Verified fix
+      </span>
+    )
+  }
+  if (finding.fix_validation_status === 'no_patch') return <span>AI explanation</span>
+  return (
+    <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">
+      <CircleX aria-hidden className="size-3.5" /> Fix not verified
+    </span>
+  )
 }
 
 function FindingDetails({ finding, displayName }: { finding: Finding; displayName: (name: string) => string }) {
@@ -60,6 +85,7 @@ function FindingDetails({ finding, displayName }: { finding: Finding; displayNam
             Also found by {finding.corroborated_by.map(displayName).join(', ')}
           </span>
         )}
+        <FixBadge finding={finding} />
       </p>
     </>
   )
@@ -69,11 +95,14 @@ export function FindingsTable({ scan }: { scan: Scan }) {
   const [severities, setSeverities] = useState<Severity[]>([])
   const [analyzers, setAnalyzers] = useState<string[]>([])
   const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Finding | null>(null)
 
   const findings = useQuery<FindingPage, ApiError>({
     queryKey: ['scan', scan.id, 'findings', { severities, analyzers, page }],
     queryFn: () => getFindings(scan.id, { severity: severities, analyzer: analyzers, page, pageSize: PAGE_SIZE }),
     placeholderData: keepPreviousData,
+    // Fix badges change while suggestions are generated.
+    refetchInterval: scan.status === 'enriching' || scan.status === 'analysis_complete' ? 4000 : false,
   })
 
   const names = new Map(scan.analyzer_runs.map((run) => [run.analyzer, run.display_name]))
@@ -177,7 +206,11 @@ export function FindingsTable({ scan }: { scan: Scan }) {
               </TableHeader>
               <TableBody className={findings.isPlaceholderData ? 'opacity-60' : undefined}>
                 {data.items.map((finding) => (
-                  <TableRow key={finding.id}>
+                  <TableRow
+                    key={finding.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelected(finding)}
+                  >
                     <TableCell className="align-top">
                       <SeverityBadge severity={finding.severity} />
                     </TableCell>
@@ -186,6 +219,16 @@ export function FindingsTable({ scan }: { scan: Scan }) {
                     </TableCell>
                     <TableCell className="align-top font-mono text-xs">{formatLines(finding)}</TableCell>
                     <TableCell className="align-top whitespace-normal">
+                      <button
+                        type="button"
+                        className="sr-only focus:not-sr-only"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setSelected(finding)
+                        }}
+                      >
+                        Open finding details
+                      </button>
                       <FindingDetails finding={finding} displayName={displayName} />
                     </TableCell>
                   </TableRow>
@@ -209,6 +252,7 @@ export function FindingsTable({ scan }: { scan: Scan }) {
           </div>
         </>
       )}
+      <FindingDrawer scanId={scan.id} finding={selected} displayName={displayName} onClose={() => setSelected(null)} />
     </section>
   )
 }

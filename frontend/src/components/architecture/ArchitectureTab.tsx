@@ -1,13 +1,15 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { RotateCcw, TriangleAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { ArchitectureGraphView } from '@/components/architecture/ArchitectureGraphView'
+import { ArchitectureGraphView, type GraphHighlight } from '@/components/architecture/ArchitectureGraphView'
+import { ArchitectureReviewPanel } from '@/components/architecture/ArchitectureReviewPanel'
 import { IssuesList } from '@/components/architecture/IssuesList'
 import { ModulePanel } from '@/components/architecture/ModulePanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatPercent, LAYER_STYLES, UNLAYERED_STYLE } from '@/lib/architecture'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatPercent, type Highlight, LAYER_STYLES, UNLAYERED_STYLE } from '@/lib/architecture'
 import {
   type ApiError,
   type ArchitectureGraph,
@@ -49,12 +51,13 @@ function Legend({ layers }: { layers: Record<string, number> }) {
   )
 }
 
-export function ArchitectureTab({ scanId }: { scanId: string }) {
+export function ArchitectureTab({ scanId, enrichmentNote }: { scanId: string; enrichmentNote: string }) {
   const [maxNodes, setMaxNodes] = useState(300)
   const [expand, setExpand] = useState<string[]>([])
   const [collapse, setCollapse] = useState<string[]>([])
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null)
+  const [citation, setCitation] = useState<Highlight | null>(null)
 
   const graphQuery = useQuery<ArchitectureGraph, ApiError>({
     queryKey: ['scan', scanId, 'graph', { maxNodes, expand, collapse }],
@@ -67,10 +70,20 @@ export function ArchitectureTab({ scanId }: { scanId: string }) {
   })
 
   const graph = graphQuery.data
-  const highlightedIssue = useMemo(
-    () => graph?.issues.find((issue) => issue.id === selectedIssueId) ?? null,
-    [graph, selectedIssueId],
+  const highlight: GraphHighlight | null = useMemo(
+    () => citation ?? graph?.issues.find((issue) => issue.id === selectedIssueId) ?? null,
+    [graph, selectedIssueId, citation],
   )
+
+  function selectIssue(issueId: number | null) {
+    setCitation(null)
+    setSelectedIssueId(issueId)
+  }
+
+  function selectCitation(next: Highlight | null) {
+    setSelectedIssueId(null)
+    setCitation(next)
+  }
   const selectedNode = graph?.nodes.find((node) => node.id === selectedNodeId) ?? null
 
   function expandDirectory(directory: string) {
@@ -188,7 +201,24 @@ export function ArchitectureTab({ scanId }: { scanId: string }) {
           ) : !issuesQuery.data ? (
             <p className="text-sm text-muted-foreground">Loading issues…</p>
           ) : (
-            <IssuesList issues={issuesQuery.data} selectedId={selectedIssueId} onSelect={setSelectedIssueId} />
+            <Tabs defaultValue="detected" className="gap-3">
+              <TabsList>
+                <TabsTrigger value="detected">Detected</TabsTrigger>
+                <TabsTrigger value="review">AI review</TabsTrigger>
+              </TabsList>
+              <TabsContent value="detected">
+                <IssuesList issues={issuesQuery.data} selectedId={selectedIssueId} onSelect={selectIssue} />
+              </TabsContent>
+              <TabsContent value="review">
+                <ArchitectureReviewPanel
+                  scanId={scanId}
+                  graph={graph}
+                  enrichmentNote={enrichmentNote}
+                  highlightKey={citation?.key ?? null}
+                  onHighlight={selectCitation}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 
@@ -199,7 +229,7 @@ export function ArchitectureTab({ scanId }: { scanId: string }) {
             ) : (
               <ArchitectureGraphView
                 graph={graph}
-                highlightedIssue={highlightedIssue}
+                highlight={highlight}
                 selectedNodeId={selectedNodeId}
                 onNodeClick={setSelectedNodeId}
               />
