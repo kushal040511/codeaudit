@@ -2,7 +2,7 @@
 
 Upload a codebase and get security findings, architectural quality and code-health signals, a validated score, and LLM-generated fix suggestions.
 
-> **Status:** zip upload → queue → five analyzers running concurrently (Semgrep, Bandit, Ruff, OSV-Scanner in sandbox containers; the architecture graph in a child process) → cross-analyzer dedup → Postgres → read API and UI with an interactive dependency graph → optional LLM enrichment (validated fix suggestions, citation-checked architecture review). The scoring rubric is still a stub; an interim deterministic prioritizer picks which findings get fixes.
+> **Status:** zip upload → queue → five analyzers running concurrently (Semgrep, Bandit, Ruff, OSV-Scanner in sandbox containers; the architecture graph in a child process) → cross-analyzer dedup → Postgres → read API and UI with an interactive dependency graph → optional LLM enrichment (validated fix suggestions, citation-checked architecture review). Every scan gets a deterministic, versioned score (0–100, A–F), and the findings that improve it most get fix suggestions first.
 
 ## Stack
 
@@ -81,13 +81,37 @@ Through the whole stack, pydantic (uploaded as a zip) finished all five analyzer
 
 Known limits: 3 valid excalidraw test files are skipped because tree-sitter-typescript 0.23 can't parse `fn<typeof import("x")>()`; layers are path heuristics; modules loaded by string (plugins, Celery `include`, framework conventions) show up as orphans (severity info).
 
+### Scoring
+
+`services/scoring/rubric.py`, rubric **v1.0**. Deterministic: LLM output never affects it.
+
+| Category | Weight | Analyzers | Size normalisation | Half-life |
+|---|---|---|---|---|
+| Security | 40% | Semgrep, Bandit | ∛KLOC, capped at 6 | 12 |
+| Dependencies | 20% | OSV-Scanner | none | 25 |
+| Architecture | 20% | architecture issues | √(modules / 20) | 20 |
+| Code health | 20% | Ruff (lint severity weights) | √KLOC | 25 |
+
+- **Category score** = `100 · 2^(−penalty / half-life)`: every half-life of penalty halves the score.
+- **Finding weight** = severity (critical 10, error 5, warning 2, info 0.5; lint 3 / 1.5 / 0.5 / 0.1) × 1.25 if corroborated by another analyzer × 0.2 in test code.
+- **Repeats:** within one rule, the i-th heaviest occurrence counts `1/i^0.75`, so pydantic's 14,723 test `assert`s cost about as much as four real findings.
+- **Size:** security is barely diluted by size (a SQL injection is an absolute risk); lint debt grows with size, so it's divided by √KLOC.
+- **Overall** = weighted mean over the categories that were scored. A category that doesn't apply (no Python → no Ruff) is excluded and the weights renormalise. If an analyzer *failed*, the score is flagged `incomplete` and shouldn't be compared with complete scores.
+- **Grades:** A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 55, else F.
+
+**Impact.** `findings.score_impact` is the exact number of points gained if that finding alone were fixed. It's computed in O(n log n) per rule with a closed form, so pydantic's 15,699 findings take 62 ms, and it's tested against brute-force rescoring. `POST /score/projection` rescores any selection exactly; fixes compound, so a selection gains at least the sum of its impacts. Fix suggestions go to the highest-impact findings.
+
+**Validation.** Property tests (fixing never lowers the score, impacts equal rescoring, severity/corroboration/test-path ordering, damping, size and incompleteness rules) and a benchmark over the committed fixtures that must keep its order: clean layered repo 100 (A) > one layering skip > an import cycle > the vulnerable polyglot app (F). Calibration on real scans: the vulnerable polyglot app scores 43 (F); pydantic scores 68.6 (D): security 76, architecture 85, code health 96, dependencies 10 (CVEs in its lockfiles).
+
+Scans analysed before the rubric existed can be scored with `uv run python -m app.services.scoring.backfill` (`--all` to rescore after a rubric change).
+
 ### LLM enrichment
 
 After analysis the scan is `analysis_complete`: findings, graph and issues are readable. A separate Celery task (`enrich_scan`) then moves it to `enriching` and finally `completed` (or `partial` if analyzers failed). `enrichment_status` (`pending`, `running`, `completed`, `partial`, `failed`, `skipped`) and `enrichment_error` record how the LLM stage went; **nothing in it can fail the scan**. Without `ANTHROPIC_API_KEY`, or with `LLM_ENABLED=false`, scans go straight to `completed` with enrichment `skipped`.
 
 **Client** (`services/llm/client.py`): every request is logged as an `llm_calls` row (purpose, model, input/output/cache tokens, cost at list price, latency, attempts, stop reason, request id, prompt and response, truncated). Before each call the input is counted (`count_tokens`, free) and *input + max output* is reserved against `LLM_TOKEN_BUDGET_PER_SCAN` under a row lock on the scan; a call that could exceed the budget is refused and logged, never sent. Rate limits, 408/409, every 5xx (including 529 overloaded) and connection errors are retried with exponential backoff honouring `retry-after`. Responses must be JSON: fences and surrounding prose are stripped, the result is validated with Pydantic, and unparsable output gets exactly one correction request. Refusals and `max_tokens` truncation are recorded and surfaced as failures. Adaptive thinking is on (`LLM_EFFORT`). Uploaded code only ever appears inside the user message, delimited, with instructions to treat it as data.
 
-**Fix suggestions** (`fix_suggester.py`): the top `LLM_MAX_FIX_FINDINGS` findings by priority (`services/scoring/priority.py`: severity × analyzer weight + corroboration; *interim until the scoring rubric exists*; structural findings are left to the review) are grouped, same rule in the same file, or all advisories for one package, up to `LLM_MAX_FINDINGS_PER_REQUEST` per request. Each request carries the findings, ±`LLM_CONTEXT_LINES` lines of code (merged when they overlap), detected frameworks and style configuration, and for dependencies the installed/fixed versions, whether that's a major bump, and which manifest to edit (`package.json` for npm lockfiles). Output per fix: explanation, confidence, unified diff, breaking risk, regression-test suggestion.
+**Fix suggestions** (`fix_suggester.py`): the top `LLM_MAX_FIX_FINDINGS` findings by score impact (`services/scoring/priority.py`; structural findings are left to the review) are grouped, same rule in the same file, or all advisories for one package, up to `LLM_MAX_FINDINGS_PER_REQUEST` per request. Each request carries the findings, ±`LLM_CONTEXT_LINES` lines of code (merged when they overlap), detected frameworks and style configuration, and for dependencies the installed/fixed versions, whether that's a major bump, and which manifest to edit (`package.json` for npm lockfiles). Output per fix: explanation, confidence, unified diff, breaking risk, regression-test suggestion.
 
 **Patch validation** (`patches.py`), before anything is stored as usable:
 - Paths must be existing files inside the repository (no absolute paths, `..`, symlinks, new or deleted files).
@@ -116,6 +140,8 @@ Semgrep runs in its own container with **no network, a read-only root fs, a tmpf
 | `GET` | `/api/scans/{id}/graph` | nodes, edges, issue highlights, external dependencies and the summary. `?max_nodes=300` (10–2000): above it modules are grouped by directory at the deepest level that fits, then the largest directories are opened while the view still fits. `&expand=dir` shows a directory one level deeper, `&collapse=dir` folds it into one node |
 | `GET` | `/api/scans/{id}/graph/module?module_id=` | one module: metrics, importers, internal/external/unresolved imports, issues |
 | `GET` | `/api/scans/{id}/architecture-issues` | `?issue_type=circular_dependency&severity=error` |
+| `GET` | `/api/scans/{id}/score` | overall, grade, `incomplete` + reasons, per-category score, weight, penalty, finding count and worst rules, rubric version |
+| `POST` | `/api/scans/{id}/score/projection` | body `{"finding_ids": [...]}`: current and projected score and categories, `delta`; ids from other scans are ignored and listed |
 | `GET` | `/api/scans/{id}/findings/{finding_id}/fix` | the suggestion: `status`, `validation_status`, `patch_verified`, `explanation`, `confidence`, `patch` (verified only) / `rejected_patch`, `breaking_risk`, `test_suggestion`, `file_changes` (before/after excerpts), `version`. 404 if none |
 | `POST` | `/api/scans/{id}/findings/{finding_id}/fix/regenerate` | body `{"hint": "…"}` (optional). 202, generated by a Celery task; the prompt includes the previous patch and why it failed validation. 409 while generating, for structural findings, or when the token budget is spent; 503 without an API key |
 | `GET` | `/api/scans/{id}/architecture-review` | summary, strengths, verified issues, dropped issues, suggested structure, `citations_total`, `citations_invalid`, `hallucination_rate` |
@@ -129,6 +155,32 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 `--config=auto` downloads rules from semgrep.dev *at scan time* (and requires metrics to be on), so it cannot work with `--network none` (verified: it fails with a DNS error). Instead, the **worker** downloads registry packs chosen from the detected languages (always `p/security-audit` and `p/secrets`, plus e.g. `p/python`, `p/flask`, `p/javascript`, `p/nodejs`). It caches them for 24 h under `<workspace>/_rules/semgrep` and mounts them read-only into the sandbox. If a refresh fails, the stale cache is used. See `app/services/analyzers/semgrep_rules.py`.
 
 > **License check needed:** Semgrep Registry rules are under the Semgrep Rules License, which restricts using them to provide a competing hosted service. Review it before running CodeAudit commercially. Writing or licensing your own rules is the alternative.
+
+## GitHub integration
+
+**Setup.** Register a GitHub OAuth app with the callback `http://localhost:8000/api/auth/github/callback`. Put `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and a Fernet key in `TOKEN_ENCRYPTION_KEYS` into `.env`; see `.env.example`. Without them, public repositories can still be scanned by URL.
+
+**Scans by URL.** `POST /api/scans` with `{"repo_url", "ref"}` works like this:
+- **URL handling.** Only `https://github.com/<owner>/<repo>` is accepted. Owner and name are parsed out and CodeAudit builds its own URLs from them.
+- **Resolution.** The ref is resolved to a commit SHA, and repos over 200 MB are refused using GitHub's reported size.
+- **Clone.** The one commit is shallow-cloned inside a sandbox container. The clone is the only sandbox with network access, is https-only, doesn't follow redirects, and runs no hooks.
+- **Private repos.** These need a signed-in user whose token has the `repo` scope. Only then is the token passed to the clone, as an HTTP header through git's environment config.
+
+**Fix pull requests** take two steps, both from a browser session:
+
+1. **Preview.** `POST /api/scans/{id}/pull-requests/preview` rebuilds the change against the base branch's current head. It includes only verified patches, re-checks each one, and reports any that no longer apply. It returns the full diff, commits, PR body and score projection, and writes nothing to GitHub.
+2. **Confirm.** `POST /api/pull-requests/{id}/confirm` requires `{"confirm": true}`. It rebuilds the plan and refuses if anything changed since the preview. Then, through the Git Data API, it creates one commit per fix, a `codeaudit/fix-<scan>` branch (in your fork if you can't push), and the pull request. No other code path creates pull requests; a test checks that statically.
+
+Errors have distinct codes: `insufficient_permissions`, `fork_required`, `branch_exists`, `branch_protected`, `preview_outdated`, `stale_head`, `merge_conflict`.
+
+**Security.**
+- Tokens are Fernet-encrypted at rest and never returned or logged.
+- OAuth `state` is single-use and must match an HttpOnly cookie.
+- Cookie-authenticated mutations require `X-CSRF-Token`.
+- Other users' scans return 404.
+- API tokens (`cat_…`) can create and read scans, but can't open pull requests or manage the account.
+
+**CI.** [`action/`](action/README.md) is a GitHub Action that scans each pull request, compares it with the base commit via `POST /api/scans/compare`, comments the score delta and new findings, and can fail the check.
 
 ## Repository layout
 
@@ -155,7 +207,7 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 │   │   │   ├── graph/             # parser, resolver, layers, builder, metrics, analysis, isolated, persistence, view
 │   │   │   ├── llm/               # client (budget, retries, logging), json_output, pricing, context, patches,
 │   │   │   │                      # fix_suggester, architect, enrichment, usage
-│   │   │   ├── scoring/           # priority.py (interim); rubric.py still a stub
+│   │   │   ├── scoring/           # rubric (v1.0), service (store, rescore, project), priority, backfill
 │   │   └── workers/tasks.py   # run_scan (status, retries, cleanup), crash cleanup on worker start
 │   └── tests/
 │       ├── unit/              # parsers (real tool output), dedup, orchestrator (fake analyzers), caches
@@ -208,7 +260,7 @@ npm run dev             # http://localhost:5173 (proxies /api and /health to :80
 ```
 
 - `/upload`: drag and drop (or browse for) a zip, with upload progress. Redirects to the scan when done.
-- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, an **AI suggestions** card (status, cost, tokens, verified fixes, budget use), and two tabs: **Findings** (severity and analyzer filters, "also found by" corroboration, dependency upgrade hints, fix status per row; clicking a finding opens a drawer with the explanation, confidence, breaking-risk warning, a side-by-side Monaco diff and copy button for verified patches only, a clear "not verified" state with the validator's reason otherwise, and regenerate-with-hint) and **Architecture** (loaded on demand): summary metrics and coverage warnings, the issue list, and a layered React Flow graph. Node size is LOC, color is the inferred layer, red edges are cycles or violations, dashed edges are type-only. Selecting an issue highlights its modules and dims the rest; clicking a module opens its metrics, importers and imports; directories can be expanded and collapsed. Its **AI review** sub-tab shows the critique, the hallucination rate and removed citations; clicking a cited module or import highlights it in the graph. Failed scans show the error message. Monaco is bundled locally (no CDN) and loaded only when a diff is opened.
+- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, a **score** card (grade, category bars, incomplete warning), an **AI suggestions** card (status, cost, tokens, verified fixes, budget use), and two tabs: **Findings** (severity and analyzer filters, "also found by" corroboration, dependency upgrade hints, fix status per row; clicking a finding opens a drawer with the explanation, confidence, breaking-risk warning, a side-by-side Monaco diff and copy button for verified patches only, a clear "not verified" state with the validator's reason otherwise, and regenerate-with-hint) and **Architecture** (loaded on demand): summary metrics and coverage warnings, the issue list, and a layered React Flow graph. Node size is LOC, color is the inferred layer, red edges are cycles or violations, dashed edges are type-only. Selecting an issue highlights its modules and dims the rest; clicking a module opens its metrics, importers and imports; directories can be expanded and collapsed. Its **AI review** sub-tab shows the critique, the hallucination rate and removed citations; clicking a cited module or import highlights it in the graph. Failed scans show the error message. Monaco is bundled locally (no CDN) and loaded only when a diff is opened.
 
 Scripts: `npm run build`, `npm run typecheck`, `npm run lint`.
 

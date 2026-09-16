@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { lazy, Suspense } from 'react'
 import { Link, useParams } from 'react-router'
 import { EnrichmentCard } from '@/components/llm/EnrichmentCard'
+import { FixesTab } from '@/components/pullrequests/FixesTab'
 import { AnalyzerStatusPanel } from '@/components/scans/AnalyzerStatusPanel'
+import { ScoreCard } from '@/components/scans/ScoreCard'
 import { FindingsTable } from '@/components/scans/FindingsTable'
 import { StatusIndicator } from '@/components/scans/StatusIndicator'
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +58,27 @@ export function ScanDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight break-all">{scan.original_filename}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight break-all">
+            {scan.repository ? scan.repository.full_name : scan.original_filename}
+          </h1>
+          {scan.repository && (
+            <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              <a href={scan.repository.html_url} target="_blank" rel="noreferrer" className="hover:underline">
+                github.com/{scan.repository.full_name}
+              </a>
+              {scan.repository.ref && <span className="font-mono">{scan.repository.ref}</span>}
+              <a
+                href={`${scan.repository.html_url}/tree/${scan.repository.commit_sha}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono hover:underline"
+                title="Scanned commit"
+              >
+                @{scan.repository.commit_sha.slice(0, 7)}
+              </a>
+              {scan.repository.private && <Badge variant="secondary">private</Badge>}
+            </p>
+          )}
           <p className="font-mono text-xs text-muted-foreground">{scan.id}</p>
         </div>
         <StatusIndicator status={scan.status} />
@@ -139,6 +161,8 @@ export function ScanDetailPage() {
         </div>
       )}
 
+      <ScoreCard scan={scan} />
+
       <AnalyzerStatusPanel scan={scan} />
 
       <EnrichmentCard scan={scan} />
@@ -157,8 +181,17 @@ function ResultTabs({ scan }: { scan: Scan }) {
         <TabsTrigger value="findings">
           Findings <span className="tabular-nums opacity-70">{scan.total_findings}</span>
         </TabsTrigger>
+        <TabsTrigger value="fixes">
+          Fixes{' '}
+          {scan.llm_usage.valid_fix_suggestions > 0 && (
+            <span className="tabular-nums opacity-70">{scan.llm_usage.valid_fix_suggestions}</span>
+          )}
+        </TabsTrigger>
         <TabsTrigger value="architecture">Architecture</TabsTrigger>
       </TabsList>
+      <TabsContent value="fixes">
+        <FixesTab scan={scan} />
+      </TabsContent>
       <TabsContent value="findings">
         <FindingsTable scan={scan} />
       </TabsContent>

@@ -19,6 +19,8 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "alembic>=1.20,<2",
     "psycopg2-binary>=2.9,<3",
+    # Encrypting stored OAuth tokens (Fernet)
+    "cryptography>=45,<51",
     # Object storage
     "boto3>=1.43,<2",
     # Sandbox: launches analyzer containers
@@ -71,7 +73,7 @@ extend-exclude = ["alembic/versions", "tests/fixtures"]
 select = ["E", "F", "W", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106", "S108", "S603", "S607", "S608"]
+"tests/**" = ["S101", "S105", "S106", "S108", "S311", "S603", "S607", "S608"]
 # Unified-diff fixtures: a blank context line is a single space.
 "tests/unit/llm/test_patches.py" = ["S101", "S108", "W293"]
 "tests/integration/test_llm_enrichment.py" = ["S101", "W293"]

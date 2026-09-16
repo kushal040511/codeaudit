@@ -21,15 +21,26 @@ from app.models.llm import (
     ReviewStatus,
     ValidationStatus,
 )
+from app.models.pull_request import PullRequest, PullRequestStatus
 from app.models.scan import (
     RESULT_STATUSES,
     TERMINAL_STATUSES,
     EnrichmentStatus,
     Scan,
+    ScanSource,
     ScanStatus,
 )
+from app.models.score import ScanScore
+from app.models.user import ApiToken, GitHubIdentity, User, UserSession
 
 __all__ = [
+    "ApiToken",
+    "GitHubIdentity",
+    "PullRequest",
+    "PullRequestStatus",
+    "ScanSource",
+    "User",
+    "UserSession",
     "FAILED_RUN_STATUSES",
     "RESULT_STATUSES",
     "TERMINAL_STATUSES",
@@ -53,6 +64,7 @@ __all__ = [
     "LLMPurpose",
     "ReviewStatus",
     "Scan",
+    "ScanScore",
     "ScanStatus",
     "Severity",
     "ValidationStatus",

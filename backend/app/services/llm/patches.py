@@ -200,3 +200,25 @@ def validate_patch(repo: Path, patch: str | None) -> PatchValidation:
                 return PatchValidation(ValidationStatus.SYNTAX_ERROR, error)
             changes.append(_excerpts(path, originals[path], patched, patch))
     return PatchValidation(ValidationStatus.VALID, None, changes)
+
+
+def apply_patch_in_place(repo: Path, patch: str) -> tuple[bool, str | None]:
+    """Apply a unified diff to files in `repo` (a throwaway working copy). (applied, error)."""
+    patch = normalize_patch(patch)
+    for path in patch_paths(patch):
+        if problem := _unsafe_path(path, repo):
+            return False, problem
+    strip = ["-p1"] if re.search(r"^--- a/", patch, re.MULTILINE) else ["-p0"]
+    try:
+        check = _git(["--check", "--recount", *strip], repo, patch)
+        if check.returncode != 0:
+            return (
+                False,
+                (check.stderr or check.stdout).strip()[-2000:] or "git apply rejected the patch.",
+            )
+        applied = _git(["--recount", *strip], repo, patch)
+    except subprocess.TimeoutExpired:
+        return False, "git apply timed out."
+    if applied.returncode != 0:
+        return False, (applied.stderr or "git apply failed.").strip()[-2000:]
+    return True, None

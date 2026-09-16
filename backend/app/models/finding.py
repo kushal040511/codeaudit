@@ -2,7 +2,7 @@ import enum
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import BigInteger, ForeignKey, Identity, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Float, ForeignKey, Identity, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,6 +52,8 @@ class Finding(Base):
     )
     # Vulnerable dependencies: {ecosystem, package, installed_version, advisory_id, ...}.
     dependency: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Overall score points gained if this finding alone were fixed (scoring rubric).
+    score_impact: Mapped[float | None] = mapped_column(Float)
     # The tool's result object (OSV records are trimmed; they include every version).
     raw: Mapped[dict[str, Any]] = mapped_column(JSONB)
 

@@ -84,3 +84,25 @@ def detect_languages(root: Path) -> list[DetectedLanguage]:
         for lang in set(file_counts) | set(manifests)
     ]
     return sorted(detected, key=lambda d: (-d.file_count, d.language))
+
+
+MAX_COUNTED_FILE_BYTES = 1024 * 1024  # larger files are generated or bundled
+
+
+def count_source_lines(root: Path) -> int:
+    """Non-blank lines in recognised source files (vendored/generated trees skipped)."""
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS]
+        for name in filenames:
+            if Path(name).suffix.lower() not in EXTENSION_LANGUAGES:
+                continue
+            path = Path(dirpath, name)
+            try:
+                if path.is_symlink() or path.stat().st_size > MAX_COUNTED_FILE_BYTES:
+                    continue
+                with path.open("rb") as fh:
+                    total += sum(1 for line in fh if line.strip())
+            except OSError:
+                continue
+    return total

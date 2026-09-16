@@ -1,0 +1,26 @@
+# .github/workflows/codeaudit.yml
+name: CodeAudit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write # to post the report comment
+
+concurrency:
+  group: codeaudit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  codeaudit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: your-org/codeaudit/action@main # or a pinned commit SHA
+        with:
+          api-url: https://codeaudit.example.com
+          api-token: ${{ secrets.CODEAUDIT_API_TOKEN }}
+          fail-under: "70"
+          fail-on-new-critical: "true"

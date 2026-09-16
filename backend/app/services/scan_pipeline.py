@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -25,7 +25,9 @@ from app.models import (
     AnalyzerRunStatus,
     EnrichmentStatus,
     Finding,
+    GitHubIdentity,
     Scan,
+    ScanSource,
     ScanStatus,
 )
 from app.services.analyzers.base import AnalyzerResult, FindingData, ScanContext
@@ -34,10 +36,15 @@ from app.services.analyzers.orchestrator import run_analyzers
 from app.services.analyzers.registry import AnalyzerRegistry, default_registry
 from app.services.analyzers.snippets import fill_snippets
 from app.services.archive import archive_limits_from_settings, safe_extract
+from app.services.auth.oauth import access_token
+from app.services.github.client import GitHubAuthError
+from app.services.github.clone import clone_repository
 from app.services.graph.analysis import ArchitectureReport
 from app.services.graph.persistence import delete_architecture, persist_architecture
-from app.services.languages import DetectedLanguage, detect_languages
+from app.services.languages import DetectedLanguage, count_source_lines, detect_languages
 from app.services.llm.client import llm_configured
+from app.services.scoring.rubric import ScoreContext, finding_impacts, score
+from app.services.scoring.service import ScorableRow, store_score
 
 logger = logging.getLogger(__name__)
 
@@ -82,16 +89,50 @@ def remove_stale_workspaces(max_age_seconds: float) -> int:
     return removed
 
 
-def extract_source(scan: Scan, workdir: Path) -> Path:
-    """Download the scan's archive into `workdir` and safely extract it. Returns the source dir."""
+def extract_source(db: Session, scan: Scan, workdir: Path) -> Path:
+    """Materialise the scan's code in `workdir/src`: extract the uploaded archive, or
+    shallow-clone the scanned commit in the clone sandbox. Returns the source dir."""
     settings = get_settings()
+    limits = archive_limits_from_settings(settings)
+    if scan.source is ScanSource.GITHUB:
+        if not (scan.repo_owner and scan.repo_name and scan.commit_sha):
+            raise AnalysisError("This scan has no repository to clone.")
+        token = github_token_for_clone(db, scan)
+        return clone_repository(
+            scan_id=str(scan.id),
+            owner=scan.repo_owner,
+            name=scan.repo_name,
+            sha=scan.commit_sha,
+            token=token,
+            workdir=workdir,
+            limits=limits,
+        )
+    if scan.storage_key is None:
+        raise AnalysisError("This scan has no uploaded archive.")
     archive_path = workdir / "source.zip"
     source_dir = workdir / "src"
     download_file(scan.storage_key, archive_path)
-    summary = safe_extract(archive_path, source_dir, archive_limits_from_settings(settings))
+    summary = safe_extract(archive_path, source_dir, limits)
     archive_path.unlink()
     logger.info("extracted scan %s: %d files", scan.id, summary.file_count)
     return source_dir
+
+
+def github_token_for_clone(db: Session, scan: Scan) -> str | None:
+    """The owner's token for private repositories; public ones are cloned anonymously."""
+    if not scan.repo_private:
+        return None
+    identity = (
+        db.scalar(select(GitHubIdentity).where(GitHubIdentity.user_id == scan.user_id))
+        if scan.user_id
+        else None
+    )
+    if identity is None:
+        raise AnalysisError("This private repository needs the scan owner's GitHub connection.")
+    try:
+        return access_token(db, identity)
+    except GitHubAuthError as exc:
+        raise AnalysisError(exc.message) from None
 
 
 def run_pipeline(
@@ -104,9 +145,10 @@ def run_pipeline(
 
     Raises AnalysisError / TransientInfraError when the scan as a whole fails.
     """
-    source_dir = extract_source(scan, workdir)
+    source_dir = extract_source(db, scan, workdir)
     languages = detect_languages(source_dir)
     scan.detected_languages = [lang.to_dict() for lang in languages]
+    scan.source_loc = count_source_lines(source_dir)
     db.commit()
 
     return analyze_and_persist(
@@ -199,7 +241,14 @@ def analyze_and_persist(
     scan.enrichment_status = EnrichmentStatus.SKIPPED if skip_reason else EnrichmentStatus.PENDING
     scan.enrichment_error = skip_reason
     stored_status = status if skip_reason else ScanStatus.ANALYSIS_COMPLETE
-    persist_results(db, scan, unique, stored_status, architecture)
+    score_context = ScoreContext(
+        source_loc=scan.source_loc
+        or (architecture.summary.get("total_loc", 0) if architecture else 0),
+        module_count=architecture.summary.get("node_count", 0) if architecture else 0,
+        analyzers_run=frozenset(r.analyzer for r in succeeded),
+        analyzers_failed=frozenset(r.analyzer for r in failed),
+    )
+    persist_results(db, scan, unique, stored_status, architecture, score_context)
     logger.info(
         "scan %s %s: %d/%d analyzers succeeded, %d findings (%d before dedup)",
         scan.id,
@@ -223,10 +272,20 @@ def persist_results(
     findings: Sequence[FindingData],
     status: ScanStatus,
     architecture: ArchitectureReport | None = None,
+    score_context: ScoreContext | None = None,
 ) -> None:
-    """Replace the scan's findings and architecture data and mark it finished, in one
-    transaction. Deleting first keeps a retried task from duplicating rows.
+    """Replace the scan's findings, architecture data and score and mark it finished,
+    in one transaction. Deleting first keeps a retried task from duplicating rows.
     """
+    impacts: dict[int, float] = {}
+    if score_context is not None:
+        # Findings have no ids yet: score them by position.
+        rows = [
+            ScorableRow(i, f.analyzer, f.rule_id, f.severity, f.file_path, list(f.corroborated_by))
+            for i, f in enumerate(findings)
+        ]
+        impacts = finding_impacts(rows, score_context)
+        store_score(db, scan.id, score(rows, score_context), score_context)
     db.execute(delete(Finding).where(Finding.scan_id == scan.id))
     if architecture is not None:
         persist_architecture(db, scan.id, architecture)
@@ -250,9 +309,10 @@ def persist_results(
                     "corroborated_by": list(f.corroborated_by),
                     "merged_from": list(f.merged_from),
                     "dependency": f.dependency,
+                    "score_impact": impacts.get(index),
                     "raw": f.raw,
                 }
-                for f in findings
+                for index, f in enumerate(findings)
             ],
         )
     scan.status = status

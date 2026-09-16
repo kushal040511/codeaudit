@@ -85,6 +85,11 @@ function FindingDetails({ finding, displayName }: { finding: Finding; displayNam
             Also found by {finding.corroborated_by.map(displayName).join(', ')}
           </span>
         )}
+        {finding.score_impact !== null && finding.score_impact >= 0.01 && (
+          <span className="tabular-nums" title="Overall score points gained if this finding alone were fixed">
+            +{finding.score_impact.toFixed(2)} pts if fixed
+          </span>
+        )}
         <FixBadge finding={finding} />
       </p>
     </>

@@ -4,15 +4,18 @@ import uuid
 from pathlib import PurePosixPath
 from typing import Annotated, Any, BinaryIO
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.concurrency import run_in_threadpool
 from kombu.exceptions import OperationalError as BrokerError
+from pydantic import ValidationError
 from sqlalchemy import String, cast, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.api.errors import AppError, NotFoundError, PayloadTooLargeError, ServiceUnavailableError
-from app.config import get_settings
+from app.api.deps import OptionalPrincipal, load_scan
+from app.api.errors import AppError, ServiceUnavailableError
 from app.core.db import get_db
 from app.core.storage import StorageError, delete_object, upload_fileobj
 from app.models import (
@@ -21,6 +24,7 @@ from app.models import (
     Finding,
     FixSuggestion,
     Scan,
+    ScanScore,
     ScanStatus,
     Severity,
 )
@@ -29,13 +33,17 @@ from app.schemas.finding import FindingPage, FindingRead
 from app.schemas.scan import (
     AnalyzerRunRead,
     AnalyzerSummary,
+    RepoScanRequest,
+    RepositoryRead,
     ScanCreated,
     ScanRead,
     SeverityCounts,
 )
+from app.schemas.score import ScoreSummary
 from app.services.analyzers.registry import DISPLAY_NAMES
-from app.services.archive import UnsafeArchiveError, archive_limits_from_settings, inspect_zip
+from app.services.auth.sessions import Principal
 from app.services.llm.usage import llm_usage_summary
+from app.services.scan_creation import build_repo_scan, enforce_scan_rate_limit, validate_upload
 from app.workers.tasks import run_scan
 
 logger = logging.getLogger(__name__)
@@ -68,40 +76,69 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _get_scan_or_404(db: Session, scan_id: uuid.UUID) -> Scan:
-    scan = db.get(Scan, scan_id)
-    if scan is None:
-        raise NotFoundError(f"Scan {scan_id} not found.")
-    return scan
+_CREATE_SCAN_BODY = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {"file": {"type": "string", "format": "binary"}},
+                    "required": ["file"],
+                }
+            },
+            "application/json": {"schema": RepoScanRequest.model_json_schema()},
+        },
+    }
+}
 
 
 @router.post(
     "",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=ScanCreated,
-    responses=_errors(400, 413, 422, 503),
+    responses=_errors(400, 401, 403, 404, 413, 422, 429, 503),
+    openapi_extra=_CREATE_SCAN_BODY,
 )
-def create_scan(
-    file: Annotated[UploadFile, File(description="Zip archive of the codebase (max 50 MB)")],
-    db: DbSession,
+async def create_scan(request: Request, db: DbSession, principal: OptionalPrincipal) -> ScanCreated:
+    """Queue a scan of an uploaded zip (multipart `file`, max 50 MB) or of a GitHub
+    repository (JSON `{"repo_url", "ref"}`; public repos work without signing in).
+
+    Returns as soon as the job is queued.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if content_type == "application/json":
+        try:
+            body = RepoScanRequest.model_validate(await request.json())
+        except (ValueError, ValidationError) as exc:
+            raise AppError(
+                'Expected JSON {"repo_url": ..., "ref": ...}.', code="validation_error"
+            ) from exc
+        await run_in_threadpool(enforce_scan_rate_limit, principal, client_ip)
+        scan = await run_in_threadpool(build_repo_scan, db, principal, body.repo_url, body.ref)
+        return await run_in_threadpool(_queue, db, scan, None)
+    if content_type == "multipart/form-data":
+        form = await request.form()
+        upload = form.get("file")
+        if not isinstance(upload, StarletteUploadFile):
+            raise AppError(
+                "Send the archive in the multipart field `file`.", code="validation_error"
+            )
+        return await run_in_threadpool(_create_upload_scan, db, principal, client_ip, upload)
+    raise AppError(
+        "Send a zip as multipart/form-data or a repository as application/json.",
+        code="unsupported_media_type",
+    )
+
+
+def _create_upload_scan(
+    db: Session, principal: Principal | None, client_ip: str, file: StarletteUploadFile
 ) -> ScanCreated:
-    """Upload a zipped codebase and queue a scan. Returns as soon as the job is queued."""
-    settings = get_settings()
-
     filename = _sanitize_filename(file.filename)
-    if not filename.lower().endswith(".zip"):
-        raise AppError("Only .zip archives are accepted.", code="invalid_file_type")
-
     size = file.size if file.size is not None else _stream_size(file.file)
-    if size == 0:
-        raise AppError("The uploaded file is empty.", code="invalid_archive")
-    if size > settings.max_upload_bytes:
-        raise PayloadTooLargeError(f"Archive exceeds the {settings.max_upload_size_mb} MB limit.")
-
-    try:
-        summary = inspect_zip(file.file, archive_limits_from_settings(settings))
-    except UnsafeArchiveError as exc:
-        raise AppError(str(exc), code="invalid_archive") from exc
+    file_count = validate_upload(filename, size, file.file)
+    enforce_scan_rate_limit(principal, client_ip)
 
     scan_id = uuid.uuid4()
     storage_key = f"uploads/{scan_id}/source.zip"
@@ -115,39 +152,46 @@ def create_scan(
     scan = Scan(
         id=scan_id,
         status=ScanStatus.QUEUED,
+        user_id=principal.user.id if principal else None,
         original_filename=filename,
         storage_key=storage_key,
     )
+    logger.info("upload scan %s (%s, %d files)", scan_id, filename, file_count)
+    return _queue(db, scan, storage_key)
+
+
+def _queue(db: Session, scan: Scan, storage_key: str | None) -> ScanCreated:
     try:
         db.add(scan)
         db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("creating scan %s failed", scan_id)
-        try:
-            delete_object(storage_key)
-        except StorageError:
-            logger.warning("could not delete orphaned upload %s", storage_key)
+        logger.exception("creating scan %s failed", scan.id)
+        if storage_key:
+            try:
+                delete_object(storage_key)
+            except StorageError:
+                logger.warning("could not delete orphaned upload %s", storage_key)
         raise ServiceUnavailableError("Database is unavailable. Try again later.") from exc
 
     # Dispatch only after commit so the worker is guaranteed to see the row.
     try:
-        run_scan.delay(str(scan_id))
+        run_scan.delay(str(scan.id))
     except BrokerError as exc:
-        logger.exception("enqueueing scan %s failed", scan_id)
+        logger.exception("enqueueing scan %s failed", scan.id)
         scan.status = ScanStatus.FAILED
         scan.error_message = "Could not enqueue the scan job."
         db.commit()
         raise ServiceUnavailableError("Job queue is unavailable. Try again later.") from exc
 
-    logger.info("queued scan %s (%s, %d files)", scan_id, filename, summary.file_count)
-    return ScanCreated(scan_id=scan_id, status=ScanStatus.QUEUED)
+    logger.info("queued scan %s (%s)", scan.id, scan.original_filename)
+    return ScanCreated(scan_id=scan.id, status=ScanStatus.QUEUED)
 
 
 @router.get("/{scan_id}", response_model=ScanRead, responses=_errors(404, 422))
-def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
+def get_scan(scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal) -> ScanRead:
     """Scan status, per-analyzer runs, detected languages and finding counts."""
-    scan = _get_scan_or_404(db, scan_id)
+    scan = load_scan(db, scan_id, principal)
     rows = db.execute(
         select(Finding.severity, func.count())
         .where(Finding.scan_id == scan_id)
@@ -174,6 +218,22 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
     return ScanRead(
         id=scan.id,
         status=scan.status,
+        source=scan.source,
+        repository=(
+            RepositoryRead(
+                owner=scan.repo_owner,
+                name=scan.repo_name,
+                full_name=f"{scan.repo_owner}/{scan.repo_name}",
+                ref=scan.repo_ref,
+                default_branch=scan.repo_default_branch,
+                commit_sha=scan.commit_sha,
+                private=scan.repo_private,
+                html_url=f"https://github.com/{scan.repo_owner}/{scan.repo_name}",
+            )
+            if scan.repo_owner and scan.repo_name and scan.commit_sha
+            else None
+        ),
+        owned_by_you=principal is not None and scan.user_id == principal.user.id,
         original_filename=scan.original_filename,
         detected_languages=scan.detected_languages,
         error_message=scan.error_message,
@@ -208,6 +268,16 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
         enrichment_status=scan.enrichment_status,
         enrichment_error=scan.enrichment_error,
         llm_usage=llm_usage_summary(db, scan_id),
+        score=(
+            ScoreSummary(
+                overall=score_row.overall,
+                grade=score_row.grade,
+                incomplete=score_row.incomplete,
+                rubric_version=score_row.rubric_version,
+            )
+            if (score_row := db.get(ScanScore, scan_id))
+            else None
+        ),
     )
 
 
@@ -215,6 +285,7 @@ def get_scan(scan_id: uuid.UUID, db: DbSession) -> ScanRead:
 def list_findings(
     scan_id: uuid.UUID,
     db: DbSession,
+    principal: OptionalPrincipal,
     severity: Annotated[
         list[Severity] | None, Query(description="Repeat to include several severities")
     ] = None,
@@ -235,7 +306,7 @@ def list_findings(
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> FindingPage:
     """Findings for a scan, most severe first, then by corroboration and location."""
-    _get_scan_or_404(db, scan_id)
+    load_scan(db, scan_id, principal)
 
     conditions = [Finding.scan_id == scan_id]
     if severity:

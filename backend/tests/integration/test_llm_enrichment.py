@@ -331,9 +331,9 @@ def test_grouping_and_priority_limit(
     enrich(analyzed_scan, repo, llm(fake))
 
     fixes = suggestions(analyzed_scan)
-    # The two highest priorities: the critical dependency, then the corroboration-free error
-    # with the higher analyzer weight (semgrep 1.2 > bandit 1.1).
-    assert set(fixes) == {"CVE-2099-0001", "hardcoded-tax"}
+    # Ordered by score impact: the two security errors in application code gain more
+    # than the critical dependency CVE (security weighs 40%, dependencies 20%).
+    assert set(fixes) == {"B506", "hardcoded-tax"}
 
 
 def test_budget_exhaustion_degrades_gracefully(analyzed_scan: uuid.UUID, repo: Path) -> None:
@@ -362,7 +362,7 @@ def test_scan_completes_when_llm_stage_fails_entirely(
 ) -> None:
     fake = FakeAnthropic(responder=lambda _: api_error(500, "api_error"))
     monkeypatch.setattr(tasks, "LLMClient", lambda: llm(fake))
-    monkeypatch.setattr(tasks, "extract_source", lambda scan, workdir: repo)
+    monkeypatch.setattr(tasks, "extract_source", lambda db, scan, workdir: repo)
 
     result = tasks.enrich_scan.run(str(analyzed_scan))
 
@@ -379,7 +379,7 @@ def test_scan_completes_when_llm_stage_fails_entirely(
 def test_scan_completes_when_enrichment_crashes(
     analyzed_scan: uuid.UUID, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def explode(scan: Scan, workdir: Path) -> Path:
+    def explode(db: object, scan: Scan, workdir: Path) -> Path:
         raise RuntimeError("disk on fire")
 
     monkeypatch.setattr(tasks, "LLMClient", lambda: object())
@@ -423,7 +423,7 @@ def test_regenerate_endpoint(
     fake = FakeAnthropic(responder=hinted)
     monkeypatch.setattr(llm_routes, "llm_configured", lambda: None)
     monkeypatch.setattr(tasks, "LLMClient", lambda: llm(fake))
-    monkeypatch.setattr(tasks, "extract_source", lambda scan, workdir: repo)
+    monkeypatch.setattr(tasks, "extract_source", lambda db, scan, workdir: repo)
     with SessionLocal() as db:
         finding_id = db.scalar(
             select(Finding.id).where(Finding.scan_id == analyzed_scan, Finding.rule_id == "B506")

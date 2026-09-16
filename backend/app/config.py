@@ -67,6 +67,35 @@ class Settings(BaseSettings):
     # Hard limit for the enrichment task (download, fixes, review).
     llm_task_timeout_seconds: int = 1800
 
+    # --- Auth / sessions ---
+    # Public URL of the frontend; OAuth sign-in returns there.
+    frontend_url: str = "http://localhost:5173"
+    session_ttl_hours: int = 24 * 14
+    # Set true behind HTTPS so session cookies are never sent in the clear.
+    session_cookie_secure: bool = False
+    # Fernet keys (urlsafe base64, 32 bytes), comma-separated; the first encrypts,
+    # all decrypt, so keys can be rotated. Required to store GitHub tokens.
+    token_encryption_keys: SecretStr | None = None
+
+    # --- GitHub ---
+    github_client_id: str | None = None
+    github_client_secret: SecretStr | None = None
+    github_oauth_url: str = "https://github.com"
+    github_api_url: str = "https://api.github.com"
+    github_timeout_seconds: float = 20.0
+    github_max_repo_size_mb: int = 200
+    # Git clone runs in its own sandbox container (the only one with network).
+    git_image: str = (
+        "alpine/git@sha256:0b5f57d22181e8b8fbe8ac5ca8754faa0d577f101b9857418f1acc43955ad464"
+    )
+    git_clone_timeout_seconds: int = 300
+    git_clone_memory_limit: str = "1g"
+    # Scans per rolling hour.
+    scans_per_hour_per_user: int = 30
+    scans_per_hour_anonymous: int = 10
+    # Waiting for GitHub to create a fork before opening a PR from it.
+    github_fork_wait_seconds: int = 60
+
     # --- Uploads ---
     max_upload_size_mb: int = 50
     max_archive_files: int = 10_000

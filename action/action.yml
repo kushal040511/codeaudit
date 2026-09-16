@@ -1,0 +1,76 @@
+name: CodeAudit
+description: >-
+  Scan the pull request's head commit with CodeAudit, compare it with the base commit,
+  and comment the score, the score change and new findings on the pull request.
+author: CodeAudit
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  api-url:
+    description: Base URL of your CodeAudit server, e.g. https://codeaudit.example.com (must be reachable from the runner).
+    required: true
+  api-token:
+    description: A CodeAudit API token (Settings → API tokens). Store it as a repository secret.
+    required: true
+  github-token:
+    description: "Token used to post the pull request comment. Needs `pull-requests: write`."
+    required: false
+    default: ${{ github.token }}
+  fail-under:
+    description: Fail the check if the head score is below this value (0-100). Empty disables it.
+    required: false
+    default: ""
+  fail-on-new-critical:
+    description: Fail the check if the pull request introduces new critical findings.
+    required: false
+    default: "false"
+  comment:
+    description: Post (or update) a comment on the pull request.
+    required: false
+    default: "true"
+  timeout-minutes:
+    description: How long to wait for scans to finish.
+    required: false
+    default: "30"
+  frontend-url:
+    description: Base URL of the CodeAudit web app, for links in the comment. Defaults to api-url.
+    required: false
+    default: ""
+
+outputs:
+  scan-id:
+    description: ID of the head commit's scan.
+    value: ${{ steps.codeaudit.outputs.scan-id }}
+  score:
+    description: Overall score of the head commit (empty if unscored).
+    value: ${{ steps.codeaudit.outputs.score }}
+  grade:
+    description: Letter grade of the head commit.
+    value: ${{ steps.codeaudit.outputs.grade }}
+  score-delta:
+    description: Head score minus base score (empty outside pull requests).
+    value: ${{ steps.codeaudit.outputs.score-delta }}
+  new-findings:
+    description: Number of findings introduced by the pull request.
+    value: ${{ steps.codeaudit.outputs.new-findings }}
+  new-critical:
+    description: Number of new critical findings.
+    value: ${{ steps.codeaudit.outputs.new-critical }}
+
+runs:
+  using: composite
+  steps:
+    - id: codeaudit
+      shell: bash
+      env:
+        CODEAUDIT_API_URL: ${{ inputs.api-url }}
+        CODEAUDIT_API_TOKEN: ${{ inputs.api-token }}
+        CODEAUDIT_FRONTEND_URL: ${{ inputs.frontend-url }}
+        CODEAUDIT_FAIL_UNDER: ${{ inputs.fail-under }}
+        CODEAUDIT_FAIL_ON_NEW_CRITICAL: ${{ inputs.fail-on-new-critical }}
+        CODEAUDIT_COMMENT: ${{ inputs.comment }}
+        CODEAUDIT_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: python3 "${{ github.action_path }}/codeaudit_action.py"

@@ -39,3 +39,4 @@ networkx>=3.6,<4
 
 # --- LLM ---
 anthropic>=1.5,<2
+cryptography>=45,<51

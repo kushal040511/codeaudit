@@ -109,9 +109,14 @@ def _to_docker_mount(mount: SandboxMount, workspace_root: Path, volume: str) -> 
     docker_mount = Mount(
         target=mount.target, source=volume, type="volume", read_only=mount.read_only
     )
+    # NoCopy: an empty directory would otherwise get the image's content *and ownership*
+    # at the target copied into it ("copy-up"), leaving it root-owned and unwritable
+    # for the sandbox user (e.g. the clone destination).
+    options: dict[str, object] = {"NoCopy": True}
     subpath = source.relative_to(root).as_posix()
     if subpath != ".":
-        docker_mount["VolumeOptions"] = {"Subpath": subpath}
+        options["Subpath"] = subpath
+    docker_mount["VolumeOptions"] = options
     return docker_mount
 
 
@@ -156,6 +161,7 @@ def run_in_sandbox(
     labels: Mapping[str, str] | None = None,
     entrypoint: Sequence[str] | None = None,
     environment: Mapping[str, str] | None = None,
+    network: bool = False,
 ) -> SandboxResult:
     """Run `command` in an isolated container and wait for it, killing it on timeout.
 
@@ -179,7 +185,8 @@ def run_in_sandbox(
             working_dir=working_dir,
             user=SANDBOX_USER,
             environment={**(environment or {}), "HOME": "/tmp"},  # noqa: S108 - tmpfs
-            network_mode="none",
+            # Only the git clone container gets a network (bridge, outbound only).
+            network_mode="bridge" if network else "none",
             read_only=True,
             tmpfs={"/tmp": f"rw,nosuid,nodev,size={limits.tmpfs_size}"},  # noqa: S108
             mounts=docker_mounts,

@@ -13,7 +13,7 @@ from app.services.llm.context import (
     merge_windows,
 )
 from app.services.llm.fix_suggester import build_prompt, group_findings
-from app.services.scoring.priority import priority, top_fixable
+from app.services.scoring.priority import top_fixable
 
 FIXTURES = Path(__file__).parents[2] / "fixtures"
 MIXED = FIXTURES / "architecture" / "mixed_repo"
@@ -32,24 +32,23 @@ def finding(id: int, **overrides: Any) -> Finding:
         "message": "issue",
         "corroborated_by": [],
         "dependency": None,
+        "score_impact": None,
     }
     return Finding(**(values | overrides))
 
 
-def test_priority_prefers_severity_security_and_corroboration() -> None:
-    lint_error = finding(1, analyzer="ruff", severity=Severity.ERROR)
-    semgrep_error = finding(2, severity=Severity.ERROR)
-    corroborated = finding(3, severity=Severity.ERROR, corroborated_by=["bandit"])
-    critical_dep = finding(4, analyzer="dependency", severity=Severity.CRITICAL)
-    structural = finding(5, analyzer="architecture", severity=Severity.CRITICAL)
+def test_top_fixable_orders_by_score_impact() -> None:
+    small = finding(1, severity=Severity.CRITICAL, score_impact=0.4)
+    big = finding(2, severity=Severity.WARNING, score_impact=2.5)
+    tie_more_severe = finding(3, severity=Severity.ERROR, score_impact=0.4)
+    unknown = finding(4, severity=Severity.CRITICAL, score_impact=None)  # scored before the rubric
+    structural = finding(5, analyzer="architecture", severity=Severity.CRITICAL, score_impact=9.0)
 
-    ranked = top_fixable(
-        [lint_error, semgrep_error, corroborated, critical_dep, structural], limit=3
-    )
+    ranked = top_fixable([small, big, tie_more_severe, unknown, structural], limit=3)
 
-    assert [p.finding.id for p in ranked] == [4, 3, 2]
-    assert priority(corroborated) == priority(semgrep_error) + 10
-    assert top_fixable([lint_error], limit=0) == []
+    assert [p.finding.id for p in ranked] == [2, 1, 3]
+    assert [p.priority for p in ranked] == [2.5, 0.4, 0.4]
+    assert top_fixable([small], limit=0) == []
 
 
 def test_groups_same_rule_same_file_and_same_package() -> None:

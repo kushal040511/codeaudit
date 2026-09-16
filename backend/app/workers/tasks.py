@@ -1,6 +1,7 @@
 import logging
 import shutil
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,11 +23,16 @@ from app.models import (
     Finding,
     FixStatus,
     FixSuggestion,
+    PullRequest,
+    PullRequestStatus,
     Scan,
     ScanStatus,
+    User,
     ValidationStatus,
 )
 from app.services.analyzers.sandbox import SandboxUnavailableError, remove_orphaned_sandboxes
+from app.services.github.client import GitHubError
+from app.services.github.pr_builder import PullRequestError, create_pull_request_from_preview
 from app.services.llm.client import LLMClient, LLMError, LLMUnavailableError
 from app.services.llm.context import detect_conventions
 from app.services.llm.enrichment import finish_enrichment, run_enrichment, start_enrichment
@@ -219,7 +225,7 @@ def enrich_scan(scan_id: str) -> dict[str, Any]:
                 return {"scan_id": scan_id, "status": "skipped"}
             llm = LLMClient()
             workdir = create_workspace(scan_uuid)
-            source_dir = extract_source(scan, workdir)
+            source_dir = extract_source(db, scan, workdir)
             outcome = run_enrichment(db, scan, source_dir, llm)
             status = outcome.status
             message = " ".join(outcome.problems) or None
@@ -263,7 +269,7 @@ def regenerate_fix_task(
                 return {"status": "missing"}
             llm = LLMClient()
             workdir = create_workspace(scan_uuid)
-            source_dir = extract_source(scan, workdir)
+            source_dir = extract_source(db, scan, workdir)
             languages = [lang["language"] for lang in scan.detected_languages or []]
             stats = regenerate_fix(
                 db,
@@ -296,6 +302,43 @@ def regenerate_fix_task(
                 shutil.rmtree(workdir, ignore_errors=True)
 
 
+@celery_app.task(name="codeaudit.create_pull_request", soft_time_limit=300, time_limit=360)
+def create_pull_request_task(pr_id: int) -> dict[str, Any]:
+    """Write a confirmed pull request to GitHub. Only queued by the confirm endpoint.
+
+    Never retried: GitHub writes are not idempotent, and a retry could push twice.
+    """
+    with SessionLocal() as db:
+        row = db.get(PullRequest, pr_id)
+        if row is None or row.status is not PullRequestStatus.CREATING or row.confirmed_at is None:
+            return {"pull_request": pr_id, "status": "skipped"}
+        scan, user = db.get(Scan, row.scan_id), db.get(User, row.user_id)
+        code, message = "internal_error", "Internal error while creating the pull request."
+        try:
+            if scan is None or user is None or scan.user_id != user.id:
+                code, message = "not_found", "The scan or its owner no longer exists."
+            else:
+                create_pull_request_from_preview(db, row, scan, user)
+                return {"pull_request": pr_id, "status": "open", "url": row.pr_url}
+        except PullRequestError as exc:
+            code, message = exc.code, exc.message
+        except GitHubError as exc:
+            code, message = exc.code, exc.message
+        except SoftTimeLimitExceeded:
+            code, message = "timeout", "Creating the pull request took too long."
+        except Exception:
+            logger.exception("pull request %s: creation crashed", pr_id)
+        db.rollback()
+        row = db.get(PullRequest, pr_id)
+        if row is not None:
+            row.status = PullRequestStatus.FAILED
+            row.error_code = code
+            row.error_message = message[:MAX_ERROR_MESSAGE_CHARS]
+            db.commit()
+        logger.info("pull request %s failed: %s", pr_id, code)
+        return {"pull_request": pr_id, "status": "failed", "error": code}
+
+
 @worker_ready.connect
 def cleanup_after_crash(**_: Any) -> None:
     """Remove sandboxes and workspaces a previous crashed run of this worker left behind.
@@ -311,3 +354,24 @@ def cleanup_after_crash(**_: Any) -> None:
     stale = remove_stale_workspaces(max_age_seconds=settings.scan_timeout_seconds + 120)
     if stale:
         logger.warning("removed %d stale scan workspaces", stale)
+    try:
+        with SessionLocal() as db:
+            stuck = db.execute(
+                update(PullRequest)
+                .where(
+                    PullRequest.status == PullRequestStatus.CREATING,
+                    PullRequest.confirmed_at < utcnow() - timedelta(minutes=15),
+                )
+                .values(
+                    status=PullRequestStatus.FAILED,
+                    error_code="interrupted",
+                    error_message="The worker stopped while creating this pull request. Check"
+                    " the repository for a partially created branch before trying again.",
+                )
+            )
+            db.commit()
+            count = getattr(stuck, "rowcount", 0)
+            if count:
+                logger.warning("marked %d interrupted pull requests failed", count)
+    except SQLAlchemyError as exc:
+        logger.warning("skipping pull request cleanup: %s", exc)

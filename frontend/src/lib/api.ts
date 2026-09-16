@@ -7,7 +7,29 @@ export const api = axios.create({
   baseURL: `${API_ORIGIN}/api`,
   timeout: 30_000,
   paramsSerializer: { indexes: null },
+  // The session is an HttpOnly cookie; needed when the API is on another origin.
+  withCredentials: true,
 })
+
+// State-changing requests authenticated by the session cookie must echo the CSRF token.
+let csrfToken: string | null = null
+export function setCsrfToken(token: string | null) {
+  csrfToken = token
+}
+api.interceptors.request.use((config) => {
+  const method = (config.method ?? 'get').toLowerCase()
+  if (csrfToken && !['get', 'head', 'options'].includes(method)) {
+    config.headers.set('X-CSRF-Token', csrfToken)
+  }
+  return config
+})
+
+/** Browser navigation (not XHR): GitHub redirects back to the API, which redirects to `next`. */
+export function githubLoginUrl({ privateRepos = false, next = '/settings' } = {}): string {
+  const params = new URLSearchParams({ next })
+  if (privateRepos) params.set('private', 'true')
+  return `${API_ORIGIN}/api/auth/github/login?${params}`
+}
 
 // ---------- Types (mirror backend/app/schemas) ----------
 
@@ -49,9 +71,26 @@ export type AnalyzerSummary = { total: number; completed: number; failed: number
 export type DetectedLanguage = { language: string; file_count: number; manifests: string[] }
 export type SeverityCounts = Record<Severity, number>
 
+export type ScanSource = 'upload' | 'github'
+
+export type RepositoryInfo = {
+  owner: string
+  name: string
+  full_name: string
+  /** Branch, tag or commit as requested. */
+  ref: string | null
+  default_branch: string | null
+  commit_sha: string
+  private: boolean | null
+  html_url: string
+}
+
 export type Scan = {
   id: string
   status: ScanStatus
+  source: ScanSource
+  repository: RepositoryInfo | null
+  owned_by_you: boolean
   original_filename: string
   detected_languages: DetectedLanguage[] | null
   error_message: string | null
@@ -68,6 +107,41 @@ export type Scan = {
   enrichment_status: EnrichmentStatus | null
   enrichment_error: string | null
   llm_usage: LlmUsageSummary
+  score: ScoreSummary | null
+}
+
+export type ScoreSummary = { overall: number | null; grade: string | null; incomplete: boolean; rubric_version: string }
+
+export type CategoryScore = {
+  category: 'security' | 'dependencies' | 'architecture' | 'code_health'
+  label: string
+  /** null: excluded (not applicable, or its analyzer failed). */
+  score: number | null
+  weight: number
+  penalty: number
+  finding_count: number
+  excluded_reason: string | null
+  rationale: string[]
+}
+
+export type ScanScore = {
+  rubric_version: string
+  overall: number | null
+  grade: string | null
+  incomplete: boolean
+  incomplete_reasons: string[]
+  categories: CategoryScore[]
+  source_loc: number
+  module_count: number
+  computed_at: string
+}
+
+export type ScoreProjection = {
+  current: { overall: number | null; grade: string | null; categories: CategoryScore[] }
+  projected: { overall: number | null; grade: string | null; categories: CategoryScore[] }
+  delta: number | null
+  included_finding_ids: number[]
+  ignored_finding_ids: number[]
 }
 
 export type LlmUsageSummary = {
@@ -114,6 +188,8 @@ export type Finding = {
   corroborated_by: string[]
   merged_from: MergedFinding[]
   dependency: DependencyInfo | null
+  /** Overall score points gained if this finding alone were fixed. */
+  score_impact: number | null
   fix_status: FixStatus | null
   fix_validation_status: ValidationStatus | null
 }
@@ -352,6 +428,124 @@ export type HealthResponse = {
   checks: Record<string, ComponentCheck>
 }
 
+// ---------- Auth & GitHub ----------
+
+export type GitHubConnection = {
+  login: string
+  connected: boolean
+  scopes: string[]
+  private_repo_access: boolean
+  token_expires_at: string | null
+}
+
+export type Me = {
+  id: string
+  display_name: string
+  avatar_url: string | null
+  github: GitHubConnection | null
+  csrf_token: string | null
+  auth_method: 'session' | 'api_token'
+}
+
+export type AuthConfig = { github_enabled: boolean }
+
+export type ApiToken = {
+  id: number
+  name: string
+  prefix: string
+  created_at: string
+  last_used_at: string | null
+  revoked_at: string | null
+}
+export type ApiTokenCreated = ApiToken & { token: string }
+
+export type GitHubRepo = {
+  full_name: string
+  private: boolean
+  default_branch: string
+  description: string | null
+  pushed_at: string | null
+  html_url: string
+}
+
+// ---------- Fix pull requests ----------
+
+export type FixCandidate = {
+  suggestion_id: number
+  finding_id: number
+  severity: Severity
+  analyzer: string
+  rule_id: string
+  file_path: string
+  start_line: number
+  message: string
+  explanation: string | null
+  confidence: string | null
+  breaking_risk: string | null
+  score_impact: number | null
+  /** Other findings fixed by the same patch: selected together. */
+  shared_with_finding_ids: number[]
+  patch: string
+}
+
+export type PullRequestStatus = 'previewed' | 'creating' | 'open' | 'failed'
+
+export type PullRequest = {
+  id: number
+  scan_id: string
+  status: PullRequestStatus
+  repo_full_name: string
+  head_repo_full_name: string
+  base_branch: string
+  base_sha: string
+  branch: string
+  use_fork: boolean
+  title: string
+  body: string
+  included_suggestion_ids: number[]
+  commits: { sha: string; message: string; suggestion_ids: number[] }[]
+  pr_number: number | null
+  pr_url: string | null
+  error_code: string | null
+  error_message: string | null
+  created_at: string
+  updated_at: string
+  confirmed_at: string | null
+}
+
+export type PatchCheck = {
+  suggestion_ids: number[]
+  paths: string[]
+  status: 'applies' | 'no_longer_applies' | 'conflicts' | 'syntax_error'
+  detail: string | null
+}
+
+export type PullRequestPreview = PullRequest & {
+  scanned_sha: string
+  head_moved: boolean
+  can_push: boolean
+  requires_fork: boolean
+  branch_available: boolean
+  suggested_branch: string | null
+  combined_diff: string
+  files: { path: string; original: string; patched: string }[]
+  planned_commits: { message: string; suggestion_ids: number[]; paths: string[] }[]
+  patch_checks: PatchCheck[]
+  excluded: { suggestion_id: number; reason: string }[]
+  blocking: { code: string; message: string }[]
+  score: {
+    current: number | null
+    current_grade: string | null
+    projected: number | null
+    projected_grade: string | null
+    delta: number | null
+    rubric_version: string
+    incomplete: boolean
+  }
+  /** Confirming writes a branch, commits and a pull request here. */
+  writes_to: string
+}
+
 // ---------- Errors ----------
 
 type ApiErrorBody = { error?: { code: string; message: string; details?: unknown } }
@@ -430,6 +624,16 @@ export function getFindings(scanId: string, query: FindingsQuery = {}): Promise<
   )
 }
 
+export function getScore(scanId: string): Promise<ScanScore> {
+  return request(() => api.get<ScanScore>(`/scans/${encodeURIComponent(scanId)}/score`))
+}
+
+export function projectScore(scanId: string, findingIds: number[]): Promise<ScoreProjection> {
+  return request(() =>
+    api.post<ScoreProjection>(`/scans/${encodeURIComponent(scanId)}/score/projection`, { finding_ids: findingIds }),
+  )
+}
+
 export function getFix(scanId: string, findingId: number): Promise<FixSuggestion> {
   return request(() => api.get<FixSuggestion>(`/scans/${encodeURIComponent(scanId)}/findings/${findingId}/fix`))
 }
@@ -482,4 +686,79 @@ export function getHealth(): Promise<HealthResponse> {
       validateStatus: (status) => status === 200 || status === 503,
     }),
   )
+}
+
+// ---------- Auth & GitHub endpoints ----------
+
+export function getAuthConfig(): Promise<AuthConfig> {
+  return request(() => api.get<AuthConfig>('/auth/config'))
+}
+
+/** The signed-in user, or null when signed out. */
+export async function getMe(): Promise<Me | null> {
+  try {
+    const me = await request(() => api.get<Me>('/auth/me'))
+    setCsrfToken(me.csrf_token)
+    return me
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      setCsrfToken(null)
+      return null
+    }
+    throw err
+  }
+}
+
+export function logout(): Promise<void> {
+  return request(() => api.post<void>('/auth/logout'))
+}
+
+export function disconnectGitHub(): Promise<{ disconnected: boolean; revoked_at_github: boolean }> {
+  return request(() => api.delete('/auth/github'))
+}
+
+export function listGitHubRepos(page = 1): Promise<GitHubRepo[]> {
+  return request(() => api.get<GitHubRepo[]>('/auth/github/repos', { params: { page } }))
+}
+
+export function listApiTokens(): Promise<ApiToken[]> {
+  return request(() => api.get<ApiToken[]>('/auth/tokens'))
+}
+
+export function createApiToken(name: string): Promise<ApiTokenCreated> {
+  return request(() => api.post<ApiTokenCreated>('/auth/tokens', { name }))
+}
+
+export function revokeApiToken(id: number): Promise<void> {
+  return request(() => api.delete<void>(`/auth/tokens/${id}`))
+}
+
+export function createRepoScan(repoUrl: string, ref?: string): Promise<ScanCreated> {
+  return request(() => api.post<ScanCreated>('/scans', { repo_url: repoUrl, ref: ref || null }))
+}
+
+// ---------- Fix pull request endpoints ----------
+
+export function getFixCandidates(scanId: string): Promise<FixCandidate[]> {
+  return request(() => api.get<FixCandidate[]>(`/scans/${encodeURIComponent(scanId)}/fixes`))
+}
+
+export function previewPullRequest(
+  scanId: string,
+  body: { suggestion_ids: number[]; branch?: string; use_fork?: boolean },
+): Promise<PullRequestPreview> {
+  return request(() =>
+    api.post<PullRequestPreview>(`/scans/${encodeURIComponent(scanId)}/pull-requests/preview`, body, {
+      timeout: 120_000,
+    }),
+  )
+}
+
+/** Writes to GitHub. Only call from an explicit user confirmation. */
+export function confirmPullRequest(prId: number, edits: { title: string; body: string }): Promise<PullRequest> {
+  return request(() => api.post<PullRequest>(`/pull-requests/${prId}/confirm`, { confirm: true, ...edits }))
+}
+
+export function listPullRequests(scanId: string): Promise<PullRequest[]> {
+  return request(() => api.get<PullRequest[]>(`/scans/${encodeURIComponent(scanId)}/pull-requests`))
 }

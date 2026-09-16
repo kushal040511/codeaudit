@@ -1,10 +1,28 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.models import AnalyzerRunStatus, EnrichmentStatus, ScanStatus
+from app.models import AnalyzerRunStatus, EnrichmentStatus, ScanSource, ScanStatus
 from app.schemas.llm import LLMUsageSummary
+from app.schemas.score import ScoreSummary
+
+
+class RepoScanRequest(BaseModel):
+    repo_url: str = Field(max_length=500, examples=["https://github.com/owner/repo"])
+    # Branch, tag or 40-character commit; the default branch when omitted.
+    ref: str | None = Field(default=None, max_length=255)
+
+
+class RepositoryRead(BaseModel):
+    owner: str
+    name: str
+    full_name: str
+    ref: str | None
+    default_branch: str | None
+    commit_sha: str
+    private: bool | None
+    html_url: str
 
 
 class ScanCreated(BaseModel):
@@ -49,6 +67,10 @@ class AnalyzerSummary(BaseModel):
 class ScanRead(BaseModel):
     id: uuid.UUID
     status: ScanStatus
+    source: ScanSource
+    repository: RepositoryRead | None
+    # Whether the caller owns this scan (needed to open pull requests from it).
+    owned_by_you: bool
     original_filename: str
     detected_languages: list[DetectedLanguageRead] | None
     error_message: str | None
@@ -68,3 +90,4 @@ class ScanRead(BaseModel):
     enrichment_status: EnrichmentStatus | None
     enrichment_error: str | None
     llm_usage: LLMUsageSummary
+    score: ScoreSummary | None

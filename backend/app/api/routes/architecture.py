@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import OptionalPrincipal, load_scan
 from app.api.errors import NotFoundError
 from app.core.db import get_db
 from app.models import (
@@ -14,7 +15,6 @@ from app.models import (
     EdgeKind,
     GraphEdge,
     GraphNode,
-    Scan,
     Severity,
 )
 from app.schemas.architecture import (
@@ -29,6 +29,7 @@ from app.schemas.architecture import (
     ModuleImportRead,
 )
 from app.schemas.errors import ErrorResponse
+from app.services.auth.sessions import Principal
 from app.services.graph.view import build_view
 
 router = APIRouter(prefix="/scans/{scan_id}", tags=["architecture"])
@@ -41,9 +42,10 @@ ERRORS: dict[int | str, dict[str, object]] = {
 }
 
 
-def _summary_or_404(db: Session, scan_id: uuid.UUID) -> ArchitectureSummary:
-    if db.get(Scan, scan_id) is None:
-        raise NotFoundError(f"Scan {scan_id} not found.")
+def _summary_or_404(
+    db: Session, scan_id: uuid.UUID, principal: Principal | None
+) -> ArchitectureSummary:
+    load_scan(db, scan_id, principal)
     summary = db.get(ArchitectureSummary, scan_id)
     if summary is None:
         raise NotFoundError(
@@ -57,6 +59,7 @@ def _summary_or_404(db: Session, scan_id: uuid.UUID) -> ArchitectureSummary:
 def get_graph(
     scan_id: uuid.UUID,
     db: DbSession,
+    principal: OptionalPrincipal,
     max_nodes: Annotated[
         int,
         Query(ge=10, le=2000, description="Aggregate by directory above this many modules"),
@@ -71,7 +74,7 @@ def get_graph(
     ] = None,
 ) -> ArchitectureGraphRead:
     """The module dependency graph, its metrics and issues, sized for display."""
-    summary = _summary_or_404(db, scan_id)
+    summary = _summary_or_404(db, scan_id, principal)
     nodes = db.scalars(select(GraphNode).where(GraphNode.scan_id == scan_id)).all()
     edges = db.scalars(
         select(GraphEdge).where(GraphEdge.scan_id == scan_id, GraphEdge.kind == EdgeKind.INTERNAL)
@@ -136,10 +139,11 @@ def get_graph(
 def get_graph_module(
     scan_id: uuid.UUID,
     db: DbSession,
+    principal: OptionalPrincipal,
     module_id: Annotated[str, Query(max_length=2048)],
 ) -> ModuleDetailRead:
     """One module: metrics, importers, imports (internal, external, unresolved) and issues."""
-    _summary_or_404(db, scan_id)
+    _summary_or_404(db, scan_id, principal)
     node = db.scalar(
         select(GraphNode).where(GraphNode.scan_id == scan_id, GraphNode.module_id == module_id)
     )
@@ -215,11 +219,12 @@ def get_graph_module(
 def list_architecture_issues(
     scan_id: uuid.UUID,
     db: DbSession,
+    principal: OptionalPrincipal,
     issue_type: Annotated[list[ArchitectureIssueType] | None, Query()] = None,
     severity: Annotated[list[Severity] | None, Query()] = None,
 ) -> list[ArchitectureIssueRead]:
     """Structural issues, most severe first."""
-    _summary_or_404(db, scan_id)
+    _summary_or_404(db, scan_id, principal)
     conditions = [ArchitectureIssue.scan_id == scan_id]
     if issue_type:
         conditions.append(ArchitectureIssue.issue_type.in_(issue_type))

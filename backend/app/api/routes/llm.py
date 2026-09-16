@@ -6,6 +6,7 @@ from kombu.exceptions import OperationalError as BrokerError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import OptionalPrincipal, load_scan
 from app.api.errors import ConflictError, NotFoundError, ServiceUnavailableError
 from app.config import get_settings
 from app.core.db import get_db
@@ -16,7 +17,6 @@ from app.models import (
     FixStatus,
     FixSuggestion,
     LLMCall,
-    Scan,
     ValidationStatus,
 )
 from app.schemas.errors import ErrorResponse
@@ -39,13 +39,6 @@ RECENT_CALLS = 100
 
 def _errors(*codes: int) -> dict[int | str, dict[str, object]]:
     return {code: {"model": ErrorResponse} for code in codes}
-
-
-def _scan_or_404(db: Session, scan_id: uuid.UUID) -> Scan:
-    scan = db.get(Scan, scan_id)
-    if scan is None:
-        raise NotFoundError(f"Scan {scan_id} not found.")
-    return scan
 
 
 def _finding_or_404(db: Session, scan_id: uuid.UUID, finding_id: int) -> Finding:
@@ -82,9 +75,11 @@ def to_read(suggestion: FixSuggestion) -> FixSuggestionRead:
 @router.get(
     "/findings/{finding_id}/fix", response_model=FixSuggestionRead, responses=_errors(404, 422)
 )
-def get_fix(scan_id: uuid.UUID, finding_id: int, db: DbSession) -> FixSuggestionRead:
+def get_fix(
+    scan_id: uuid.UUID, finding_id: int, db: DbSession, principal: OptionalPrincipal
+) -> FixSuggestionRead:
     """The fix suggestion for a finding. The patch is only included if it was verified."""
-    _scan_or_404(db, scan_id)
+    load_scan(db, scan_id, principal)
     _finding_or_404(db, scan_id, finding_id)
     suggestion = db.scalar(select(FixSuggestion).where(FixSuggestion.finding_id == finding_id))
     if suggestion is None:
@@ -105,12 +100,14 @@ def regenerate_fix(
     scan_id: uuid.UUID,
     finding_id: int,
     db: DbSession,
+    principal: OptionalPrincipal,
     body: RegenerateFixRequest | None = None,
 ) -> FixSuggestionRead:
     """Queue a new suggestion for this finding, optionally guided by a hint. Poll GET .../fix."""
     from app.workers.tasks import regenerate_fix_task
 
-    scan = _scan_or_404(db, scan_id)
+    # Anonymous scans stay regenerable by id holders; owned scans only by the owner.
+    scan = load_scan(db, scan_id, principal)
     finding = _finding_or_404(db, scan_id, finding_id)
     if reason := llm_configured():
         raise ServiceUnavailableError(reason)
@@ -159,9 +156,11 @@ def regenerate_fix(
 @router.get(
     "/architecture-review", response_model=ArchitectureReviewRead, responses=_errors(404, 422)
 )
-def get_architecture_review(scan_id: uuid.UUID, db: DbSession) -> ArchitectureReviewRead:
+def get_architecture_review(
+    scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal
+) -> ArchitectureReviewRead:
     """The model's structural critique; every cited module was checked against the graph."""
-    scan = _scan_or_404(db, scan_id)
+    scan = load_scan(db, scan_id, principal)
     review = db.get(ArchitectureReview, scan_id)
     if review is None:
         detail = f" ({scan.enrichment_error})" if scan.enrichment_error else ""
@@ -170,9 +169,9 @@ def get_architecture_review(scan_id: uuid.UUID, db: DbSession) -> ArchitectureRe
 
 
 @router.get("/llm-usage", response_model=LLMUsageRead, responses=_errors(404, 422))
-def get_llm_usage(scan_id: uuid.UUID, db: DbSession) -> LLMUsageRead:
+def get_llm_usage(scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal) -> LLMUsageRead:
     """Tokens, cost and latency of every model call for this scan."""
-    scan = _scan_or_404(db, scan_id)
+    scan = load_scan(db, scan_id, principal)
     settings = get_settings()
     totals = db.execute(
         select(

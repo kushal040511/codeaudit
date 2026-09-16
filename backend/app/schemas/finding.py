@@ -39,6 +39,8 @@ class FindingRead(BaseModel):
     corroborated_by: list[str]
     merged_from: list[MergedFinding]
     dependency: DependencyInfo | None
+    # Overall score points gained if this finding alone were fixed.
+    score_impact: float | None = None
     fix_status: FixStatus | None = None
     fix_validation_status: ValidationStatus | None = None
 

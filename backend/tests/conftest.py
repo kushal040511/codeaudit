@@ -34,6 +34,13 @@ os.environ.update(
         "SCAN_WORKSPACE_DIR": str(TEST_WORKSPACE),
         # Worker runs on the host in tests: sandbox mounts are bind mounts.
         "SANDBOX_WORKSPACE_VOLUME": "",
+        # Test-only GitHub app and encryption key; real credentials in .env are never used.
+        "GITHUB_CLIENT_ID": "test-client-id",
+        "GITHUB_CLIENT_SECRET": "test-client-secret",
+        "GITHUB_API_URL": "https://api.github.com",
+        "GITHUB_OAUTH_URL": "https://github.com",
+        "TOKEN_ENCRYPTION_KEYS": "J2mV0z7rQn3o4a9sJq1dYb3kq8m8yZq0yq3yWm0x3kE=",
+        "FRONTEND_URL": "http://frontend.test",
     }
 )
 
@@ -58,3 +65,18 @@ def _cleanup_test_workspace() -> Iterator[None]:
     yield
     for scan_dir in TEST_WORKSPACE.glob("scan-*"):
         shutil.rmtree(scan_dir, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_github() -> Iterator[None]:
+    """GitHub is always faked: any request that isn't routed to a fake fails the test."""
+    import httpx
+
+    from app.services.github import client as github_client
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"live GitHub call attempted: {request.method} {request.url}")
+
+    github_client.set_transport_override(httpx.MockTransport(refuse))
+    yield
+    github_client.set_transport_override(None)

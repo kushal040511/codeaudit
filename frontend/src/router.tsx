@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ScanDetailPage } from '@/pages/ScanDetailPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { UploadPage } from '@/pages/UploadPage'
 
 export const router = createBrowserRouter([
@@ -13,6 +14,7 @@ export const router = createBrowserRouter([
       { index: true, Component: HomePage },
       { path: 'upload', Component: UploadPage },
       { path: 'scans/:scanId', Component: ScanDetailPage },
+      { path: 'settings', Component: SettingsPage },
       { path: '*', Component: NotFoundPage },
     ],
   },

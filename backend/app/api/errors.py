@@ -50,6 +50,21 @@ class ConflictError(AppError):
     code = "conflict"
 
 
+class UnauthorizedError(AppError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+
+
+class ForbiddenError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "forbidden"
+
+
+class RateLimitedError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limited"
+
+
 class PayloadTooLargeError(AppError):
     status_code = status.HTTP_413_CONTENT_TOO_LARGE
     code = "payload_too_large"

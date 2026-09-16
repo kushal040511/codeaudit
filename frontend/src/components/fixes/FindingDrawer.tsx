@@ -24,6 +24,12 @@ export function FindingDrawer({ scanId, finding, displayName, onClose }: Props) 
                 </span>
               </div>
               <SheetTitle>{finding.message}</SheetTitle>
+              {finding.score_impact !== null && finding.score_impact > 0 && (
+                <p className="text-sm">
+                  Fixing this adds <span className="font-medium tabular-nums">+{finding.score_impact.toFixed(2)}</span>{' '}
+                  points to the score.
+                </p>
+              )}
               <SheetDescription className="font-mono break-all">
                 {finding.file_path}:{finding.start_line}
                 {finding.end_line !== finding.start_line ? `–${finding.end_line}` : ''}
