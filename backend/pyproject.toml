@@ -1,0 +1,83 @@
+[project]
+name = "codeaudit-backend"
+version = "0.1.0"
+description = "CodeAudit API + scan workers"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # API
+    "fastapi>=0.141,<1.0",
+    "uvicorn[standard]>=0.52,<1.0",
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.15,<3",
+    "python-multipart>=0.0.32,<0.1",
+    "httpx>=0.28,<1.0",
+    "python-dotenv>=1.2,<2",
+    # Async jobs
+    "celery[redis]>=5.6,<6",
+    "redis>=6.4,<6.5",  # kombu (celery[redis]) caps redis <6.5
+    # Persistence
+    "sqlalchemy>=2.0,<3",
+    "alembic>=1.20,<2",
+    "psycopg2-binary>=2.9,<3",
+    # Object storage
+    "boto3>=1.43,<2",
+    # Sandbox: launches analyzer containers
+    "docker>=7.2,<8",
+    # Analysis tooling
+    "semgrep>=1.177,<2",
+    "bandit>=1.9,<2",
+    "ruff>=0.16,<0.17",
+    "pip-audit>=2.10,<3",
+    "tree-sitter>=0.25,<0.27",
+    "tree-sitter-python>=0.25,<0.26",
+    "tree-sitter-javascript>=0.25,<0.26",
+    "tree-sitter-typescript>=0.23,<0.24",
+    "networkx>=3.6,<4",
+    # LLM
+    "anthropic>=1.5,<2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    "pytest-asyncio>=1.4,<2",
+    "black>=26.5,<27",
+    "mypy>=2.3,<3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: needs Postgres, MinIO and a Docker daemon (docker compose stack)"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+extend-exclude = "^/(alembic/versions|tests/fixtures)/"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions", "tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108", "S603", "S607", "S608"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["^alembic/"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "networkx.*", "docker.*", "requests.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.workers.*"]
+disallow_untyped_decorators = false

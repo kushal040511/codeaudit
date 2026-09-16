@@ -1,0 +1,41 @@
+# Runtime dependencies, major-version pinned.
+# Source of truth is pyproject.toml; exact transitive versions are locked in uv.lock.
+# Keep this file in sync when changing pyproject.toml.
+
+# --- API ---
+fastapi>=0.141,<1.0
+uvicorn[standard]>=0.52,<1.0
+pydantic>=2.13,<3
+pydantic-settings>=2.15,<3
+python-multipart>=0.0.32,<0.1
+httpx>=0.28,<1.0
+python-dotenv>=1.2,<2
+
+# --- Async jobs ---
+celery[redis]>=5.6,<6
+redis>=6.4,<6.5  # kombu (celery[redis]) caps redis <6.5
+
+# --- Persistence ---
+sqlalchemy>=2.0,<3
+alembic>=1.20,<2
+psycopg2-binary>=2.9,<3
+
+# --- Object storage ---
+boto3>=1.43,<2
+
+# --- Sandbox (launches analyzer containers) ---
+docker>=7.2,<8
+
+# --- Analysis tooling ---
+semgrep>=1.177,<2
+bandit>=1.9,<2
+ruff>=0.16,<0.17
+pip-audit>=2.10,<3
+tree-sitter>=0.25,<0.27
+tree-sitter-python>=0.25,<0.26
+tree-sitter-javascript>=0.25,<0.26
+tree-sitter-typescript>=0.23,<0.24
+networkx>=3.6,<4
+
+# --- LLM ---
+anthropic>=1.5,<2

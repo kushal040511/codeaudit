@@ -1,0 +1,8 @@
+# Development dependencies (includes runtime). Mirrors [dependency-groups].dev in pyproject.toml.
+-r requirements.txt
+
+pytest>=9.1,<10
+pytest-asyncio>=1.4,<2
+black>=26.5,<27
+mypy>=2.3,<3
+# ruff is already a runtime dependency (used as an analyzer)

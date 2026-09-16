@@ -1,0 +1,145 @@
+name: codeaudit
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: ../docker/backend/Dockerfile
+  image: codeaudit-backend:dev
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    # Container-network addresses override the localhost values in .env.
+    DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-codeaudit}:${POSTGRES_PASSWORD:-codeaudit}@postgres:5432/${POSTGRES_DB:-codeaudit}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    S3_ENDPOINT_URL: http://minio:9000
+    S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-codeaudit}
+    S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-codeaudit-secret}
+    SCAN_WORKSPACE_DIR: /var/lib/codeaudit/workspace
+    # Sandbox containers mount per-scan directories from this named volume.
+    SANDBOX_WORKSPACE_VOLUME: codeaudit_scan_workspace
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *backend-common
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app"
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    volumes:
+      # Dev hot-reload. Remove for production images.
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    <<: *backend-common
+    # Runs analyzers in sibling sandbox containers through the Docker daemon.
+    # SECURITY: Docker socket access is root-equivalent on the Docker host.
+    # Acceptable for local development only; see README "Sandboxing".
+    command: celery -A app.core.celery_app:celery_app worker --loglevel=INFO --concurrency=${CELERY_CONCURRENCY:-2}
+    group_add:
+      # Group owning /var/run/docker.sock (0 on Docker Desktop, often 999 on Linux).
+      - "${DOCKER_SOCKET_GID:-0}"
+    volumes:
+      - ./backend/app:/app/app
+      - scan_workspace:/var/lib/codeaudit/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.core.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codeaudit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codeaudit}
+      POSTGRES_DB: ${POSTGRES_DB:-codeaudit}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-codeaudit}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-codeaudit-secret}
+    ports:
+      - "${MINIO_API_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: create the uploads bucket (private), then exit.
+  minio-init:
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-codeaudit}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-codeaudit-secret}
+      S3_BUCKET_UPLOADS: ${S3_BUCKET_UPLOADS:-codeaudit-uploads}
+    entrypoint: >
+      sh -c "mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+             mc mb --ignore-existing local/$$S3_BUCKET_UPLOADS &&
+             mc anonymous set none local/$$S3_BUCKET_UPLOADS"
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  scan_workspace:
+    name: codeaudit_scan_workspace
