@@ -1,0 +1,5 @@
+{
+  // Vite-style project references: the alias lives in tsconfig.app.json
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+}

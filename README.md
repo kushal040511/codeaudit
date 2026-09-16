@@ -2,7 +2,7 @@
 
 Upload a codebase and get security findings, architectural quality and code-health signals, a validated score, and LLM-generated fix suggestions.
 
-> **Status:** zip upload → queue → four analyzers (Semgrep, Bandit, Ruff, OSV-Scanner) running concurrently in sandbox containers → cross-analyzer dedup → Postgres → read API and UI. Scoring, the dependency graph and the LLM layer are still stubs.
+> **Status:** zip upload → queue → five analyzers running concurrently (Semgrep, Bandit, Ruff, OSV-Scanner in sandbox containers; the architecture graph in a child process) → cross-analyzer dedup → Postgres → read API and UI with an interactive dependency graph. Scoring and the LLM layer are still stubs.
 
 ## Stack
 
@@ -13,9 +13,9 @@ Upload a codebase and get security findings, architectural quality and code-heal
 | Data | PostgreSQL 16, SQLAlchemy 2.0, Alembic |
 | Object storage | MinIO (S3 API via boto3, so any S3-compatible store works) |
 | Sandbox | Throwaway Docker containers via the Docker SDK, one per analyzer run |
-| Analysis | Semgrep 1.177, Bandit 1.9.4, Ruff 0.16.7, OSV-Scanner 2.5.1 (each in its own image); tree-sitter and networkx not wired up yet |
+| Analysis | Semgrep 1.177, Bandit 1.9.4, Ruff 0.16.7, OSV-Scanner 2.5.1 (each in its own image); tree-sitter 0.25 + networkx for the architecture graph |
 | LLM | Anthropic SDK (stub) |
-| Frontend | Vite 8, React 18, TypeScript 6, Tailwind CSS 4, shadcn/ui, TanStack Query 5, React Router 7 |
+| Frontend | Vite 8, React 18, TypeScript 6, Tailwind CSS 4, shadcn/ui, TanStack Query 5, React Router 7, React Flow 12 + dagre |
 
 ## How a scan works
 
@@ -52,6 +52,35 @@ All share `services/analyzers/base.py` (`Analyzer`: `applies_to`, `run`, `parse`
 
 **OSV offline databases:** the worker downloads `https://osv-vulnerabilities.storage.googleapis.com/<ecosystem>/all.zip` for the ecosystems whose lockfiles are present (npm ≈ 200 MB, PyPI ≈ 35 MB), caches them for 24 h under `<workspace>/_vulndb/osv` (file-locked, atomic replace, stale copy used if refresh fails) and mounts them read-only. OSV-Scanner *silently skips* ecosystems without a database, so that case is surfaced as a run warning.
 
+### Architecture graph
+
+Repository-wide structure rather than per-file issues (`services/graph/`):
+
+1. **Parse** (`parser.py`): tree-sitter for Python, JavaScript, TypeScript/TSX. Per module: imports with the raw statement and line (Python `import`/`from`/relative/`importlib.import_module`; JS/TS ESM, `export … from`, CJS `require`, `import x = require()`, dynamic `import()`), whether each import is type-only (`import type`, `if TYPE_CHECKING:`) or lazy (inside a function), top-level symbols, LOC and definition count. `node_modules`, virtualenvs, build output, `.d.ts` and minified files are skipped. A file with a parse error is kept as a node without imports and reported as a warning; it never fails the scan.
+2. **Resolve** (`resolver.py`): every import becomes `internal` (a module → an edge), `asset` (CSS, JSON, images, `.d.ts`), `external` (with evidence: `stdlib`, `node-builtin`, `declared` in requirements/pyproject/package.json, or `undeclared`) or `unresolved` with a reason. Python: source roots inferred from package structure (`src/` layouts, nested projects), relative imports limited to the package hierarchy, submodules in `from pkg import mod`, PEP 420 namespace packages (a declared package wins over a same-named local directory). JS/TS: extensions and index files, `./x.js` → `x.ts`, `tsconfig`/`jsconfig` `paths` and `baseUrl` (JSONC, `extends`, Vite-style project references), workspace packages, Vite `public/`, `@/` aliases as a recorded heuristic.
+3. **Build + metrics** (`builder.py`, `metrics.py`): a NetworkX DiGraph of internal modules; external packages are aggregated per package, not nodes. Cycles and layering use the runtime graph (type-only imports excluded).
+   - **Circular dependencies:** `simple_cycles` with a length bound of 10, an enumeration ceiling of 10 000 and the 100 shortest reported. Cycles where an import is lazy are warnings, others errors.
+   - **Coupling:** fan-in, fan-out, instability `I = fan_out / (fan_in + fan_out)`, betweenness centrality (sampled above 1 000 nodes).
+   - **God modules:** LOC, fan-in and centrality all at or above both the repo's 90th percentile and absolute floors (300 LOC, fan-in 5, centrality 0.05).
+   - **Layering** (`layers.py`): layers inferred from the nearest matching path segment. Backend: routes/controllers/views → services → models/repositories/db. Frontend: components/pages → hooks (`use*`) → api/clients → store/state. Python `api/` is presentation, JS `api/` is the client layer. Inversions (a model importing a controller) are errors; skips (a route importing a model) are warnings, only if the repository has the skipped layer. Tests and colocated modules (a hook inside `components/Dialog/` using that dialog's context) are not violations.
+   - **Orphans:** no importers and not an entrypoint (tests, `__init__`, `main`/`index`/`server`/`cli`, configs and dotfiles, scripts/docs/migrations directories, file-system routes).
+   - **Summary:** nodes, edges, density, average degree, max depth (longest chain with cycles collapsed), parse and resolution statistics (coverage, unresolved by reason and by import form), timings.
+4. **Persist:** `graph_nodes`, `graph_edges` (internal and external aggregated per pair, unresolved per statement), `architecture_issues` (involved modules and edges for highlighting) and `architecture_summaries`. Each issue is also a Finding with `analyzer="architecture"`.
+
+**Isolation:** tree-sitter is native code parsing untrusted input, so the analysis runs in a child process (`graph/isolated.py`) with a hard timeout. A parser crash fails only the architecture run; in-process, it would kill the Celery worker and, with `acks_late`, crash every worker the scan is redelivered to. This is not hypothetical: **py-tree-sitter 0.26.0 corrupts memory** (SIGBUS/SIGSEGV) after parsing a few files in one process, so it is pinned to 0.25.2.
+
+**Measured** (MacBook, one run each, `analyze_architecture` directly):
+
+| Repository | Files | LOC | Parse | Resolve | Build + metrics | Total | Import resolution |
+|---|---|---|---|---|---|---|---|
+| pydantic @7b15a78 | 454 | 143k | 938 ms | 41 ms | 63 ms | 1.04 s | 99.6% (13 of 3 472 unresolved: 11 non-literal `import_module`, 2 compiled/fixture modules) |
+| excalidraw @a918648 | 670 | 186k | 993 ms | 51 ms | 200 ms | 1.24 s | 99.8% (9 of 4 821: 8 non-literal `require`/`import()`, 1 missing file) |
+| full-stack-fastapi-template @cb740b6 | 151 | 12k | 78 ms | 10 ms | 8 ms | 96 ms | 100% |
+
+Through the whole stack, pydantic (uploaded as a zip) finished all five analyzers in 17 s, with the architecture run at 2.1 s including process start-up.
+
+Known limits: 3 valid excalidraw test files are skipped because tree-sitter-typescript 0.23 can't parse `fn<typeof import("x")>()`; layers are path heuristics; modules loaded by string (plugins, Celery `include`, framework conventions) show up as orphans (severity info).
+
 ### Deduplication
 
 Findings are merged when they share a normalised file path, an issue category and a location (same start line, or a ≤5-line range containing the other's start line). Categories come from rule-id keywords first, then CWE ids: Semgrep's CWE tags are unreliable (its Flask SQL-injection rule is CWE-704). The finding with the longest message is kept at the group's highest severity; the other analyzers go into `findings.corroborated_by` and every merged finding into `merged_from`, for scoring to use as confidence. Ruff and dependency findings have unique categories and are never merged with other tools.
@@ -67,6 +96,9 @@ Semgrep runs in its own container with **no network, a read-only root fs, a tmpf
 | `POST` | `/api/scans` | multipart field `file` (.zip, ≤50 MB). `202 {"scan_id", "status": "queued"}` |
 | `GET` | `/api/scans/{id}` | status (`queued`, `running`, `completed`, `partial`, `failed`), timestamps, `detected_languages`, `analyzer_runs` (status, `duration_ms`, `finding_count`, `error_message`, `warnings`), `analyzer_summary`, `finding_counts` by severity, `findings_by_analyzer`, `total_findings`, `findings_before_dedup` |
 | `GET` | `/api/scans/{id}/findings` | `?severity=error&analyzer=bandit&file_path=app.py&page=1&page_size=50`. `analyzer` also matches findings that analyzer corroborated. Items include `analyzer`, `category`, `corroborated_by`, `merged_from`, `dependency` (package, installed/fixed version, advisory id). Most severe first, corroborated first. |
+| `GET` | `/api/scans/{id}/graph` | nodes, edges, issue highlights, external dependencies and the summary. `?max_nodes=300` (10–2000): above it modules are grouped by directory at the deepest level that fits, then the largest directories are opened while the view still fits. `&expand=dir` shows a directory one level deeper, `&collapse=dir` folds it into one node |
+| `GET` | `/api/scans/{id}/graph/module?module_id=` | one module: metrics, importers, internal/external/unresolved imports, issues |
+| `GET` | `/api/scans/{id}/architecture-issues` | `?issue_type=circular_dependency&severity=error` |
 | `GET` | `/health` | DB + Redis check, 200 or 503 |
 
 Every error has the shape `{"error": {"code", "message", "details?"}}`, with codes `invalid_file_type`, `invalid_archive`, `payload_too_large` (413), `not_found` (404), `validation_error` (422) and `service_unavailable` (503). Interactive docs are at http://localhost:8000/docs.
@@ -99,17 +131,20 @@ Every error has the shape `{"error": {"code", "message", "details?"}}`, with cod
 │   │   │   ├── scan_pipeline.py   # download → extract → detect → analyze → persist
 │   │   │   ├── analyzers/         # base, sandbox (container runner), registry, orchestrator, dedup,
 │   │   │   │                      # categories, snippets; semgrep(+_rules), bandit, ruff, dependency(+osv_db)
-│   │   │   ├── graph/ scoring/ llm/   # stubs
+│   │   │   ├── graph/             # parser, resolver, layers, builder, metrics, analysis, isolated, persistence, view
+│   │   │   ├── scoring/ llm/      # stubs
 │   │   └── workers/tasks.py   # run_scan (status, retries, cleanup), crash cleanup on worker start
 │   └── tests/
 │       ├── unit/              # parsers (real tool output), dedup, orchestrator (fake analyzers), caches
 │       ├── integration/       # persistence with fake analyzers (Postgres only); upload → all real analyzers → DB
 │       ├── fakes.py           # FakeAnalyzer: the analyzer interface without Docker
-│       └── fixtures/          # polyglot_app/ + vulnerable_flask_app/ (intentionally insecure), real tool outputs
+│       └── fixtures/          # polyglot_app/ + vulnerable_flask_app/ (intentionally insecure), real tool outputs,
+│                              # architecture/{clean_layered,cycle_repo,layer_violation,mixed_repo}
 └── frontend/src/
     ├── lib/api.ts             # typed API client + ApiError
     ├── pages/                 # UploadPage (drag & drop, progress), ScanDetailPage (2 s polling)
-    └── components/scans/      # AnalyzerStatusPanel, FindingsTable (severity + analyzer filters), SeverityBadge, StatusIndicator
+    ├── components/scans/      # AnalyzerStatusPanel, FindingsTable (severity + analyzer filters), SeverityBadge, StatusIndicator
+    └── components/architecture/  # ArchitectureTab, ArchitectureGraphView (React Flow + dagre), ModuleNode, ModulePanel, IssuesList
 ```
 
 ## Prerequisites
@@ -150,7 +185,7 @@ npm run dev             # http://localhost:5173 (proxies /api and /health to :80
 ```
 
 - `/upload`: drag and drop (or browse for) a zip, with upload progress. Redirects to the scan when done.
-- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, and a findings table with severity and analyzer filters, "also found by" corroboration and dependency upgrade hints. Failed scans show the error message.
+- `/scans/:id`: status indicator, polling every 2 s until finished, an analyzer panel (live status, duration, count, errors and coverage warnings per tool), a "Partial results" banner when a tool failed, and two tabs: **Findings** (severity and analyzer filters, "also found by" corroboration, dependency upgrade hints) and **Architecture** (loaded on demand): summary metrics and coverage warnings, the issue list, and a layered React Flow graph. Node size is LOC, color is the inferred layer, red edges are cycles or violations, dashed edges are type-only. Selecting an issue highlights its modules and dims the rest; clicking a module opens its metrics, importers and imports; directories can be expanded and collapsed. Failed scans show the error message.
 
 Scripts: `npm run build`, `npm run typecheck`, `npm run lint`.
 
@@ -192,7 +227,7 @@ The integration tests recreate a separate `<db>_test` database and migrate it to
 1. **The worker mounts the Docker socket.** That is root-equivalent on the Docker host: a compromise of the worker process (not of the sandbox) owns the host. Move container launching into a small dedicated runner service with a fixed API, use a rootless daemon, or use Kubernetes Jobs.
 2. **Containers share the host kernel.** Add gVisor (`runsc`) or Kata for a stronger boundary against kernel exploits from within the Semgrep process.
 3. **Rule downloads run in the worker, which has network access.** Pin rule versions or bake them into a versioned image for reproducible results.
-4. **Extraction runs in the worker process**, not a sandbox. It is hardened (see `archive.py`), but moving it into the sandbox would shrink the attack surface further.
+4. **Extraction and tree-sitter parsing run outside the sandbox** (extraction in the worker, parsing in a child process without network or resource limits beyond a timeout). It is hardened (see `archive.py`), but moving it into the sandbox would shrink the attack surface further.
 5. **No per-user quotas or rate limits** on uploads yet.
 
 ## Known limitations and version notes

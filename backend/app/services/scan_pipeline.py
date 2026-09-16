@@ -27,6 +27,8 @@ from app.services.analyzers.orchestrator import run_analyzers
 from app.services.analyzers.registry import AnalyzerRegistry, default_registry
 from app.services.analyzers.snippets import fill_snippets
 from app.services.archive import archive_limits_from_settings, safe_extract
+from app.services.graph.analysis import ArchitectureReport
+from app.services.graph.persistence import delete_architecture, persist_architecture
 from app.services.languages import DetectedLanguage, detect_languages
 
 logger = logging.getLogger(__name__)
@@ -176,7 +178,10 @@ def analyze_and_persist(
     findings = fill_snippets([f for r in succeeded for f in r.findings], source_dir)
     unique = deduplicate(findings)
     status = ScanStatus.PARTIAL if failed else ScanStatus.COMPLETED
-    persist_results(db, scan, unique, status)
+    architecture = next(
+        (r.artifact for r in succeeded if isinstance(r.artifact, ArchitectureReport)), None
+    )
+    persist_results(db, scan, unique, status, architecture)
     logger.info(
         "scan %s %s: %d/%d analyzers succeeded, %d findings (%d before dedup)",
         scan.id,
@@ -195,13 +200,20 @@ def analyze_and_persist(
 
 
 def persist_results(
-    db: Session, scan: Scan, findings: Sequence[FindingData], status: ScanStatus
+    db: Session,
+    scan: Scan,
+    findings: Sequence[FindingData],
+    status: ScanStatus,
+    architecture: ArchitectureReport | None = None,
 ) -> None:
-    """Replace the scan's findings and mark it finished in one transaction.
-
-    Deleting first keeps a retried task from duplicating findings.
+    """Replace the scan's findings and architecture data and mark it finished, in one
+    transaction. Deleting first keeps a retried task from duplicating rows.
     """
     db.execute(delete(Finding).where(Finding.scan_id == scan.id))
+    if architecture is not None:
+        persist_architecture(db, scan.id, architecture)
+    else:
+        delete_architecture(db, scan.id)
     if findings:
         db.execute(
             insert(Finding),

@@ -62,10 +62,12 @@ def test_registry_rejects_duplicate_names() -> None:
 def test_default_registry_languages() -> None:
     registry = default_registry()
 
-    assert [a.name for a in registry] == ["semgrep", "bandit", "ruff", "dependency"]
+    assert [a.name for a in registry] == ["semgrep", "bandit", "ruff", "dependency", "architecture"]
     applicable, skipped = registry.select({"javascript"})
-    assert [a.name for a in applicable] == ["semgrep", "dependency"]
+    assert [a.name for a in applicable] == ["semgrep", "dependency", "architecture"]
     assert [a.name for a in skipped] == ["bandit", "ruff"]
+    applicable, skipped = registry.select({"go"})
+    assert [a.name for a in skipped] == ["bandit", "ruff", "architecture"]
 
 
 def test_runs_analyzers_concurrently(tmp_path: Path) -> None:

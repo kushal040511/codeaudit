@@ -28,7 +28,10 @@ dependencies = [
     "bandit>=1.9,<2",
     "ruff>=0.16,<0.17",
     "pip-audit>=2.10,<3",
-    "tree-sitter>=0.25,<0.27",
+    # 0.26.0 corrupts memory (bus error / segfault) when a process parses several files;
+    # the architecture analyzer also runs in a child process (graph/isolated.py). Re-test
+    # before raising the cap.
+    "tree-sitter>=0.25.2,<0.26",
     "tree-sitter-python>=0.25,<0.26",
     "tree-sitter-javascript>=0.25,<0.26",
     "tree-sitter-typescript>=0.23,<0.24",
@@ -47,6 +50,8 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# pytest's defaults plus fixture repositories, which contain their own test files.
+norecursedirs = ["*.egg", ".*", "_darcs", "build", "CVS", "dist", "node_modules", "venv", "{arch}", "fixtures"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

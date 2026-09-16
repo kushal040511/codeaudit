@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    /* "@/..." maps to src */
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"]
+}

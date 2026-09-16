@@ -56,6 +56,7 @@ def test_upload_scan_runs_every_analyzer_and_dedupes(client: TestClient) -> None
         "bandit": "completed",
         "ruff": "completed",
         "dependency": "completed",
+        "architecture": "completed",
     }
     assert all(run["duration_ms"] > 0 and run["warnings"] == [] for run in runs.values())
     assert runs["bandit"]["display_name"] == "Bandit"
@@ -65,7 +66,13 @@ def test_upload_scan_runs_every_analyzer_and_dedupes(client: TestClient) -> None
     assert runs["semgrep"]["finding_count"] >= 12
     assert scan["findings_before_dedup"] == sum(run["finding_count"] for run in runs.values())
     assert scan["total_findings"] < scan["findings_before_dedup"]
-    assert scan["analyzer_summary"]["completed"] == 4
+    assert scan["analyzer_summary"]["completed"] == 5
+    graph = client.get(f"/api/scans/{scan_id}/graph").json()
+    assert {n["id"] for n in graph["nodes"]} == {
+        "polyglot-app-main/api/app",
+        "polyglot-app-main/web/server",
+    }
+    assert {d["name"] for d in graph["external_dependencies"]} >= {"flask", "express", "lodash"}
 
     with SessionLocal() as db:
         stored = db.scalars(select(Finding).where(Finding.scan_id == uuid.UUID(scan_id))).all()

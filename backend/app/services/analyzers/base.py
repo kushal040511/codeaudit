@@ -49,6 +49,8 @@ class AnalyzerResult:
     timed_out: bool = False
     # The failure was infrastructure (Docker daemon, downloads), not the tool itself.
     transient: bool = False
+    # Structured output beyond findings that the pipeline persists (the architecture graph).
+    artifact: object | None = None
 
 
 @dataclass(frozen=True)

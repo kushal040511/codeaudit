@@ -31,7 +31,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 
 from app.config import get_settings
-from app.core.errors import AnalysisError, TransientInfraError
+from app.core.errors import AnalysisError, AnalyzerTimeoutError, TransientInfraError
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class SandboxError(AnalysisError):
     """The sandbox container could not be run as configured."""
 
 
-class SandboxTimeoutError(AnalysisError):
+class SandboxTimeoutError(AnalyzerTimeoutError):
     """The tool exceeded its time limit and the container was killed."""
 
 

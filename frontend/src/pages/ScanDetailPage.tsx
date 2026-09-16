@@ -1,15 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
+import { lazy, Suspense } from 'react'
 import { Link, useParams } from 'react-router'
 import { AnalyzerStatusPanel } from '@/components/scans/AnalyzerStatusPanel'
 import { FindingsTable } from '@/components/scans/FindingsTable'
 import { StatusIndicator } from '@/components/scans/StatusIndicator'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { describeFailures } from '@/lib/analyzers'
 import { type ApiError, getScan, hasResults, isTerminalStatus, type Scan } from '@/lib/api'
 import { formatDateTime, formatDuration } from '@/lib/format'
 
 const POLL_INTERVAL_MS = 2000
+
+// React Flow and dagre are only needed on the Architecture tab.
+const ArchitectureTab = lazy(() =>
+  import('@/components/architecture/ArchitectureTab').then((m) => ({ default: m.ArchitectureTab })),
+)
 
 export function ScanDetailPage() {
   const { scanId = '' } = useParams()
@@ -133,7 +140,38 @@ export function ScanDetailPage() {
 
       <AnalyzerStatusPanel scan={scan} />
 
-      {hasResults(scan.status) && <FindingsTable scan={scan} />}
+      {hasResults(scan.status) && <ResultTabs scan={scan} />}
     </div>
+  )
+}
+
+function ResultTabs({ scan }: { scan: Scan }) {
+  const architecture = scan.analyzer_runs.find((run) => run.analyzer === 'architecture')
+  const graphAvailable = architecture?.status === 'completed'
+  return (
+    <Tabs defaultValue="findings">
+      <TabsList>
+        <TabsTrigger value="findings">
+          Findings <span className="tabular-nums opacity-70">{scan.total_findings}</span>
+        </TabsTrigger>
+        <TabsTrigger value="architecture">Architecture</TabsTrigger>
+      </TabsList>
+      <TabsContent value="findings">
+        <FindingsTable scan={scan} />
+      </TabsContent>
+      <TabsContent value="architecture">
+        {graphAvailable ? (
+          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading architecture view…</p>}>
+            <ArchitectureTab scanId={scan.id} />
+          </Suspense>
+        ) : (
+          <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+            {!architecture || architecture.status === 'skipped'
+              ? 'No architecture graph: the codebase has no Python, JavaScript or TypeScript modules.'
+              : `No architecture graph: ${architecture.error_message ?? 'the architecture analysis did not complete.'}`}
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
   )
 }

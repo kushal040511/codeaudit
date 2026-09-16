@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable, Iterator
 
+from app.services.analyzers.architecture import ArchitectureAnalyzer
 from app.services.analyzers.bandit import BanditAnalyzer
 from app.services.analyzers.base import Analyzer
 from app.services.analyzers.dependency import DependencyAnalyzer
@@ -41,6 +42,7 @@ ANALYZER_CLASSES: tuple[type[Analyzer], ...] = (
     BanditAnalyzer,
     RuffAnalyzer,
     DependencyAnalyzer,
+    ArchitectureAnalyzer,
 )
 
 DISPLAY_NAMES: dict[str, str] = {cls.name: cls.display_name for cls in ANALYZER_CLASSES}

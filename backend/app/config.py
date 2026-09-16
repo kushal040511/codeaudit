@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     osv_scanner_cpus: float = 1.0
     # Offline vulnerability databases are fetched by the worker and cached.
     osv_db_max_age_hours: int = 24
+    # Runs in a child process of the worker (tree-sitter parsing, no sandbox container).
+    architecture_timeout_seconds: int = 300
 
     @property
     def max_upload_bytes(self) -> int:

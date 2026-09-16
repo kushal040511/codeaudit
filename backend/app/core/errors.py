@@ -10,3 +10,7 @@ class AnalysisError(Exception):
 
     Retrying will not help; the message is shown to the user.
     """
+
+
+class AnalyzerTimeoutError(AnalysisError):
+    """An analyzer exceeded its time limit and was stopped."""

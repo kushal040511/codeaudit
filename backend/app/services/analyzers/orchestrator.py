@@ -12,9 +12,8 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from app.core.errors import AnalysisError, TransientInfraError
+from app.core.errors import AnalysisError, AnalyzerTimeoutError, TransientInfraError
 from app.services.analyzers.base import Analyzer, AnalyzerResult, ScanContext
-from app.services.analyzers.sandbox import SandboxTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ def run_analyzer_safely(
 
     try:
         result = analyzer.run(repo_path, context)
-    except SandboxTimeoutError:
+    except AnalyzerTimeoutError:
         logger.warning("%s timed out for scan %s", analyzer.name, context.scan_id)
         return failed(
             f"{analyzer.display_name} timed out after {analyzer.timeout_seconds}s and was stopped.",

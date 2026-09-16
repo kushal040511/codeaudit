@@ -101,6 +101,157 @@ export type Finding = {
 
 export type FindingPage = { items: Finding[]; total: number; page: number; page_size: number }
 
+// ---------- Architecture ----------
+
+export type ArchitectureIssueType = 'circular_dependency' | 'layer_violation' | 'god_module' | 'orphan_module'
+export type EdgeKind = 'internal' | 'external' | 'unresolved'
+
+export type GraphNode = {
+  /** Module id, or "dir:<path>" for an aggregated directory. */
+  id: string
+  kind: 'module' | 'directory'
+  label: string
+  path: string
+  module_count: number
+  loc: number
+  definition_count: number
+  fan_in: number
+  fan_out: number
+  instability: number | null
+  centrality: number
+  layer: string | null
+  language: string | null
+  is_entrypoint: boolean
+  is_test: boolean
+  parse_error_count: number
+  issue_ids: number[]
+}
+
+export type GraphEdge = {
+  id: string
+  source: string
+  target: string
+  module_edge_count: number
+  import_count: number
+  type_only: boolean
+  lazy: boolean
+  in_cycle: boolean
+  layer_violation: boolean
+  issue_ids: number[]
+}
+
+export type GraphIssueRef = {
+  id: number
+  issue_type: ArchitectureIssueType
+  severity: Severity
+  title: string
+  node_ids: string[]
+  edge_ids: string[]
+}
+
+export type ExternalDependency = {
+  name: string
+  language: string
+  importer_count: number
+  import_count: number
+  evidence: string | null
+}
+
+export type ResolutionSummary = {
+  total: number
+  internal: number
+  external: number
+  asset: number
+  unresolved: number
+  undeclared_external: number
+  coverage: number
+  unresolved_by_reason: Record<string, number>
+  unresolved_by_form: Record<string, number>
+}
+
+export type ArchitectureSummary = {
+  node_count: number
+  edge_count: number
+  type_only_edge_count: number
+  density: number
+  average_degree: number
+  max_depth: number
+  cycle_count: number
+  cycles_truncated: boolean
+  cyclic_module_count: number
+  layer_violation_count: number
+  god_module_count: number
+  orphan_count: number
+  total_loc: number
+  languages: Record<string, number>
+  layers: Record<string, number>
+  parse: { files: number; parsed: number; skipped: number; skipped_files: { path: string; reason: string }[] }
+  resolution: ResolutionSummary
+  timings: Record<string, number>
+}
+
+export type ArchitectureGraph = {
+  summary: ArchitectureSummary
+  view: {
+    total_modules: number
+    aggregated: boolean
+    depth: number | null
+    max_nodes: number
+    expanded: string[]
+    collapsed: string[]
+  }
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  issues: GraphIssueRef[]
+  external_dependencies: ExternalDependency[]
+}
+
+export type ArchitectureIssue = {
+  id: number
+  issue_type: ArchitectureIssueType
+  severity: Severity
+  title: string
+  description: string
+  /** involved_modules[0] is the primary module. */
+  involved_modules: string[]
+  involved_edges: [string, string][]
+  metric_value: number | null
+  details: Record<string, unknown>
+}
+
+export type ModuleImport = {
+  module: string
+  path: string | null
+  kind: EdgeKind
+  import_statement: string
+  line: number
+  import_count: number
+  type_only: boolean
+  lazy: boolean
+  resolution: string | null
+}
+
+export type ModuleDetail = {
+  module_id: string
+  path: string
+  language: string
+  loc: number
+  definition_count: number
+  fan_in: number
+  fan_out: number
+  instability: number | null
+  centrality: number
+  layer: string | null
+  layer_stack: string | null
+  is_entrypoint: boolean
+  is_test: boolean
+  parse_error: string | null
+  symbols: string[]
+  importers: ModuleImport[]
+  imports: ModuleImport[]
+  issues: ArchitectureIssue[]
+}
+
 export type ComponentCheck = { status: 'ok' | 'error'; latency_ms: number | null; detail: string | null }
 export type HealthResponse = {
   status: 'ok' | 'unavailable'
@@ -184,6 +335,30 @@ export function getFindings(scanId: string, query: FindingsQuery = {}): Promise<
       },
     }),
   )
+}
+
+export type GraphQuery = { maxNodes?: number; expand?: string[]; collapse?: string[] }
+
+export function getArchitectureGraph(scanId: string, query: GraphQuery = {}): Promise<ArchitectureGraph> {
+  return request(() =>
+    api.get<ArchitectureGraph>(`/scans/${encodeURIComponent(scanId)}/graph`, {
+      params: {
+        max_nodes: query.maxNodes,
+        expand: query.expand?.length ? query.expand : undefined,
+        collapse: query.collapse?.length ? query.collapse : undefined,
+      },
+    }),
+  )
+}
+
+export function getGraphModule(scanId: string, moduleId: string): Promise<ModuleDetail> {
+  return request(() =>
+    api.get<ModuleDetail>(`/scans/${encodeURIComponent(scanId)}/graph/module`, { params: { module_id: moduleId } }),
+  )
+}
+
+export function getArchitectureIssues(scanId: string): Promise<ArchitectureIssue[]> {
+  return request(() => api.get<ArchitectureIssue[]>(`/scans/${encodeURIComponent(scanId)}/architecture-issues`))
 }
 
 /** /health lives at the backend root. A 503 still carries a valid body. */
