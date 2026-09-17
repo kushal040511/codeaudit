@@ -167,15 +167,17 @@ def test_commonjs_javascript(tmp_path: Path) -> None:
     ]
 
 
-def test_syntax_errors_are_reported_not_raised(tmp_path: Path) -> None:
+def test_syntax_errors_keep_what_parsed(tmp_path: Path) -> None:
+    """Broken code, or syntax the grammar lags behind, still yields its imports."""
     python = parse(tmp_path, "broken.py", "import os\ndef f(:\n    pass\n")
     typescript = parse(tmp_path, "broken.ts", "import x from './x'\nexport const = ;\n")
 
-    assert python.error == "parse error near line 2"
-    assert python.imports == []
+    assert python.error is None
+    assert python.warning == "partial parse near line 2; some imports may be missing"
+    assert [i.specifier for i in python.imports] == ["os"]
     assert python.loc == 3  # still measured
-    assert typescript.error == "parse error near line 2"
-    assert typescript.imports == []
+    assert typescript.error is None
+    assert [i.specifier for i in typescript.imports] == ["./x"]
 
 
 def test_oversized_and_unreadable_files(tmp_path: Path) -> None:

@@ -135,15 +135,23 @@ def test_mixed_python_typescript_repo() -> None:
     } <= externals
 
 
-def test_syntax_errors_are_skipped_without_failing(tmp_path: Path) -> None:
+def test_syntax_errors_keep_the_module_in_the_graph(tmp_path: Path) -> None:
     report = analyze_architecture(FIXTURES / "mixed_repo")
 
-    assert report.summary["parse"]["skipped_files"] == [
-        {"path": "backend/app/legacy.py", "reason": "parse error near line 2"},
-        {"path": "frontend/src/broken.ts", "reason": "parse error near line 2"},
+    parse = report.summary["parse"]
+    assert parse["skipped"] == 0  # nothing is dropped outright
+    assert parse["partial_files"] == [
+        {
+            "path": "backend/app/legacy.py",
+            "reason": "partial parse near line 2; some imports may be missing",
+        },
+        {
+            "path": "frontend/src/broken.ts",
+            "reason": "partial parse near line 2; some imports may be missing",
+        },
     ]
     broken = report.graph.graph.nodes["frontend/src/broken"]
-    assert broken["parse_error"] == "parse error near line 2"
+    assert broken["parse_error"] == "partial parse near line 2; some imports may be missing"
     # Still a node (other modules may import it), never reported as an orphan.
     assert "frontend/src/broken" not in {
         m for i in report.metrics.issues for m in i.involved_modules
@@ -154,8 +162,8 @@ def test_syntax_errors_are_skipped_without_failing(tmp_path: Path) -> None:
     )
     assert result.success
     assert result.warnings == (
-        "2 file(s) could not be parsed and have no dependencies in the graph:"
-        " backend/app/legacy.py, frontend/src/broken.ts.",
+        "2 file(s) used syntax the parser doesn't fully support; they are in the graph but may be"
+        " missing imports: backend/app/legacy.py, frontend/src/broken.ts.",
     )
 
 

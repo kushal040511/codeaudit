@@ -52,7 +52,7 @@ def test_mixed_repo_graph_is_persisted_and_served(
         "completed",
         2,
     )
-    assert "could not be parsed" in run["warnings"][0]
+    assert "may be missing imports" in run["warnings"][0]
 
     with SessionLocal() as db:
         assert db.scalar(select(func.count()).where(GraphNode.scan_id == scan_id)) == 22

@@ -149,6 +149,18 @@ export function ArchitectureTab({ scanId, enrichmentNote }: { scanId: string; en
               .
             </p>
           )}
+          {(summary.parse.partial ?? 0) > 0 && (
+            <p className="flex gap-1.5">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              {summary.parse.partial} file(s) used syntax the parser doesn't fully support, so a few of
+              their imports may be missing:{' '}
+              {(summary.parse.partial_files ?? [])
+                .slice(0, 3)
+                .map((f) => f.path)
+                .join(', ')}
+              {(summary.parse.partial ?? 0) > 3 ? '…' : ''}
+            </p>
+          )}
           {summary.parse.skipped > 0 && (
             <p className="flex gap-1.5">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-600" />

@@ -355,7 +355,15 @@ export type ArchitectureSummary = {
   total_loc: number
   languages: Record<string, number>
   layers: Record<string, number>
-  parse: { files: number; parsed: number; skipped: number; skipped_files: { path: string; reason: string }[] }
+  parse: {
+    files: number
+    parsed: number
+    skipped: number
+    skipped_files: { path: string; reason: string }[]
+    /** Parsed with errors: kept in the graph, but some imports may be missing. */
+    partial?: number
+    partial_files?: { path: string; reason: string }[]
+  }
   resolution: ResolutionSummary
   timings: Record<string, number>
 }

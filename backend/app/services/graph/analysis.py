@@ -69,6 +69,8 @@ def analyze_architecture(root: Path, deadline: float | None = None) -> Architect
         module = parse_file(root, rel_path)
         if module.error:
             logger.warning("architecture: skipping %s (%s)", rel_path, module.error)
+        elif module.warning:
+            logger.info("architecture: %s (%s)", rel_path, module.warning)
         modules.append(module)
     timings["parse_ms"] = round((time.perf_counter() - started) * 1000)
 
@@ -91,6 +93,7 @@ def analyze_architecture(root: Path, deadline: float | None = None) -> Architect
     stats = resolution_stats(resolved)
     unresolved = [r for r in resolved if not r.resolved]
     skipped = [m for m in modules if m.error]
+    partial = [m for m in modules if m.warning and not m.error]
     summary = {
         **metrics.summary,
         "parse": {
@@ -98,6 +101,11 @@ def analyze_architecture(root: Path, deadline: float | None = None) -> Architect
             "parsed": len(modules) - len(skipped),
             "skipped": len(skipped),
             "skipped_files": [{"path": m.path, "reason": m.error} for m in skipped][
+                :MAX_REPORTED_SKIPS
+            ],
+            # Parsed with errors: kept in the graph, but possibly missing imports.
+            "partial": len(partial),
+            "partial_files": [{"path": m.path, "reason": m.warning} for m in partial][
                 :MAX_REPORTED_SKIPS
             ],
         },

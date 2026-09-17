@@ -98,7 +98,9 @@ class ParsedModule:
     definition_count: int = 0  # classes and functions/methods, at any depth
     symbols: list[str] = field(default_factory=list)  # top-level classes/functions (+ JS exports)
     imports: list[RawImport] = field(default_factory=list)
-    error: str | None = None  # set when the file was skipped
+    error: str | None = None  # set when the file could not be used at all
+    # Set when the grammar choked on part of the file: what parsed is still used.
+    warning: str | None = None
 
 
 @cache
@@ -186,10 +188,13 @@ def parse_file(root: Path, rel_path: str) -> ParsedModule:
     try:
         tree = Parser(grammar_language(grammar)).parse(source)
         if tree.root_node.has_error:
-            line = _first_error_line(tree.root_node)
-            # Invalid code, or syntax the grammar doesn't support yet.
-            module.error = f"parse error near line {line}"
-            return module
+            # Invalid code, or syntax the grammar doesn't support yet (tree-sitter lags
+            # the language). Keep what did parse: imports are usually at the top and
+            # fine, so the module still appears in the graph.
+            module.warning = (
+                f"partial parse near line {_first_error_line(tree.root_node)};"
+                " some imports may be missing"
+            )
         if language == "python":
             _extract_python(tree.root_node, module)
         else:

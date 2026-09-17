@@ -52,6 +52,13 @@ def coverage_warnings(summary: dict[str, Any]) -> tuple[str, ...]:
             f"{parse['skipped']} file(s) could not be parsed and have no dependencies in the"
             f" graph: {listed}{more}."
         )
+    if parse.get("partial"):
+        listed = ", ".join(f["path"] for f in parse.get("partial_files", [])[:5])
+        more = f" and {parse['partial'] - 5} more" if parse["partial"] > 5 else ""
+        warnings.append(
+            f"{parse['partial']} file(s) used syntax the parser doesn't fully support; they are in"
+            f" the graph but may be missing imports: {listed}{more}."
+        )
     resolution = summary["resolution"]
     if resolution["total"] and resolution["coverage"] < LOW_COVERAGE:
         warnings.append(

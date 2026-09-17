@@ -142,7 +142,7 @@ def build_graph(
             layer_root=info.layer_root,
             is_test=info.is_test,
             is_entrypoint=is_entrypoint(module.path, module.language, info.is_test),
-            parse_error=module.error,
+            parse_error=module.error or module.warning,
         )
 
     languages = {m.path: m.language for m in modules}
