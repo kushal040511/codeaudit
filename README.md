@@ -182,6 +182,29 @@ Errors have distinct codes: `insufficient_permissions`, `fork_required`, `branch
 
 **CI.** [`action/`](action/README.md) is a GitHub Action that scans each pull request, compares it with the base commit via `POST /api/scans/compare`, comments the score delta and new findings, and can fail the check.
 
+## Site Analyzer
+
+A separate module, apart from code scans, for analyzing a live URL (`/sites` in the UI, `POST /api/sites/analyze`). It produces two things.
+
+**Phishing / clone risk signals.** The score (0-100) is a heuristic risk assessment, not a determination of fraud. It is the clamped sum of independent evidence signals, each reported with its value and its contribution:
+- **Domain:** RDAP registration age and registrar, TLD abuse rates, punycode and homoglyphs, typosquatting and brand names in the domain.
+- **Certificate:** trust, hostname match, certificate age.
+- **Visual:** pHash and dHash similarity to a reference set of brand pages, and favicon reuse.
+- **Content:** brand names on non-brand domains, password and card fields, credentials posted to another domain, links pointing back to the brand.
+- **Reputation:** Google Safe Browsing (needs a key) and the OpenPhish feed.
+
+The weights are hand-set priors (model `0.1-prior`). `validation/phishing/` measures them on labeled data.
+
+**Design tokens.** Colors (with roles and contrast), typography, spacing grid, radii and shadows come from the page's computed CSS. They are exported as JSON, a Tailwind theme extension, and CSS custom properties, along with a recreation prompt. The vision model (needs `ANTHROPIC_API_KEY`) only describes layout and style. Any color it names is kept only if it exists in the computed styles.
+
+**Isolation** (see `services/web/`):
+- **Browser sandbox.** Pages load in headless Chromium in a throwaway container: unprivileged, read-only root filesystem, no capabilities, memory/CPU/PID caps, hard timeout, no host filesystem access. Downloads, popups, dialogs and service workers are blocked.
+- **Egress proxy.** The container's only network is the internal `web_capture` network, whose only other member is `egress-proxy`. Chromium resolves no hostnames itself. Every request (page, redirect hop, subresource) goes through the proxy. The proxy allows only http/https on ports 80/443/8080/8443, and resolves each host itself. It rejects the request if any address is private, loopback, link-local, reserved, a cloud metadata address or an IPv6 form of one. It then connects to the checked address, so DNS rebinding can't swap it.
+- **Server-side checks.** Submitted URLs are also checked when accepted and again when the job starts.
+- **Untrusted content.** Everything captured is treated as untrusted data. Screenshots are served as images with a sandbox CSP, and captured HTML is never rendered.
+
+Setup: `docker compose build web-capture`, then `docker compose up -d`. The brand reference set is rebuilt with `docker compose exec worker python -m app.services.web.references build`. Only hashes are committed; reference screenshots are stored in object storage.
+
 ## Repository layout
 
 ```

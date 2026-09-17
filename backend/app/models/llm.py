@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -27,6 +28,7 @@ class LLMPurpose(enum.StrEnum):
     FIX_SUGGESTION = "fix_suggestion"
     FIX_REGENERATION = "fix_regeneration"
     ARCHITECTURE_REVIEW = "architecture_review"
+    DESIGN_VISION = "design_vision"
 
 
 class LLMCall(Base):
@@ -36,10 +38,18 @@ class LLMCall(Base):
     """
 
     __tablename__ = "llm_calls"
-    __table_args__ = (Index("ix_llm_calls_scan_id_purpose", "scan_id", "purpose"),)
+    __table_args__ = (
+        Index("ix_llm_calls_scan_id_purpose", "scan_id", "purpose"),
+        Index("ix_llm_calls_site_analysis_id", "site_analysis_id"),
+        CheckConstraint("num_nonnulls(scan_id, site_analysis_id) = 1", name="one_subject"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
-    scan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("scans.id", ondelete="CASCADE"))
+    # Exactly one of these: calls belong to a code scan or to a site analysis.
+    scan_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scans.id", ondelete="CASCADE"))
+    site_analysis_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("site_analyses.id", ondelete="CASCADE")
+    )
     purpose: Mapped[LLMPurpose] = mapped_column(pg_enum(LLMPurpose, "llm_purpose"))
     model: Mapped[str] = mapped_column(String(128))
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)

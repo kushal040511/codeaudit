@@ -1,0 +1,474 @@
+{
+  "counts": {
+    "1": {
+      "ok": 98
+    },
+    "0": {
+      "ok": 90,
+      "error": 1
+    }
+  },
+  "variants": {
+    "without reputation": {
+      "auc": 0.9274,
+      "best_f1": {
+        "threshold": 1,
+        "tp": 90,
+        "fp": 9,
+        "fn": 8,
+        "tn": 81,
+        "precision": 0.9090909090909091,
+        "recall": 0.9183673469387755,
+        "f1": 0.9137055837563451,
+        "fpr": 0.1
+      },
+      "at_levels": {
+        "moderate": {
+          "threshold": 20,
+          "tp": 37,
+          "fp": 2,
+          "fn": 61,
+          "tn": 88,
+          "precision": 0.9487179487179487,
+          "recall": 0.37755102040816324,
+          "f1": 0.5401459854014597,
+          "fpr": 0.022222222222222223
+        },
+        "high": {
+          "threshold": 45,
+          "tp": 8,
+          "fp": 0,
+          "fn": 90,
+          "tn": 90,
+          "precision": 1.0,
+          "recall": 0.08163265306122448,
+          "f1": 0.15094339622641506,
+          "fpr": 0.0
+        },
+        "very_high": {
+          "threshold": 70,
+          "tp": 0,
+          "fp": 0,
+          "fn": 98,
+          "tn": 90,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0,
+          "fpr": 0.0
+        }
+      }
+    },
+    "full score": {
+      "auc": 1.0,
+      "best_f1": {
+        "threshold": 31,
+        "tp": 98,
+        "fp": 0,
+        "fn": 0,
+        "tn": 90,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0
+      },
+      "at_levels": {
+        "moderate": {
+          "threshold": 20,
+          "tp": 98,
+          "fp": 2,
+          "fn": 0,
+          "tn": 88,
+          "precision": 0.98,
+          "recall": 1.0,
+          "f1": 0.98989898989899,
+          "fpr": 0.022222222222222223
+        },
+        "high": {
+          "threshold": 45,
+          "tp": 98,
+          "fp": 0,
+          "fn": 0,
+          "tn": 90,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "fpr": 0.0
+        },
+        "very_high": {
+          "threshold": 70,
+          "tp": 51,
+          "fp": 0,
+          "fn": 47,
+          "tn": 90,
+          "precision": 1.0,
+          "recall": 0.5204081632653061,
+          "f1": 0.6845637583892618,
+          "fpr": 0.0
+        }
+      }
+    }
+  },
+  "signals": [
+    {
+      "signal": "hosting_platform",
+      "category": "domain",
+      "points": 6,
+      "fires_on_phishing": 0.51,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.1159,
+      "logistic_coefficient": 1.186,
+      "verdict": "predictive"
+    },
+    {
+      "signal": "domain_age_over_3y",
+      "category": "domain",
+      "points": -8,
+      "fires_on_phishing": 0.102,
+      "fires_on_legitimate": 0.822,
+      "precision_when_fired": 0.119,
+      "auc_drop_without_signal": 0.0552,
+      "logistic_coefficient": -1.143,
+      "verdict": "predictive (trust signal)"
+    },
+    {
+      "signal": "no_mx_record",
+      "category": "domain",
+      "points": 3,
+      "fires_on_phishing": 0.337,
+      "fires_on_legitimate": 0.144,
+      "precision_when_fired": 0.717,
+      "auc_drop_without_signal": 0.0251,
+      "logistic_coefficient": 0.576,
+      "verdict": "predictive"
+    },
+    {
+      "signal": "tld_elevated_risk",
+      "category": "domain",
+      "points": 4,
+      "fires_on_phishing": 0.071,
+      "fires_on_legitimate": 0.044,
+      "precision_when_fired": 0.636,
+      "auc_drop_without_signal": 0.0061,
+      "logistic_coefficient": 0.223,
+      "verdict": "predictive"
+    },
+    {
+      "signal": "domain_age_under_1y",
+      "category": "domain",
+      "points": 4,
+      "fires_on_phishing": 0.092,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0058,
+      "logistic_coefficient": 0.381,
+      "verdict": "predictive"
+    },
+    {
+      "signal": "favicon_match",
+      "category": "visual",
+      "points": 30,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0056,
+      "logistic_coefficient": 0.176,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "no_https",
+      "category": "certificate",
+      "points": 8,
+      "fires_on_phishing": 0.071,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0054,
+      "logistic_coefficient": 0.309,
+      "verdict": "predictive"
+    },
+    {
+      "signal": "brand_in_title",
+      "category": "content",
+      "points": 15,
+      "fires_on_phishing": 0.235,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0029,
+      "logistic_coefficient": 0.489,
+      "verdict": "discriminative but redundant with other signals"
+    },
+    {
+      "signal": "brand_in_domain",
+      "category": "domain",
+      "points": 20,
+      "fires_on_phishing": 0.112,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0018,
+      "logistic_coefficient": 0.192,
+      "verdict": "discriminative but redundant with other signals"
+    },
+    {
+      "signal": "domain_age_under_7d",
+      "category": "domain",
+      "points": 25,
+      "fires_on_phishing": 0.051,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0012,
+      "logistic_coefficient": 0.184,
+      "verdict": "discriminative but redundant with other signals"
+    },
+    {
+      "signal": "cert_new",
+      "category": "certificate",
+      "points": 5,
+      "fires_on_phishing": 0.112,
+      "fires_on_legitimate": 0.067,
+      "precision_when_fired": 0.647,
+      "auc_drop_without_signal": 0.001,
+      "logistic_coefficient": 0.082,
+      "verdict": "weak"
+    },
+    {
+      "signal": "domain_age_under_30d",
+      "category": "domain",
+      "points": 18,
+      "fires_on_phishing": 0.02,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.001,
+      "logistic_coefficient": 0.09,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "domain_age_under_90d",
+      "category": "domain",
+      "points": 10,
+      "fires_on_phishing": 0.02,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.001,
+      "logistic_coefficient": 0.089,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "brand_in_subdomain",
+      "category": "domain",
+      "points": 18,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0002,
+      "logistic_coefficient": 0.113,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "credentials_cross_domain_form",
+      "category": "content",
+      "points": 22,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0002,
+      "logistic_coefficient": 0.025,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "payment_fields",
+      "category": "content",
+      "points": 10,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0002,
+      "logistic_coefficient": 0.029,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "sensitive_fields_insecure",
+      "category": "content",
+      "points": 15,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0002,
+      "logistic_coefficient": 0.038,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "links_to_brand",
+      "category": "content",
+      "points": 15,
+      "fires_on_phishing": 0.01,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0001,
+      "logistic_coefficient": 0.026,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "reputation_openphish_url",
+      "category": "reputation",
+      "points": 60,
+      "fires_on_phishing": 1.0,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0,
+      "logistic_coefficient": 4.569,
+      "verdict": "leaks labels (excluded from headline metrics)"
+    },
+    {
+      "signal": "tld_high_risk",
+      "category": "domain",
+      "points": 8,
+      "fires_on_phishing": 0.02,
+      "fires_on_legitimate": 0.0,
+      "precision_when_fired": 1.0,
+      "auc_drop_without_signal": 0.0,
+      "logistic_coefficient": 0.085,
+      "verdict": "too rare to judge"
+    },
+    {
+      "signal": "brand_in_text_with_credentials",
+      "category": "content",
+      "points": 8,
+      "fires_on_phishing": 0.041,
+      "fires_on_legitimate": 0.011,
+      "precision_when_fired": 0.8,
+      "auc_drop_without_signal": -0.0007,
+      "logistic_coefficient": -0.058,
+      "verdict": "discriminative but redundant with other signals"
+    },
+    {
+      "signal": "cert_untrusted",
+      "category": "certificate",
+      "points": 12,
+      "fires_on_phishing": 0.02,
+      "fires_on_legitimate": 0.011,
+      "precision_when_fired": 0.667,
+      "auc_drop_without_signal": -0.0016,
+      "logistic_coefficient": -0.046,
+      "verdict": "weak"
+    },
+    {
+      "signal": "cert_hostname_mismatch",
+      "category": "certificate",
+      "points": 15,
+      "fires_on_phishing": 0.02,
+      "fires_on_legitimate": 0.011,
+      "precision_when_fired": 0.667,
+      "auc_drop_without_signal": -0.0018,
+      "logistic_coefficient": -0.046,
+      "verdict": "weak"
+    },
+    {
+      "signal": "cross_domain_redirect",
+      "category": "content",
+      "points": 4,
+      "fires_on_phishing": 0.102,
+      "fires_on_legitimate": 0.078,
+      "precision_when_fired": 0.588,
+      "auc_drop_without_signal": -0.0022,
+      "logistic_coefficient": 0.154,
+      "verdict": "weak"
+    },
+    {
+      "signal": "password_field",
+      "category": "content",
+      "points": 8,
+      "fires_on_phishing": 0.276,
+      "fires_on_legitimate": 0.178,
+      "precision_when_fired": 0.628,
+      "auc_drop_without_signal": -0.009,
+      "logistic_coefficient": 0.215,
+      "verdict": "weak"
+    }
+  ],
+  "false_positives": [
+    {
+      "url": "hxxps://tfkc[.]de/",
+      "source": "tranco",
+      "score": 30,
+      "signals": [
+        "Certificate names don't match the domain (+15)",
+        "Certificate is not trusted (Hostname mismatch, certificate is not valid for 'tfkc.de'.) (+12)",
+        "tfkc.de has no mail (MX) records (+3)"
+      ]
+    },
+    {
+      "url": "hxxps://komikindo[.]ch/",
+      "source": "tranco",
+      "score": 24,
+      "signals": [
+        "The page asks for a password (+8)",
+        "Page mentions Facebook and asks for credentials, on a non-Facebook domain (+8)",
+        "Certificate issued 0 days ago (+5)",
+        "komikindo.ch has no mail (MX) records (+3)"
+      ]
+    },
+    {
+      "url": "hxxps://sina[.]com[.]cn/",
+      "source": "tranco",
+      "score": 12,
+      "signals": [
+        "The page asks for a password (+8)",
+        ".cn has elevated abuse rates (+4)"
+      ]
+    },
+    {
+      "url": "hxxps://uakinogo[.]io/",
+      "source": "tranco",
+      "score": 11,
+      "signals": [
+        "The page asks for a password (+8)",
+        "uakinogo.io has no mail (MX) records (+3)"
+      ]
+    },
+    {
+      "url": "hxxps://wvu[.]edu/",
+      "source": "tranco",
+      "score": 5,
+      "signals": [
+        "Certificate issued 4 days ago (+5)"
+      ]
+    },
+    {
+      "url": "hxxps://lu[.]se/",
+      "source": "tranco",
+      "score": 5,
+      "signals": [
+        "Certificate issued 1 day ago (+5)"
+      ]
+    },
+    {
+      "url": "hxxps://login[.]microsoftonline[.]com/",
+      "source": "brand_official",
+      "score": 4,
+      "signals": [
+        "The page asks for a password (+8)",
+        "Domain registered 24 years ago (-8)",
+        "Redirected across domains: microsoftonline.com \u2192 office.com (+4)"
+      ]
+    },
+    {
+      "url": "hxxps://jivox[.]com/",
+      "source": "tranco",
+      "score": 4,
+      "signals": [
+        "Redirected across domains: jivox.com \u2192 davincicommerce.ai (+4)"
+      ]
+    },
+    {
+      "url": "hxxps://doxygen[.]org/",
+      "source": "tranco",
+      "score": 4,
+      "signals": [
+        "Domain registered 20 years ago (-8)",
+        "Certificate issued 0 days ago (+5)",
+        "Redirected across domains: doxygen.org \u2192 doxygen.nl (+4)",
+        "doxygen.nl has no mail (MX) records (+3)"
+      ]
+    }
+  ]
+}

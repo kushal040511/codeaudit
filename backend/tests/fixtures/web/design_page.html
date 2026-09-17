@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fixture design page</title>
+<style>
+  /* Known design tokens (asserted by tests):
+     background #ffffff, surface #f9fafb, text #111827, muted #6b7280,
+     primary #4f46e5 (buttons, links), accent #db2777 (badges), border #e5e7eb,
+     body font "Fixture Sans" 16px/24px, heading font "Fixture Display",
+     sizes 14 16 20 32 48, spacing 4 8 16 24 32 48, radii 8px + pill,
+     one card shadow. */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ffffff; color: #111827; font-family: "Fixture Sans", Arial, sans-serif; font-size: 16px; line-height: 24px; }
+  header { display: flex; gap: 24px; align-items: center; padding: 16px 32px; border-bottom: 1px solid #e5e7eb; }
+  header a { color: #4f46e5; text-decoration: none; font-size: 14px; padding: 8px; }
+  h1 { font-family: "Fixture Display", Georgia, serif; font-size: 48px; line-height: 56px; margin: 48px 32px 16px; font-weight: 700; }
+  h2 { font-family: "Fixture Display", Georgia, serif; font-size: 32px; line-height: 40px; margin: 32px 32px 16px; font-weight: 700; }
+  p { margin: 0 32px 16px; }
+  .muted { color: #6b7280; font-size: 14px; line-height: 20px; }
+  .lead { font-size: 20px; line-height: 32px; }
+  .actions { display: flex; gap: 16px; margin: 24px 32px; }
+  .btn { background: #4f46e5; color: #ffffff; border: 0; border-radius: 8px; padding: 8px 16px; font-size: 16px; font-weight: 600; }
+  .btn-pill { border-radius: 9999px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 0 32px 48px; }
+  .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); }
+  .badge { background: #db2777; color: #ffffff; border-radius: 9999px; padding: 4px 8px; font-size: 14px; }
+  footer { background: #f9fafb; padding: 32px; margin-top: 48px; }
+</style>
+</head>
+<body>
+  <header>
+    <strong>Fixture</strong>
+    <a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#docs">Docs</a><a href="#blog">Blog</a>
+  </header>
+  <h1>Build faster with fixtures</h1>
+  <p class="lead">A calm, confident landing page used to test design token extraction end to end.</p>
+  <p class="muted">No credit card required. Cancel anytime. Trusted by teams everywhere.</p>
+  <div class="actions">
+    <button class="btn">Start free trial</button>
+    <button class="btn btn-pill">Book a demo</button>
+  </div>
+  <h2>Everything you need</h2>
+  <div class="cards">
+    <div class="card"><span class="badge">New</span><p>Cards sit on a subtle surface color with a thin border and a soft shadow to separate content.</p></div>
+    <div class="card"><p>Spacing follows an eight pixel grid with a few four pixel exceptions for tight elements.</p></div>
+    <div class="card"><p>Headings use a display serif; body copy uses the sans family at sixteen pixels.</p></div>
+  </div>
+  <footer><p class="muted">© 2026 Fixture Inc. All rights reserved. This footer text is muted.</p></footer>
+</body>
+</html>

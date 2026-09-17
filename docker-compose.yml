@@ -70,6 +70,38 @@ services:
       retries: 5
       start_period: 30s
 
+  # The page-capture browser's only way out. Capture containers join the internal
+  # web_capture network (no route to anything else); this proxy SSRF-checks and pins
+  # every request before connecting out on the default network.
+  egress-proxy:
+    image: codeaudit-backend:dev
+    command: python -m app.services.web.egress_proxy
+    environment:
+      EGRESS_PROXY_PORT: "8888"
+    volumes:
+      - ./backend/app:/app/app
+    networks:
+      default: {}
+      web_capture:
+        aliases: [egress-proxy]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8888), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # Build-only: the page-capture sandbox image, run by the worker per analysis.
+  #   docker compose build web-capture
+  web-capture:
+    build:
+      context: ./docker/web-capture
+    image: codeaudit-web-capture:1.63.0
+    profiles: ["build"]
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -136,6 +168,11 @@ services:
              mc mb --ignore-existing local/$$S3_BUCKET_UPLOADS &&
              mc anonymous set none local/$$S3_BUCKET_UPLOADS"
     restart: "no"
+
+networks:
+  web_capture:
+    name: codeaudit_web_capture
+    internal: true
 
 volumes:
   postgres_data:

@@ -7,6 +7,7 @@ Ground rules for this layer:
 - Every request is recorded as an LLMCall row, including refused and failed ones.
 """
 
+import base64
 import logging
 import random
 import time
@@ -22,7 +23,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
 from app.core.db import SessionLocal
-from app.models import LLMCall, LLMPurpose, Scan
+from app.models import LLMCall, LLMPurpose, Scan, SiteAnalysis
 from app.services.llm.json_output import OutputParseError, parse_model_output
 from app.services.llm.pricing import cost_usd
 
@@ -107,7 +108,41 @@ def llm_configured(settings: Settings | None = None) -> str | None:
     return None
 
 
-def tokens_used(db: Session, scan_id: uuid.UUID) -> int:
+@dataclass(frozen=True)
+class Subject:
+    """What a call is billed to: a code scan or a site analysis (separate budgets)."""
+
+    scan_id: uuid.UUID | None = None
+    site_analysis_id: uuid.UUID | None = None
+
+    def __post_init__(self) -> None:
+        if (self.scan_id is None) == (self.site_analysis_id is None):
+            raise ValueError("A call belongs to exactly one scan or site analysis.")
+
+    @property
+    def id(self) -> uuid.UUID:
+        return self.scan_id or self.site_analysis_id  # type: ignore[return-value]
+
+    def column(self) -> Any:
+        return LLMCall.scan_id if self.scan_id else LLMCall.site_analysis_id
+
+    def budget(self, settings: Settings) -> int:
+        return (
+            settings.llm_token_budget_per_scan
+            if self.scan_id
+            else settings.llm_token_budget_per_site
+        )
+
+
+@dataclass(frozen=True)
+class ImageInput:
+    data: bytes
+    media_type: str = "image/png"
+
+
+def tokens_used(db: Session, scan_id: uuid.UUID | Subject) -> int:
+    subject = scan_id if isinstance(scan_id, Subject) else Subject(scan_id=scan_id)
+    column = subject.column()
     finished = db.scalar(
         select(
             func.coalesce(
@@ -119,14 +154,27 @@ def tokens_used(db: Session, scan_id: uuid.UUID) -> int:
                 ),
                 0,
             )
-        ).where(LLMCall.scan_id == scan_id, LLMCall.pending.is_(False))
+        ).where(column == subject.id, LLMCall.pending.is_(False))
     )
     reserved = db.scalar(
         select(func.coalesce(func.sum(LLMCall.reserved_tokens), 0)).where(
-            LLMCall.scan_id == scan_id, LLMCall.pending.is_(True)
+            column == subject.id, LLMCall.pending.is_(True)
         )
     )
     return int(finished or 0) + int(reserved or 0)
+
+
+def _content_text(content: str | list[dict[str, Any]]) -> str:
+    if isinstance(content, str):
+        return content
+    parts = []
+    for block in content:
+        if block.get("type") == "image":
+            size = len(block["source"]["data"]) * 3 // 4
+            parts.append(f"[image: {block['source']['media_type']}, ~{size // 1024} KB]")
+        else:
+            parts.append(str(block.get("text", "")))
+    return "\n".join(parts)
 
 
 def _truncate(text: str | None) -> str | None:
@@ -161,36 +209,53 @@ class LLMClient:
 
     # ------------------------------------------------------------------ public
 
-    def budget(self, scan_id: uuid.UUID) -> BudgetState:
+    def budget(
+        self, scan_id: uuid.UUID | None = None, *, site_analysis_id: uuid.UUID | None = None
+    ) -> BudgetState:
+        subject = Subject(scan_id, site_analysis_id)
         with self._session_factory() as db:
-            return BudgetState(self.settings.llm_token_budget_per_scan, tokens_used(db, scan_id))
+            return BudgetState(subject.budget(self.settings), tokens_used(db, subject))
 
     def generate_json[T: BaseModel](
         self,
         *,
-        scan_id: uuid.UUID,
+        scan_id: uuid.UUID | None = None,
+        site_analysis_id: uuid.UUID | None = None,
         purpose: LLMPurpose,
         system: str,
         prompt: str,
         schema: type[T],
         context: dict[str, Any] | None = None,
         max_tokens: int | None = None,
+        images: list[ImageInput] | None = None,
     ) -> LLMResult[T]:
         """Ask for JSON matching `schema`; on unparsable output, ask once more to correct it.
 
         Raises LLMBudgetExceededError before sending anything that could exceed the
         scan's token budget, LLMRefusalError, LLMOutputError, or LLMError.
         """
-        messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
-        text, call_id = self._complete(scan_id, purpose, system, messages, context, max_tokens)
+        subject = Subject(scan_id, site_analysis_id)
+        content: str | list[dict[str, Any]] = prompt
+        if images:
+            content = [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image.media_type,
+                        "data": base64.b64encode(image.data).decode("ascii"),
+                    },
+                }
+                for image in images
+            ] + [{"type": "text", "text": prompt}]
+        messages: list[dict[str, Any]] = [{"role": "user", "content": content}]
+        text, call_id = self._complete(subject, purpose, system, messages, context, max_tokens)
         try:
             parsed = parse_model_output(text, schema)
             return LLMResult(parsed, text, call_id, self.model)
         except OutputParseError as exc:
             first_error = str(exc)
-        logger.info(
-            "scan %s %s: unparsable output (%s), asking again", scan_id, purpose, first_error
-        )
+        logger.info("%s %s: unparsable output (%s), asking again", subject.id, purpose, first_error)
         self._mark_failed(call_id, "invalid_output", first_error)
 
         messages += [
@@ -199,7 +264,7 @@ class LLMClient:
         ]
         retry_context = {**(context or {}), "parse_retry": True}
         text, call_id = self._complete(
-            scan_id, purpose, system, messages, retry_context, max_tokens
+            subject, purpose, system, messages, retry_context, max_tokens
         )
         try:
             parsed = parse_model_output(text, schema)
@@ -259,7 +324,7 @@ class LLMClient:
 
     def _reserve(
         self,
-        scan_id: uuid.UUID,
+        subject: Subject,
         purpose: LLMPurpose,
         prompt_text: str,
         context: dict[str, Any] | None,
@@ -267,13 +332,19 @@ class LLMClient:
     ) -> int:
         """Record the call as pending with its worst-case tokens, or refuse it."""
         with self._session_factory() as db:
-            # Serialise budget checks for this scan across workers.
-            db.execute(select(Scan.id).where(Scan.id == scan_id).with_for_update())
-            used = tokens_used(db, scan_id)
-            budget = self.settings.llm_token_budget_per_scan
+            # Serialise budget checks for this scan / site analysis across workers.
+            if subject.scan_id:
+                db.execute(select(Scan.id).where(Scan.id == subject.id).with_for_update())
+            else:
+                db.execute(
+                    select(SiteAnalysis.id).where(SiteAnalysis.id == subject.id).with_for_update()
+                )
+            used = tokens_used(db, subject)
+            budget = subject.budget(self.settings)
             refused = used + reserve > budget
             call = LLMCall(
-                scan_id=scan_id,
+                scan_id=subject.scan_id,
+                site_analysis_id=subject.site_analysis_id,
                 purpose=purpose,
                 model=self.model,
                 success=False,
@@ -293,14 +364,14 @@ class LLMClient:
             db.commit()
             if refused:
                 logger.warning(
-                    "scan %s: LLM call refused, budget exhausted (%s)", scan_id, call.error_message
+                    "%s: LLM call refused, budget exhausted (%s)", subject.id, call.error_message
                 )
                 raise LLMBudgetExceededError(call.error_message)
             return call.id
 
     def _complete(
         self,
-        scan_id: uuid.UUID,
+        subject: Subject,
         purpose: LLMPurpose,
         system: str,
         messages: list[dict[str, Any]],
@@ -310,7 +381,8 @@ class LLMClient:
         max_tokens = max_tokens or self.settings.llm_max_output_tokens
         params = self._request_params(system, messages, max_tokens)
         prompt_text = "\n\n".join(
-            [f"[system]\n{system}"] + [f"[{m['role']}]\n{m['content']}" for m in messages]
+            [f"[system]\n{system}"]
+            + [f"[{m['role']}]\n{_content_text(m['content'])}" for m in messages]
         )
 
         started = time.monotonic()
@@ -325,10 +397,10 @@ class LLMClient:
             )
         except _FailedRequest as failed:
             raise self._record_unsent_failure(
-                scan_id, purpose, prompt_text, context, failed.error, started
+                subject, purpose, prompt_text, context, failed.error, started
             ) from failed.error
         call_id = self._reserve(
-            scan_id, purpose, prompt_text, context, counted.input_tokens + max_tokens
+            subject, purpose, prompt_text, context, counted.input_tokens + max_tokens
         )
 
         try:
@@ -385,7 +457,7 @@ class LLMClient:
 
     def _record_unsent_failure(
         self,
-        scan_id: uuid.UUID,
+        subject: Subject,
         purpose: LLMPurpose,
         prompt_text: str,
         context: dict[str, Any] | None,
@@ -395,7 +467,8 @@ class LLMClient:
         with self._session_factory() as db:
             db.add(
                 LLMCall(
-                    scan_id=scan_id,
+                    scan_id=subject.scan_id,
+                    site_analysis_id=subject.site_analysis_id,
                     purpose=purpose,
                     model=self.model,
                     success=False,

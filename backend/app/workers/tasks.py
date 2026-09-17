@@ -27,6 +27,8 @@ from app.models import (
     PullRequestStatus,
     Scan,
     ScanStatus,
+    SiteAnalysis,
+    SiteAnalysisStatus,
     User,
     ValidationStatus,
 )
@@ -44,6 +46,9 @@ from app.services.scan_pipeline import (
     run_pipeline,
     utcnow,
 )
+from app.services.web.analysis import run_site_analysis
+from app.services.web.capture import CaptureError
+from app.services.web.netguard import BlockedUrlError
 
 logger = logging.getLogger(__name__)
 
@@ -337,6 +342,49 @@ def create_pull_request_task(pr_id: int) -> dict[str, Any]:
             db.commit()
         logger.info("pull request %s failed: %s", pr_id, code)
         return {"pull_request": pr_id, "status": "failed", "error": code}
+
+
+@celery_app.task(
+    name="codeaudit.analyze_site",
+    soft_time_limit=settings.web_capture_timeout_seconds + 240,
+    time_limit=settings.web_capture_timeout_seconds + 300,
+)
+def analyze_site_task(analysis_id: str) -> dict[str, Any]:
+    """Capture a website and assess phishing risk / extract design tokens. Not retried:
+    a second fetch of a phishing page is not worth the extra exposure."""
+    analysis_uuid = uuid.UUID(analysis_id)
+    with SessionLocal() as db:
+        analysis = db.get(SiteAnalysis, analysis_uuid)
+        if analysis is None or analysis.status is not SiteAnalysisStatus.QUEUED:
+            return {"analysis": analysis_id, "status": "skipped"}
+        try:
+            llm: LLMClient | None = LLMClient()
+        except LLMUnavailableError:
+            llm = None
+        message: str | None = None
+        try:
+            run_site_analysis(db, analysis, llm=llm)
+            return {"analysis": analysis_id, "status": "completed", "risk": analysis.risk_score}
+        except BlockedUrlError as exc:
+            message = f"Blocked for safety: {exc.reason}"
+        except CaptureError as exc:
+            message = str(exc)
+        except SandboxUnavailableError as exc:
+            message = f"The browser sandbox is unavailable: {exc}"
+        except SoftTimeLimitExceeded:
+            message = "The analysis took too long and was stopped."
+        except Exception:
+            logger.exception("site analysis %s crashed", analysis_id)
+            message = "Internal error while analyzing the site."
+        db.rollback()
+        analysis = db.get(SiteAnalysis, analysis_uuid)
+        if analysis is not None:
+            analysis.status = SiteAnalysisStatus.FAILED
+            analysis.stage = None
+            analysis.error_message = message[:MAX_ERROR_MESSAGE_CHARS]
+            analysis.completed_at = utcnow()
+            db.commit()
+        return {"analysis": analysis_id, "status": "failed", "error": message}
 
 
 @worker_ready.connect

@@ -1,0 +1,3 @@
+# Live phishing URLs and raw results must not be committed. Reports (defanged) may be.
+data/
+results/*/roc-*.csv

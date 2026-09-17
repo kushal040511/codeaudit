@@ -40,6 +40,10 @@ dependencies = [
     "networkx>=3.6,<4",
     # LLM
     "anthropic>=1.5,<2",
+    "imagehash>=4.3,<5",
+    "pillow>=11,<13",
+    "dnspython>=2.7,<3",
+    "tldextract>=5.3,<6",
 ]
 
 [dependency-groups]
@@ -73,6 +77,14 @@ extend-exclude = ["alembic/versions", "tests/fixtures"]
 select = ["E", "F", "W", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
+# Runs inside the Playwright image; embeds JavaScript.
+"app/services/web/capture_script.py" = ["E501"]
+# Evidence labels are user-facing sentences.
+"app/services/web/risk.py" = ["E501"]
+# Raw HTTP / fixture data in web analyzer tests.
+"tests/unit/web/*.py" = ["S101", "S105", "S106", "S108", "S311", "S603", "S607", "S608", "E501"]
+# Model prompt text.
+"app/services/web/design.py" = ["E501"]
 "tests/**" = ["S101", "S105", "S106", "S108", "S311", "S603", "S607", "S608"]
 # Unified-diff fixtures: a blank context line is a single space.
 "tests/unit/llm/test_patches.py" = ["S101", "S108", "W293"]
@@ -82,7 +94,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-exclude = ["^alembic/"]
+exclude = ["^alembic/", "^app/services/web/capture_script\\.py$"]
 
 [[tool.mypy.overrides]]
 module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "networkx.*", "docker.*", "requests.*"]

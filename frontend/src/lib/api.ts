@@ -762,3 +762,149 @@ export function confirmPullRequest(prId: number, edits: { title: string; body: s
 export function listPullRequests(scanId: string): Promise<PullRequest[]> {
   return request(() => api.get<PullRequest[]>(`/scans/${encodeURIComponent(scanId)}/pull-requests`))
 }
+
+// ---------- Site analyzer ----------
+
+export type SiteAnalysisStatus = 'queued' | 'running' | 'completed' | 'failed'
+export type RiskLevel = 'low' | 'moderate' | 'high' | 'very_high'
+export type EvidenceCategory = 'domain' | 'certificate' | 'visual' | 'content' | 'reputation'
+
+export type Evidence = {
+  signal: string
+  category: EvidenceCategory
+  /** Human-readable finding, e.g. "Domain registered 3 days ago". Untrusted page text may appear inside. */
+  label: string
+  /** Contribution to the risk score (negative = evidence of legitimacy). */
+  points: number
+  status: 'fired' | 'clear' | 'unavailable' | 'info'
+  value: unknown
+}
+
+export type VisualMatch = {
+  brand: string
+  brand_name: string
+  page: string
+  similarity: number
+  reference_url: string
+  reference_screenshot_url: string | null
+}
+
+export type SiteRisk = {
+  score: number
+  level: RiskLevel
+  summary: string
+  evidence: Evidence[]
+  impersonated_brand: string | null
+  visual_match: VisualMatch | null
+  model_version: string
+  disclaimer: string
+}
+
+export type ColorRole = { hex: string; usage: number; contrast_on_background?: number }
+export type DesignTokens = {
+  version: number
+  source_url: string
+  elements_sampled: number
+  colors: {
+    roles: Partial<Record<'background' | 'surface' | 'text' | 'text_muted' | 'primary' | 'secondary' | 'accent' | 'border', ColorRole>>
+    palette: { hex: string; usage: number; background_usage: number; text_usage: number; shades: string[] }[]
+  }
+  typography: {
+    families: {
+      body: { name: string; stack: string } | null
+      heading: { name: string; stack: string } | null
+      all: { name: string; usage: number }[]
+    }
+    base_size_px: number | null
+    sizes: { px: number; rem: number; usage: number; line_height: string | null }[]
+    weights: { value: string; usage: number }[]
+  }
+  spacing: { base_px: number | null; coverage: number; scale: number[]; values: { px: number; usage: number }[] }
+  radii: { value: string; usage: number }[]
+  shadows: { value: string; usage: number }[]
+  vision: {
+    layout: string
+    visual_hierarchy: string
+    style: string
+    mood_keywords: string[]
+    components: string[]
+    imagery: string
+    colors: { role: string; claimed_hex: string; hex: string; where: string; distance: number }[]
+  } | null
+  dropped_colors: { hex: string; role: string; reason: string; nearest_observed?: string | null }[]
+  prompt: string
+}
+
+export type SiteCapture = {
+  title: string
+  status: number | null
+  redirect_chain: { url: string; status: number | null }[]
+  meta: { name: string; content: string }[]
+  link_domains: [string, number][]
+  forms: { action: string; method: string; input_types: string[]; has_password: boolean; has_card_fields: boolean }[]
+  tls: Record<string, unknown> | null
+  favicon_url: string | null
+  blocked_requests: { url: string; reason: string }[]
+  errors: string[]
+  duration_ms: number | null
+}
+
+export type SiteAnalysis = {
+  id: string
+  status: SiteAnalysisStatus
+  stage: 'capturing' | 'assessing_risk' | 'extracting_design' | null
+  url: string
+  normalized_url: string
+  final_url: string | null
+  error_message: string | null
+  cached_from_id: string | null
+  owned_by_you: boolean
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+  screenshot_url: string | null
+  full_screenshot_url: string | null
+  capture: SiteCapture | null
+  risk: SiteRisk | null
+  design: { tokens: DesignTokens; notes: string[] } | null
+}
+
+export type SiteAnalysisListItem = {
+  id: string
+  status: SiteAnalysisStatus
+  url: string
+  final_url: string | null
+  risk_score: number | null
+  risk_level: RiskLevel | null
+  created_at: string
+}
+
+export type SiteAnalyzeCreated = { analysis_id: string; status: SiteAnalysisStatus; normalized_url: string; cached: boolean }
+export type TokenFormat = 'json' | 'tailwind' | 'css'
+
+/** Same-origin API paths returned by the backend (e.g. screenshot URLs). */
+export function apiAsset(path: string): string {
+  return `${API_ORIGIN}${path}`
+}
+
+export function analyzeSite(url: string, force = false): Promise<SiteAnalyzeCreated> {
+  return request(() => api.post<SiteAnalyzeCreated>('/sites/analyze', { url, force }))
+}
+
+export function getSiteAnalysis(id: string): Promise<SiteAnalysis> {
+  return request(() => api.get<SiteAnalysis>(`/sites/${encodeURIComponent(id)}`))
+}
+
+export function listSiteAnalyses(): Promise<SiteAnalysisListItem[]> {
+  return request(() => api.get<SiteAnalysisListItem[]>('/sites'))
+}
+
+export function getSiteTokens(id: string, format: TokenFormat): Promise<string> {
+  return request(() =>
+    api.get<string>(`/sites/${encodeURIComponent(id)}/tokens`, {
+      params: { format },
+      responseType: 'text',
+      transformResponse: (data) => data,
+    }),
+  )
+}

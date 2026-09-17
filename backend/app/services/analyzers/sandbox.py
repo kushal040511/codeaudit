@@ -161,9 +161,13 @@ def run_in_sandbox(
     labels: Mapping[str, str] | None = None,
     entrypoint: Sequence[str] | None = None,
     environment: Mapping[str, str] | None = None,
-    network: bool = False,
+    network: bool | str = False,
 ) -> SandboxResult:
     """Run `command` in an isolated container and wait for it, killing it on timeout.
+
+    `network`: False = no network; True = bridge (git clone only); a string = that
+    Docker network (the page-capture browser's internal network, whose only exit
+    is the egress proxy).
 
     The container is always removed, whether the tool succeeds, fails or times out.
     """
@@ -185,8 +189,9 @@ def run_in_sandbox(
             working_dir=working_dir,
             user=SANDBOX_USER,
             environment={**(environment or {}), "HOME": "/tmp"},  # noqa: S108 - tmpfs
-            # Only the git clone container gets a network (bridge, outbound only).
-            network_mode="bridge" if network else "none",
+            network_mode=(
+                network if isinstance(network, str) else ("bridge" if network else "none")
+            ),
             read_only=True,
             tmpfs={"/tmp": f"rw,nosuid,nodev,size={limits.tmpfs_size}"},  # noqa: S108
             mounts=docker_mounts,

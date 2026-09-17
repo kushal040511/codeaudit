@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # Hard ceiling on input + output tokens across all calls for one scan. A call that
     # could exceed it (counted input + max output) is refused, not sent.
     llm_token_budget_per_scan: int = 400_000
+    # Separate, smaller budget for a site analysis (one vision call on screenshots).
+    llm_token_budget_per_site: int = 60_000
     llm_max_output_tokens: int = 16_000
     # Adaptive thinking effort: low | medium | high | max (Sonnet 4.6).
     llm_effort: str = "medium"
@@ -95,6 +97,27 @@ class Settings(BaseSettings):
     scans_per_hour_anonymous: int = 10
     # Waiting for GitHub to create a fork before opening a PR from it.
     github_fork_wait_seconds: int = 60
+
+    # --- Website analyzer ---
+    # Built from docker/web-capture (Playwright 1.63 Chromium, base pinned by digest).
+    web_capture_image: str = "codeaudit-web-capture:1.63.0"
+    # Internal Docker network shared only with the egress proxy.
+    web_capture_network: str = "codeaudit_web_capture"
+    web_egress_proxy_url: str = "http://egress-proxy:8888"
+    web_capture_timeout_seconds: int = 30
+    web_page_timeout_ms: int = 20_000
+    web_capture_memory_limit: str = "1536m"
+    web_capture_cpus: float = 1.5
+    web_max_redirects: int = 10
+    # Completed analyses of the same normalized URL are reused within this window.
+    site_cache_ttl_seconds: int = 6 * 3600
+    site_analyses_per_hour_per_user: int = 30
+    site_analyses_per_hour_anonymous: int = 10
+    web_http_timeout_seconds: float = 10.0
+    google_safe_browsing_api_key: SecretStr | None = None
+    openphish_feed_url: str = "https://openphish.com/feed.txt"
+    openphish_cache_seconds: int = 3600
+    rdap_bootstrap_url: str = "https://rdap.org"
 
     # --- Uploads ---
     max_upload_size_mb: int = 50

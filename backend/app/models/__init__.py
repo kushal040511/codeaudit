@@ -31,12 +31,15 @@ from app.models.scan import (
     ScanStatus,
 )
 from app.models.score import ScanScore
+from app.models.site_analysis import SiteAnalysis, SiteAnalysisStatus
 from app.models.user import ApiToken, GitHubIdentity, User, UserSession
 
 __all__ = [
     "ApiToken",
     "GitHubIdentity",
     "PullRequest",
+    "SiteAnalysis",
+    "SiteAnalysisStatus",
     "PullRequestStatus",
     "ScanSource",
     "User",

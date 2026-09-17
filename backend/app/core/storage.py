@@ -1,3 +1,4 @@
+import io
 from functools import lru_cache
 from pathlib import Path
 from typing import BinaryIO
@@ -71,6 +72,20 @@ def upload_fileobj(fileobj: BinaryIO, key: str, content_type: str) -> None:
             ExtraArgs={"ContentType": content_type},
             Config=_TRANSFER_CONFIG,
         )
+    except (BotoCoreError, ClientError) as exc:
+        raise _translate(exc, key) from exc
+
+
+def upload_bytes(key: str, data: bytes, content_type: str) -> None:
+    upload_fileobj(io.BytesIO(data), key, content_type)
+
+
+def get_bytes(key: str, max_bytes: int = 64 * 1024 * 1024) -> bytes:
+    try:
+        response = get_s3_client().get_object(Bucket=get_settings().s3_bucket_uploads, Key=key)
+        if int(response.get("ContentLength") or 0) > max_bytes:
+            raise StorageError(f"Object {key} is larger than {max_bytes} bytes")
+        return bytes(response["Body"].read(max_bytes))
     except (BotoCoreError, ClientError) as exc:
         raise _translate(exc, key) from exc
 
