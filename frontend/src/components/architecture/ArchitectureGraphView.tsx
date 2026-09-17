@@ -84,7 +84,7 @@ function GraphCanvas({ graph, highlight, selectedNodeId, onNodeClick }: Props) {
 
   // Re-fit when the view changes shape (expand/collapse, new scan).
   useEffect(() => {
-    const frame = requestAnimationFrame(() => fitView({ padding: 0.1, duration: 200 }))
+    const frame = requestAnimationFrame(() => fitView({ padding: 0.2, duration: 200, maxZoom: 1 }))
     return () => cancelAnimationFrame(frame)
   }, [positions, fitView])
 
@@ -109,7 +109,16 @@ function GraphCanvas({ graph, highlight, selectedNodeId, onNodeClick }: Props) {
     >
       <Background gap={24} />
       <Controls showInteractive={false} />
-      <MiniMap pannable zoomable nodeStrokeWidth={2} className="!hidden md:!block" />
+      {nodes.length > 12 && (
+        <MiniMap
+          pannable
+          zoomable
+          nodeStrokeWidth={2}
+          className="!hidden rounded-lg border !bg-card md:!block"
+          maskColor="color-mix(in oklab, var(--muted) 70%, transparent)"
+          nodeColor="var(--muted-foreground)"
+        />
+      )}
     </ReactFlow>
   )
 }

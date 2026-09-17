@@ -223,16 +223,28 @@ export function ArchitectureTab({ scanId, enrichmentNote }: { scanId: string; en
         </div>
 
         <div className={`grid gap-4 ${selectedNodeId ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
-          <div className={`h-[40rem] rounded-lg border bg-background ${graphQuery.isPlaceholderData ? 'opacity-60' : ''}`}>
-            {graph.nodes.length === 0 ? (
-              <p className="p-6 text-sm text-muted-foreground">No Python, JavaScript or TypeScript modules found.</p>
-            ) : (
-              <ArchitectureGraphView
-                graph={graph}
-                highlight={highlight}
-                selectedNodeId={selectedNodeId}
-                onNodeClick={setSelectedNodeId}
-              />
+          <div className="space-y-2">
+            <div
+              className={`${graph.nodes.length <= 3 ? 'h-64' : 'h-[40rem]'} rounded-lg border bg-background ${graphQuery.isPlaceholderData ? 'opacity-60' : ''}`}
+            >
+              {graph.nodes.length === 0 ? (
+                <p className="p-6 text-sm text-muted-foreground">
+                  No Python, JavaScript or TypeScript modules found.
+                </p>
+              ) : (
+                <ArchitectureGraphView
+                  graph={graph}
+                  highlight={highlight}
+                  selectedNodeId={selectedNodeId}
+                  onNodeClick={setSelectedNodeId}
+                />
+              )}
+            </div>
+            {graph.nodes.length === 1 && (
+              <p className="text-xs text-muted-foreground">
+                This project is one module, so there are no internal dependencies to draw. The packages
+                it imports are listed below.
+              </p>
             )}
           </div>
           {selectedNodeId && (
