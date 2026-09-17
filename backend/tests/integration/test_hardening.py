@@ -698,3 +698,40 @@ def test_sandbox_slot_is_released_when_docker_is_unreachable(
             working_dir="/",
         )
     assert get_redis().zcard(sandbox.SLOTS_KEY) == 0
+
+
+def test_monthly_token_quota_counts_reservations_only_while_in_flight(database: None) -> None:
+    user = User(id=uuid.uuid4(), display_name="token-counter")
+    with SessionLocal() as db:
+        db.add(user)
+        db.commit()
+    scan_id = make_scan(user_id=user.id)
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                # Finished: 1,000 used; its earlier 20,000 reservation no longer counts.
+                LLMCall(
+                    scan_id=scan_id,
+                    purpose=LLMPurpose.FIX_SUGGESTION,
+                    model="ollama/qwen2.5-coder:7b",
+                    success=True,
+                    pending=False,
+                    input_tokens=800,
+                    output_tokens=200,
+                    reserved_tokens=20_000,
+                    context={},
+                ),
+                # In flight: counts at its reservation.
+                LLMCall(
+                    scan_id=scan_id,
+                    purpose=LLMPurpose.FIX_SUGGESTION,
+                    model="ollama/qwen2.5-coder:7b",
+                    success=False,
+                    pending=True,
+                    reserved_tokens=5_000,
+                    context={},
+                ),
+            ]
+        )
+        db.commit()
+        assert quotas.llm_tokens_used_this_month(db, user.id) == 6_000

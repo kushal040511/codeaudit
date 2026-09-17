@@ -21,10 +21,10 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from fastapi import Request
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -239,14 +239,20 @@ def month_start(now: datetime | None = None) -> datetime:
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def llm_tokens_used_this_month(db: Session, user_id: uuid.UUID) -> int:
-    tokens = (
+def _call_tokens() -> Any:
+    """Tokens a call counts against a quota: what it used once finished, and its
+    worst-case reservation only while it is still in flight."""
+    return (
         LLMCall.input_tokens
         + LLMCall.output_tokens
         + LLMCall.cache_creation_input_tokens
         + LLMCall.cache_read_input_tokens
-        + LLMCall.reserved_tokens
+        + case((LLMCall.pending.is_(True), LLMCall.reserved_tokens), else_=0)
     )
+
+
+def llm_tokens_used_this_month(db: Session, user_id: uuid.UUID) -> int:
+    tokens = _call_tokens()
     since = month_start()
     scans = db.scalar(
         select(func.coalesce(func.sum(tokens), 0))
@@ -263,13 +269,7 @@ def llm_tokens_used_this_month(db: Session, user_id: uuid.UUID) -> int:
 
 def llm_tokens_used_anonymous_this_month(db: Session) -> int:
     """Anonymous scans share one pool (they can't be attributed to an IP after the fact)."""
-    tokens = (
-        LLMCall.input_tokens
-        + LLMCall.output_tokens
-        + LLMCall.cache_creation_input_tokens
-        + LLMCall.cache_read_input_tokens
-        + LLMCall.reserved_tokens
-    )
+    tokens = _call_tokens()
     since = month_start()
     scans = db.scalar(
         select(func.coalesce(func.sum(tokens), 0))

@@ -17,6 +17,8 @@ export function useAuthConfig() {
   return useQuery<AuthConfig, ApiError>({
     queryKey: ['auth', 'config'],
     queryFn: getAuthConfig,
-    staleTime: Infinity,
+    // Server configuration can change (e.g. GitHub keys added): recheck on focus.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   })
 }
