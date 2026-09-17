@@ -190,7 +190,7 @@ def get_llm_usage(scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipa
             func.coalesce(func.sum(LLMCall.output_tokens), 0),
             func.coalesce(func.sum(LLMCall.cost_usd), 0),
             func.count(LLMCall.id),
-            func.count(LLMCall.id).filter(LLMCall.success.is_(False)),
+            func.count(LLMCall.id).filter(LLMCall.success.is_(False), LLMCall.pending.is_(False)),
             func.coalesce(func.sum(LLMCall.duration_ms), 0),
             func.max(LLMCall.model),
         ).where(LLMCall.scan_id == scan_id)

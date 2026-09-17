@@ -21,7 +21,7 @@ def usage_by_purpose(db: Session, scan_id: uuid.UUID) -> list[LLMUsageByPurpose]
         select(
             LLMCall.purpose,
             func.count(),
-            func.sum(case((LLMCall.success.is_(False), 1), else_=0)),
+            func.sum(case((LLMCall.success.is_(False) & LLMCall.pending.is_(False), 1), else_=0)),
             func.coalesce(
                 func.sum(
                     LLMCall.input_tokens

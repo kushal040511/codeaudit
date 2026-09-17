@@ -735,3 +735,21 @@ def test_monthly_token_quota_counts_reservations_only_while_in_flight(database: 
         )
         db.commit()
         assert quotas.llm_tokens_used_this_month(db, user.id) == 6_000
+
+
+def test_late_enrichment_delivery_does_not_overwrite_a_finished_result(database: None) -> None:
+    from app.models import EnrichmentStatus
+    from app.workers.tasks import enrich_scan
+
+    scan_id = make_scan(status=ScanStatus.COMPLETED)
+    with SessionLocal() as db:
+        scan = db.get(Scan, scan_id)
+        assert scan is not None
+        scan.enrichment_status = EnrichmentStatus.COMPLETED
+        db.commit()
+    assert enrich_scan.run(str(scan_id)) == {"scan_id": str(scan_id), "status": "skipped"}
+    with SessionLocal() as db:
+        scan = db.get(Scan, scan_id)
+        assert scan is not None
+        assert scan.enrichment_status is EnrichmentStatus.COMPLETED
+        assert scan.enrichment_error is None

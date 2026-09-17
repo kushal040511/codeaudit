@@ -146,3 +146,48 @@ def test_patch_paths_and_syntax_helper() -> None:
     assert syntax_error("x.ts", "const a: number = 1") is None
     assert syntax_error("x.ts", "const = ;") is not None
     assert syntax_error("README.md", "# anything") is None
+
+
+def test_lf_patch_applies_to_a_windows_crlf_file_and_keeps_crlf(tmp_path: Path) -> None:
+    """Models write LF diffs; Windows-edited repos use CRLF. Seen with a local model."""
+    source = (
+        "import sqlite3\r\nimport os\r\nimport os.path\r\n\r\napp = Flask(__name__)\r\n"
+        "app.secret_key = 'your_secret_key'\r\n\r\ndef get_db_cursor():\r\n    pass\r\n"
+    )
+    (tmp_path / "skillgap").mkdir()
+    (tmp_path / "skillgap" / "App.py").write_bytes(source.encode())
+    # LF line endings and a hunk header two lines off, as the model produced it.
+    patch = (
+        "--- a/skillgap/App.py\n+++ b/skillgap/App.py\n@@ -5,7 +5,7 @@ import os\n"
+        " import os.path\n\n app = Flask(__name__)\n"
+        "-app.secret_key = 'your_secret_key'\n"
+        "+app.secret_key = os.environ['SECRET_KEY']\n\n def get_db_cursor():\n"
+    )
+    result = validate_patch(tmp_path, patch)
+    assert result.status is ValidationStatus.VALID, result.detail
+    assert "os.environ['SECRET_KEY']" in result.file_changes[0]["patched"]
+
+    from app.services.llm.patches import apply_patch_in_place
+
+    assert apply_patch_in_place(tmp_path, patch) == (True, None)
+    patched = (tmp_path / "skillgap" / "App.py").read_bytes()
+    assert b"app.secret_key = os.environ['SECRET_KEY']\r\n" in patched
+    assert b"\n" not in patched.replace(b"\r\n", b"")  # no mixed line endings
+
+
+def test_lf_files_are_unchanged_by_line_ending_matching(repo: Path) -> None:
+    from app.services.llm.patches import match_line_endings
+
+    patch = "--- a/app.py\n+++ b/app.py\n@@ -1,1 +1,1 @@\n-x = 1\n+x = 2\n"
+    assert match_line_endings(patch, repo) == patch
+
+
+def test_zero_context_hunk_in_the_middle_of_a_file(tmp_path: Path) -> None:
+    (tmp_path / "requirements.txt").write_text("Flask==2.2.5\npandas==2.2.2\nopenpyxl==3.1.2\n")
+    patch = (
+        "--- a/requirements.txt\n+++ b/requirements.txt\n@@ -1,1 +1,1 @@\n"
+        "-Flask==2.2.5\n+Flask==3.1.3\n"
+    )
+    assert validate_patch(tmp_path, patch).status is ValidationStatus.VALID
+    wrong = patch.replace("-Flask==2.2.5", "-Flask==9.9.9")
+    assert validate_patch(tmp_path, wrong).status is ValidationStatus.FAILED_TO_APPLY

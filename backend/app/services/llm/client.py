@@ -488,7 +488,10 @@ class LLMClient:
         if stop_reason == "refusal":
             error_type, error_message = "refusal", "The model declined this request."
         elif stop_reason == "max_tokens":
-            error_type, error_message = "max_tokens", f"Output hit the {max_tokens:,} token limit."
+            limit = max_tokens
+            if self.settings.llm_provider == "ollama":
+                limit = min(max_tokens, self.settings.ollama_max_output_tokens)
+            error_type, error_message = "max_tokens", f"Output hit the {limit:,} token limit."
         self._finish(
             call_id,
             started,

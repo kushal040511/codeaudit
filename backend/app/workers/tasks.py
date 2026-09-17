@@ -257,11 +257,14 @@ def enrich_scan(scan_id: str) -> dict[str, Any]:
     workdir: Path | None = None
     status = EnrichmentStatus.FAILED
     message: str | None = "Internal error during enrichment."
+    claimed = False
     with SessionLocal() as db:
         try:
             scan = db.get(Scan, scan_uuid)
             if scan is None or not start_enrichment(db, scan):
+                # A duplicate or late delivery: leave the finished result alone.
                 return {"scan_id": scan_id, "status": "skipped"}
+            claimed = True
             if blocked := llm_dispatch_block(db, scan):
                 status, message = EnrichmentStatus.SKIPPED, blocked
                 logger.info("scan %s: LLM stage skipped: %s", scan_id, blocked)
@@ -286,7 +289,8 @@ def enrich_scan(scan_id: str) -> dict[str, Any]:
             logger.exception("scan %s: enrichment crashed", scan_id)
         finally:
             try:
-                finish_enrichment(db, scan_uuid, status, message)
+                if claimed:
+                    finish_enrichment(db, scan_uuid, status, message)
             except SQLAlchemyError:
                 logger.exception("could not finish enrichment for scan %s", scan_id)
             if workdir is not None:

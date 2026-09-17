@@ -55,6 +55,53 @@ def patch_paths(patch: str) -> list[str]:
     return paths
 
 
+def _uses_crlf(path: Path) -> bool:
+    data = path.read_bytes()[:1_000_000]
+    crlf = data.count(b"\r\n")
+    return crlf > 0 and crlf >= data.count(b"\n") - crlf
+
+
+def match_line_endings(patch: str, repo: Path) -> str:
+    """Give each file's hunk lines the line endings of that file.
+
+    Models write diffs with LF endings; against a Windows (CRLF) file every context and
+    removed line would then mismatch and the patch could never apply. Headers are left
+    alone; only lines inside hunks are rewritten, and only for files that exist.
+    """
+    out: list[str] = []
+    crlf = False
+    in_hunk = False
+    lines = patch.split("\n")
+    for index, line in enumerate(lines):
+        bare = line.rstrip("\r")
+        next_line = lines[index + 1] if index + 1 < len(lines) else ""
+        if bare.startswith("--- ") and next_line.startswith("+++ "):
+            in_hunk = False
+            out.append(bare)
+            continue
+        if bare.startswith("+++ "):
+            header = _DIFF_PATH.match(bare)
+            path = header.group(1) if header else None
+            crlf = path is not None and _unsafe_path(path, repo) is None and _uses_crlf(repo / path)
+            out.append(bare)
+            continue
+        if bare.startswith("@@"):
+            in_hunk = True
+            out.append(bare)
+            continue
+        if in_hunk and (bare == "" or bare[0] in " -+"):
+            if index == len(lines) - 1 and bare == "":
+                out.append(bare)  # the patch's final newline, not a hunk line
+            elif crlf:
+                # A bare empty line is a blank context line (git allows omitting its space).
+                out.append((bare or " ") + "\r")
+            else:
+                out.append(bare)
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def _unsafe_path(path: str, repo: Path) -> str | None:
     posix = PurePosixPath(path)
     if posix.is_absolute() or ".." in posix.parts or "\\" in path:
@@ -85,6 +132,27 @@ def _git(args: list[str], cwd: Path, patch: str) -> subprocess.CompletedProcess[
         env=env,
         check=False,
     )
+
+
+def _apply(cwd: Path, patch: str, strip: list[str]) -> str | None:
+    """Apply `patch` in `cwd`. None on success, else git's error.
+
+    --recount: models get hunk line counts wrong; context lines must still match.
+    A hunk without context lines is anchored to the end of the file by default, so a
+    one-line change in the middle of a file (common in dependency bumps) only applies
+    with --unidiff-zero; that is tried second, and the removed lines must still match.
+    """
+    error = ""
+    for extra in ([], ["--unidiff-zero"]):
+        check = _git(["--check", "--recount", *extra, *strip], cwd, patch)
+        if check.returncode != 0:
+            error = error or (check.stderr or check.stdout).strip()
+            continue
+        applied = _git(["--recount", *extra, *strip], cwd, patch)
+        if applied.returncode == 0:
+            return None
+        error = error or (applied.stderr or "git apply failed.").strip()
+    return error[-2000:] or "git apply rejected the patch."
 
 
 def syntax_error(path: str, source: str) -> str | None:
@@ -164,6 +232,7 @@ def validate_patch(repo: Path, patch: str | None) -> PatchValidation:
     for path in paths:
         if problem := _unsafe_path(path, repo):
             return PatchValidation(ValidationStatus.FAILED_TO_APPLY, problem)
+    patch = match_line_endings(patch, repo)
 
     with tempfile.TemporaryDirectory(prefix="codeaudit-patch-") as tmp:
         work = Path(tmp)
@@ -176,21 +245,11 @@ def validate_patch(repo: Path, patch: str | None) -> PatchValidation:
 
         strip = ["-p1"] if re.search(r"^--- a/", patch, re.MULTILINE) else ["-p0"]
         try:
-            # --recount: models get hunk line counts wrong; the context lines must still match.
-            check = _git(["--check", "--recount", *strip], work, patch)
-            if check.returncode != 0:
-                detail = (check.stderr or check.stdout).strip()
-                return PatchValidation(
-                    ValidationStatus.FAILED_TO_APPLY,
-                    detail[-2000:] or "git apply rejected the patch.",
-                )
-            applied = _git(["--recount", *strip], work, patch)
+            error = _apply(work, patch, strip)
         except subprocess.TimeoutExpired:
             return PatchValidation(ValidationStatus.FAILED_TO_APPLY, "git apply timed out.")
-        if applied.returncode != 0:
-            return PatchValidation(
-                ValidationStatus.FAILED_TO_APPLY, (applied.stderr or "git apply failed.")[-2000:]
-            )
+        if error is not None:
+            return PatchValidation(ValidationStatus.FAILED_TO_APPLY, error)
 
         changes: list[dict[str, Any]] = []
         for path in paths:
@@ -208,17 +267,10 @@ def apply_patch_in_place(repo: Path, patch: str) -> tuple[bool, str | None]:
     for path in patch_paths(patch):
         if problem := _unsafe_path(path, repo):
             return False, problem
+    patch = match_line_endings(patch, repo)
     strip = ["-p1"] if re.search(r"^--- a/", patch, re.MULTILINE) else ["-p0"]
     try:
-        check = _git(["--check", "--recount", *strip], repo, patch)
-        if check.returncode != 0:
-            return (
-                False,
-                (check.stderr or check.stdout).strip()[-2000:] or "git apply rejected the patch.",
-            )
-        applied = _git(["--recount", *strip], repo, patch)
+        error = _apply(repo, patch, strip)
     except subprocess.TimeoutExpired:
         return False, "git apply timed out."
-    if applied.returncode != 0:
-        return False, (applied.stderr or "git apply failed.").strip()[-2000:]
-    return True, None
+    return (error is None), error
