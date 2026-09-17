@@ -41,6 +41,8 @@ class LLMCall(Base):
     __table_args__ = (
         Index("ix_llm_calls_scan_id_purpose", "scan_id", "purpose"),
         Index("ix_llm_calls_site_analysis_id", "site_analysis_id"),
+        # Today's spend and monthly token sums run on every reservation (see costs.py).
+        Index("ix_llm_calls_created_at", "created_at"),
         CheckConstraint("num_nonnulls(scan_id, site_analysis_id) = 1", name="one_subject"),
     )
 

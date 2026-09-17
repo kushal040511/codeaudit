@@ -152,7 +152,8 @@ export type LlmUsageSummary = {
   valid_fix_suggestions: number
 }
 
-export type ScanCreated = { scan_id: string; status: ScanStatus }
+/** `cached`: an identical input was already analyzed; `scan_id` is that earlier scan. */
+export type ScanCreated = { scan_id: string; status: ScanStatus; cached?: boolean }
 
 export type DependencyInfo = {
   ecosystem: string
@@ -450,7 +451,7 @@ export type Me = {
 export type AuthConfig = { github_enabled: boolean }
 
 export type ApiToken = {
-  id: number
+  id: string
   name: string
   prefix: string
   created_at: string
@@ -491,7 +492,7 @@ export type FixCandidate = {
 export type PullRequestStatus = 'previewed' | 'creating' | 'open' | 'failed'
 
 export type PullRequest = {
-  id: number
+  id: string
   scan_id: string
   status: PullRequestStatus
   repo_full_name: string
@@ -553,12 +554,19 @@ type ApiErrorBody = { error?: { code: string; message: string; details?: unknown
 export class ApiError extends Error {
   readonly status: number | undefined
   readonly code: string | undefined
+  /** Seconds until a rate limit or quota resets (429 responses). */
+  readonly retryAfter: number | undefined
 
-  constructor(message: string, status?: number, code?: string) {
+  constructor(message: string, status?: number, code?: string, retryAfter?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.retryAfter = retryAfter
+  }
+
+  get isRateLimited(): boolean {
+    return this.status === 429
   }
 }
 
@@ -567,7 +575,12 @@ export function toApiError(err: unknown): ApiError {
   if (axios.isAxiosError<ApiErrorBody>(err)) {
     const status = err.response?.status
     const body = err.response?.data?.error
-    if (body) return new ApiError(body.message, status, body.code)
+    const retryHeader = Number(err.response?.headers?.['retry-after'])
+    const retryAfter = Number.isFinite(retryHeader) && retryHeader > 0 ? retryHeader : undefined
+    if (body) return new ApiError(body.message, status, body.code, retryAfter)
+    if (status === 429) {
+      return new ApiError('Too many requests. Wait a moment and try again.', status, 'rate_limited', retryAfter)
+    }
     if (status) return new ApiError(`Request failed with status ${status}.`, status)
     return new ApiError('Could not reach the CodeAudit API.')
   }
@@ -583,6 +596,28 @@ async function request<T>(fn: () => Promise<{ data: T }>): Promise<T> {
 }
 
 // ---------- Endpoints ----------
+
+export type QuotaLimit = {
+  name: 'scans' | 'site_analyses' | 'pull_requests' | 'pr_previews' | 'requests'
+  description: string
+  limit: number
+  used: number
+  remaining: number
+  window_seconds: number
+  reset_seconds: number
+}
+
+export type QuotaStatus = {
+  tier: 'anonymous' | 'free' | 'pro'
+  limits: QuotaLimit[]
+  llm_tokens: { limit: number; used: number; remaining: number; resets_at: string; shared_by_anonymous_users: boolean }
+  llm_available: boolean
+  llm_blocked_reason: string | null
+}
+
+export function getQuotas(): Promise<QuotaStatus> {
+  return request(() => api.get<QuotaStatus>('/quotas'))
+}
 
 export function uploadScan(file: File, onProgress?: (fraction: number) => void): Promise<ScanCreated> {
   const form = new FormData()
@@ -681,7 +716,7 @@ export function getArchitectureIssues(scanId: string): Promise<ArchitectureIssue
 /** /health lives at the backend root. A 503 still carries a valid body. */
 export function getHealth(): Promise<HealthResponse> {
   return request(() =>
-    axios.get<HealthResponse>(`${API_ORIGIN}/health`, {
+    axios.get<HealthResponse>(`${API_ORIGIN}/ready`, {
       timeout: 10_000,
       validateStatus: (status) => status === 200 || status === 503,
     }),
@@ -729,7 +764,7 @@ export function createApiToken(name: string): Promise<ApiTokenCreated> {
   return request(() => api.post<ApiTokenCreated>('/auth/tokens', { name }))
 }
 
-export function revokeApiToken(id: number): Promise<void> {
+export function revokeApiToken(id: string): Promise<void> {
   return request(() => api.delete<void>(`/auth/tokens/${id}`))
 }
 
@@ -755,7 +790,7 @@ export function previewPullRequest(
 }
 
 /** Writes to GitHub. Only call from an explicit user confirmation. */
-export function confirmPullRequest(prId: number, edits: { title: string; body: string }): Promise<PullRequest> {
+export function confirmPullRequest(prId: string, edits: { title: string; body: string }): Promise<PullRequest> {
   return request(() => api.post<PullRequest>(`/pull-requests/${prId}/confirm`, { confirm: true, ...edits }))
 }
 

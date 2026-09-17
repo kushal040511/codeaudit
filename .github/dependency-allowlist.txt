@@ -1,0 +1,3 @@
+# Reviewed critical vulnerabilities that CI may ignore until the date given.
+# Format: <OSV or CVE id>  <expires YYYY-MM-DD>  <why it does not affect CodeAudit>
+# Keep this empty unless there is no fixed version and the code path is unreachable.

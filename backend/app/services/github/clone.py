@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 CLONE_MOUNT = "/src"
 # Fixed script; repository coordinates arrive as environment variables.
 CLONE_SCRIPT = (
-    "set -eu; umask 0000; cd /src; git init -q .; "
+    "set -eu; umask 0007; cd /src; git init -q .; "
     'git remote add origin "$CLONE_URL"; '
     'git fetch -q --depth 1 --no-tags origin "$CLONE_SHA"; '
     "git checkout -q FETCH_HEAD; rm -rf .git"
@@ -128,7 +128,7 @@ def clone_repository(
     settings = get_settings()
     destination = workdir / "src"
     destination.mkdir()
-    os.chmod(destination, 0o777)  # noqa: S103 - written by the sandbox user, then read-only mounted
+    os.chmod(destination, 0o770)  # noqa: S103 - written by the sandbox (worker group)
     clone_url = f"https://github.com/{owner}/{name}.git"
     try:
         result = run_in_sandbox(

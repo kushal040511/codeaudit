@@ -13,3 +13,8 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "unavailable"]
     version: str
     checks: dict[str, ComponentCheck]
+
+
+class LivenessResponse(BaseModel):
+    status: Literal["ok"]
+    version: str

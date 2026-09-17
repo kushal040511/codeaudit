@@ -2,7 +2,7 @@ import logging
 from http import HTTPStatus
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -26,53 +26,30 @@ _CODES_BY_STATUS = {
 }
 
 
-class AppError(Exception):
-    """Expected, user-facing error. Rendered as {"error": {"code", "message", "details"}}."""
+# Re-exported: routes import errors from here.
+from app.core.errors import (  # noqa: E402
+    AppError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    PayloadTooLargeError,
+    RateLimitedError,
+    ServiceUnavailableError,
+    UnauthorizedError,
+)
 
-    status_code: int = status.HTTP_400_BAD_REQUEST
-    code: str = "bad_request"
-
-    def __init__(self, message: str, *, code: str | None = None, details: Any = None) -> None:
-        super().__init__(message)
-        self.message = message
-        if code is not None:
-            self.code = code
-        self.details = details
-
-
-class NotFoundError(AppError):
-    status_code = status.HTTP_404_NOT_FOUND
-    code = "not_found"
-
-
-class ConflictError(AppError):
-    status_code = status.HTTP_409_CONFLICT
-    code = "conflict"
-
-
-class UnauthorizedError(AppError):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    code = "unauthorized"
-
-
-class ForbiddenError(AppError):
-    status_code = status.HTTP_403_FORBIDDEN
-    code = "forbidden"
-
-
-class RateLimitedError(AppError):
-    status_code = status.HTTP_429_TOO_MANY_REQUESTS
-    code = "rate_limited"
-
-
-class PayloadTooLargeError(AppError):
-    status_code = status.HTTP_413_CONTENT_TOO_LARGE
-    code = "payload_too_large"
-
-
-class ServiceUnavailableError(AppError):
-    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    code = "service_unavailable"
+__all__ = [
+    "AppError",
+    "ConflictError",
+    "ForbiddenError",
+    "NotFoundError",
+    "PayloadTooLargeError",
+    "RateLimitedError",
+    "ServiceUnavailableError",
+    "UnauthorizedError",
+    "error_response",
+    "register_exception_handlers",
+]
 
 
 def error_response(status_code: int, code: str, message: str, details: Any = None) -> JSONResponse:
@@ -85,7 +62,9 @@ def error_response(status_code: int, code: str, message: str, details: Any = Non
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
-        return error_response(exc.status_code, exc.code, exc.message, exc.details)
+        response = error_response(exc.status_code, exc.code, exc.message, exc.details)
+        response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:

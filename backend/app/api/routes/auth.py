@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlencode
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentPrincipal, OptionalPrincipal, SessionPrincipal
 from app.api.errors import AppError, NotFoundError, ServiceUnavailableError
+from app.api.pagination import PageParams, page_params, paginate
 from app.config import get_settings
 from app.core.db import get_db
 from app.models import ApiToken, GitHubIdentity, User
@@ -213,14 +215,28 @@ def list_github_repos(
     ]
 
 
+def api_token_read(token: ApiToken) -> ApiTokenRead:
+    return ApiTokenRead.model_validate(token)
+
+
 @router.get("/tokens", response_model=list[ApiTokenRead])
-def list_tokens(principal: SessionPrincipal, db: DbSession) -> list[ApiTokenRead]:
-    tokens = db.scalars(
+def list_tokens(
+    principal: SessionPrincipal,
+    db: DbSession,
+    request: Request,
+    response: Response,
+    pages: Annotated[PageParams, Depends(page_params)],
+) -> list[ApiTokenRead]:
+    rows = paginate(
+        db,
         select(ApiToken)
         .where(ApiToken.user_id == principal.user.id)
-        .order_by(ApiToken.created_at.desc())
-    ).all()
-    return [ApiTokenRead.model_validate(t) for t in tokens]
+        .order_by(ApiToken.created_at.desc()),
+        pages,
+        request,
+        response,
+    )
+    return [api_token_read(row[0]) for row in rows]
 
 
 @router.post("/tokens", response_model=ApiTokenCreated, status_code=status.HTTP_201_CREATED)
@@ -229,12 +245,12 @@ def create_token(
 ) -> ApiTokenCreated:
     """Create an API token (e.g. for the GitHub Action). The secret is returned once."""
     secret, token = create_api_token(db, principal.user.id, body.name)
-    return ApiTokenCreated(**ApiTokenRead.model_validate(token).model_dump(), token=secret)
+    return ApiTokenCreated(**api_token_read(token).model_dump(), token=secret)
 
 
 @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
-def revoke_token(token_id: int, principal: SessionPrincipal, db: DbSession) -> Response:
-    token = db.get(ApiToken, token_id)
+def revoke_token(token_id: uuid.UUID, principal: SessionPrincipal, db: DbSession) -> Response:
+    token = db.scalar(select(ApiToken).where(ApiToken.public_id == token_id))
     if token is None or token.user_id != principal.user.id:
         raise NotFoundError("API token not found.")
     token.revoked_at = token.revoked_at or datetime.now(UTC)

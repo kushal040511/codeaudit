@@ -268,11 +268,11 @@ def test_capture_failures_are_reported(anon: TestClient, offline: dict[str, Any]
 
 
 def test_rate_limits(anon: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(get_settings(), "site_analyses_per_hour_anonymous", 2)
+    monkeypatch.setattr(get_settings(), "quota_anonymous_site_analyses_per_day", 2)
     codes = [analyze(anon, f"https://site{i}.example/").status_code for i in range(3)]
     assert codes == [202, 202, 429]
     assert (
-        "Sign in for a higher limit"
+        "Sign in for higher limits"
         in analyze(anon, "https://site9.example/").json()["error"]["message"]
     )
     # Cache hits don't count against the limit.

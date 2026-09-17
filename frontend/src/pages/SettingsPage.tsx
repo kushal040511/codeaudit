@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, FolderGit2 as Github, KeyRound, Lock, LogOut, ShieldCheck, Unplug } from 'lucide-react'
+import { Check, Copy, FolderGit2 as Github, Gauge, KeyRound, Lock, LogOut, ShieldCheck, Unplug } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,7 @@ import {
 } from '@/lib/api'
 import { ME_QUERY_KEY, useAuthConfig, useMe } from '@/lib/auth'
 import { formatDateTime } from '@/lib/format'
+import { formatReset, useQuotas } from '@/lib/quotas'
 
 const OAUTH_ERRORS: Record<string, string> = {
   invalid_oauth_state: 'The sign-in request expired or did not start in this browser. Try again.',
@@ -191,6 +192,71 @@ function GitHubCard({ me, enabled }: { me: Me | null; enabled: boolean }) {
   )
 }
 
+function UsageCard() {
+  const quotas = useQuotas()
+  if (quotas.isPending) return null
+  if (quotas.isError) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        Could not load your usage: {quotas.error.message}
+      </p>
+    )
+  }
+  const { tier, limits, llm_tokens: tokens, llm_available, llm_blocked_reason } = quotas.data
+  const shown = limits.filter((item) => item.limit > 0)
+  const tokenShare = tokens.limit > 0 ? Math.min(1, tokens.used / tokens.limit) : 0
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Gauge aria-hidden className="size-5" /> Usage and limits
+        </CardTitle>
+        <CardDescription>
+          Your plan: <span className="font-medium capitalize text-foreground">{tier}</span>. Limits use rolling
+          windows, so each use frees up again one window after it happened.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <ul className="divide-y rounded-lg border text-sm">
+          {shown.map((item) => (
+            <li key={item.name} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
+              <span className="first-letter:uppercase">{item.description}</span>
+              <span className="ml-auto tabular-nums">
+                <span className={item.remaining === 0 ? 'font-medium text-destructive' : 'font-medium'}>
+                  {item.remaining}
+                </span>{' '}
+                <span className="text-muted-foreground">of {item.limit} left</span>
+              </span>
+              {item.used > 0 && (
+                <span className="w-full text-xs text-muted-foreground">
+                  Oldest use frees up {formatReset(item.reset_seconds)}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <span>Fix suggestion tokens this month</span>
+            <span className="tabular-nums text-muted-foreground">
+              {tokens.used.toLocaleString()} of {tokens.limit.toLocaleString()}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+            <div className="h-full rounded-full bg-primary" style={{ width: `${tokenShare * 100}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground">Resets {formatDateTime(tokens.resets_at)}.</p>
+          {!llm_available && (
+            <p role="status" className="text-xs text-destructive">
+              {llm_blocked_reason ?? 'Fix suggestions are temporarily paused.'} Scans still run.
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function ApiTokensCard() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('GitHub Action')
@@ -205,7 +271,7 @@ function ApiTokensCard() {
       void queryClient.invalidateQueries({ queryKey: ['auth', 'tokens'] })
     },
   })
-  const revoke = useMutation<void, ApiError, number>({
+  const revoke = useMutation<void, ApiError, string>({
     mutationFn: revokeApiToken,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['auth', 'tokens'] }),
   })
@@ -334,6 +400,7 @@ export function SettingsPage() {
         </p>
       )}
       <GitHubCard me={me.data ?? null} enabled={config.data?.github_enabled ?? false} />
+      <UsageCard />
       {me.data && <ApiTokensCard />}
     </div>
   )

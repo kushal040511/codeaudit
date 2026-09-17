@@ -25,6 +25,56 @@ class Settings(BaseSettings):
     environment: Literal["development", "staging", "production"] = "development"
     debug: bool = False
     log_level: str = "INFO"
+    # json in deployed environments; text is easier to read locally.
+    log_format: Literal["json", "text"] = "json"
+    # Client IPs are read from X-Forwarded-For only across this many trusted proxy hops.
+    trusted_proxy_hops: int = 0
+
+    # --- Observability ---
+    sentry_dsn: SecretStr | None = None
+    sentry_traces_sample_rate: float = 0.0
+    # If set, /metrics requires `Authorization: Bearer <token>`.
+    metrics_token: SecretStr | None = None
+    # Worker metrics endpoint (Celery main process); 0 disables. Keep it on a private network.
+    worker_metrics_port: int = 9100
+    # Scans and site analyses stuck running longer than this are marked failed.
+    stale_job_grace_seconds: int = 300
+    # LLM prompt/response text is deleted from llm_calls after this many days
+    # (token counts and costs are kept).
+    llm_transcript_retention_days: int = 30
+
+    # --- Quotas (sliding windows); tier defaults, per-user overrides on the user row ---
+    quota_anonymous_requests_per_minute: int = 120
+    quota_anonymous_scans_per_day: int = 10
+    quota_anonymous_site_analyses_per_day: int = 10
+    quota_anonymous_llm_tokens_per_month: int = 2_000_000  # shared by all anonymous scans
+    quota_free_requests_per_minute: int = 300
+    quota_free_scans_per_day: int = 50
+    quota_free_site_analyses_per_day: int = 50
+    quota_free_pull_requests_per_day: int = 10
+    quota_free_pr_previews_per_hour: int = 60
+    quota_free_llm_tokens_per_month: int = 5_000_000
+    quota_pro_requests_per_minute: int = 1200
+    quota_pro_scans_per_day: int = 500
+    quota_pro_site_analyses_per_day: int = 500
+    quota_pro_pull_requests_per_day: int = 100
+    quota_pro_pr_previews_per_hour: int = 300
+    quota_pro_llm_tokens_per_month: int = 50_000_000
+
+    # --- Cost controls ---
+    # Hard daily LLM spend cap (UTC day). When reached, the LLM stage is skipped.
+    llm_daily_spend_cap_usd: float = 50.0
+    # Alert (log + optional webhook) when today's spend crosses this share of the cap.
+    llm_spend_alert_ratio: float = 0.8
+    alert_webhook_url: str | None = None
+
+    # --- Sandbox capacity ---
+    # Analysis containers running at once across all workers (Redis semaphore).
+    max_concurrent_sandboxes: int = 6
+    # Longest a sandbox may wait for a slot before the job is failed.
+    sandbox_slot_timeout_seconds: int = 900
+    # Upload scans with identical archive content reuse the previous result.
+    scan_cache_ttl_seconds: int = 7 * 86_400
     api_prefix: str = "/api"
     cors_origins: list[str] = ["http://localhost:5173"]
 
@@ -92,9 +142,6 @@ class Settings(BaseSettings):
     )
     git_clone_timeout_seconds: int = 300
     git_clone_memory_limit: str = "1g"
-    # Scans per rolling hour.
-    scans_per_hour_per_user: int = 30
-    scans_per_hour_anonymous: int = 10
     # Waiting for GitHub to create a fork before opening a PR from it.
     github_fork_wait_seconds: int = 60
 
@@ -111,8 +158,6 @@ class Settings(BaseSettings):
     web_max_redirects: int = 10
     # Completed analyses of the same normalized URL are reused within this window.
     site_cache_ttl_seconds: int = 6 * 3600
-    site_analyses_per_hour_per_user: int = 30
-    site_analyses_per_hour_anonymous: int = 10
     web_http_timeout_seconds: float = 10.0
     google_safe_browsing_api_key: SecretStr | None = None
     openphish_feed_url: str = "https://openphish.com/feed.txt"

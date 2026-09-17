@@ -1,6 +1,7 @@
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class GitHubConnectionRead(BaseModel):
@@ -28,7 +29,8 @@ class AuthConfigRead(BaseModel):
 class ApiTokenRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    # The public UUID; the sequential primary key is never exposed.
+    id: uuid.UUID = Field(validation_alias=AliasChoices("public_id", "id"))
     name: str
     prefix: str
     created_at: datetime

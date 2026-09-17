@@ -1,12 +1,13 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import OptionalPrincipal, load_scan
 from app.api.errors import NotFoundError
+from app.api.pagination import PageParams, page_params, paginate
 from app.core.db import get_db
 from app.models import (
     ArchitectureIssue,
@@ -222,6 +223,10 @@ def list_architecture_issues(
     principal: OptionalPrincipal,
     issue_type: Annotated[list[ArchitectureIssueType] | None, Query()] = None,
     severity: Annotated[list[Severity] | None, Query()] = None,
+    *,
+    request: Request,
+    response: Response,
+    pages: Annotated[PageParams, Depends(page_params)],
 ) -> list[ArchitectureIssueRead]:
     """Structural issues, most severe first."""
     _summary_or_404(db, scan_id, principal)
@@ -230,11 +235,15 @@ def list_architecture_issues(
         conditions.append(ArchitectureIssue.issue_type.in_(issue_type))
     if severity:
         conditions.append(ArchitectureIssue.severity.in_(severity))
-    issues = db.scalars(
+    rows = paginate(
+        db,
         select(ArchitectureIssue)
         .where(*conditions)
         .order_by(
             ArchitectureIssue.severity.desc(), ArchitectureIssue.issue_type, ArchitectureIssue.id
-        )
-    ).all()
-    return [ArchitectureIssueRead.model_validate(i) for i in issues]
+        ),
+        pages,
+        request,
+        response,
+    )
+    return [ArchitectureIssueRead.model_validate(row[0]) for row in rows]

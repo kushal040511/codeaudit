@@ -336,10 +336,16 @@ def test_no_pull_request_without_explicit_confirmation(
         assert user.client.post(url, json=body, headers=user.headers).status_code == 422, body
     assert user.client.post(url, json={"confirm": True}).status_code == 403  # no CSRF token
 
-    # Running the job or the builder directly on an unconfirmed preview does nothing.
-    assert create_pull_request_task.run(pr_id)["status"] == "skipped"
+    # The public id is a UUID; the job takes the internal row id.
     with SessionLocal() as db:
-        row = db.get(PullRequest, pr_id)
+        internal_id = db.scalar(
+            select(PullRequest.id).where(PullRequest.public_id == uuid.UUID(pr_id))
+        )
+    assert isinstance(internal_id, int)
+    # Running the job or the builder directly on an unconfirmed preview does nothing.
+    assert create_pull_request_task.run(internal_id)["status"] == "skipped"
+    with SessionLocal() as db:
+        row = db.get(PullRequest, internal_id)
         scan = db.get(Scan, scenario.scan_id)
         assert row is not None and scan is not None and row.status is PullRequestStatus.PREVIEWED
         from app.models import User

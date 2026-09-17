@@ -13,6 +13,7 @@ from sqlalchemy import update
 from sqlalchemy.exc import InterfaceError, OperationalError, SQLAlchemyError
 
 from app.config import get_settings
+from app.core import metrics
 from app.core.celery_app import celery_app
 from app.core.db import SessionLocal
 from app.core.errors import AnalysisError, TransientInfraError
@@ -37,13 +38,19 @@ from app.services.github.client import GitHubError
 from app.services.github.pr_builder import PullRequestError, create_pull_request_from_preview
 from app.services.llm.client import LLMClient, LLMError, LLMUnavailableError
 from app.services.llm.context import detect_conventions
-from app.services.llm.enrichment import finish_enrichment, run_enrichment, start_enrichment
+from app.services.llm.enrichment import (
+    finish_enrichment,
+    llm_dispatch_block,
+    run_enrichment,
+    start_enrichment,
+)
 from app.services.llm.fix_suggester import regenerate_fix
 from app.services.scan_pipeline import (
     create_workspace,
     extract_source,
     remove_stale_workspaces,
     run_pipeline,
+    stage_timer,
     utcnow,
 )
 from app.services.web.analysis import run_site_analysis
@@ -73,6 +80,8 @@ def ping() -> str:
 
 
 def _set_status(scan_id: uuid.UUID, status: ScanStatus, error_message: str | None) -> None:
+    if status in (ScanStatus.FAILED, ScanStatus.COMPLETED, ScanStatus.PARTIAL):
+        metrics.scans_finished.labels(status.value).inc()
     """Record a status change in a fresh session (the pipeline's session may be broken)."""
     try:
         with SessionLocal() as db:
@@ -127,15 +136,40 @@ def run_scan(self: Task, scan_id: str) -> dict[str, Any]:
                 _queue_enrichment(scan_uuid)
                 return {"scan_id": scan_id, "status": scan.status.value}
 
-            scan.status = ScanStatus.RUNNING
-            scan.started_at = utcnow()
-            scan.completed_at = None
-            scan.error_message = None
+            # Claim the scan atomically: a second delivery of the same task (redelivery
+            # while the first run is still going) must not analyze it concurrently.
+            claimable = (Scan.status.in_([ScanStatus.QUEUED, ScanStatus.FAILED])) | (
+                (Scan.status == ScanStatus.RUNNING)
+                & (
+                    Scan.started_at
+                    < utcnow() - timedelta(seconds=settings.scan_timeout_seconds + 60)
+                )
+            )
+            claimed = db.execute(
+                update(Scan)
+                .where(Scan.id == scan_uuid, claimable)
+                .values(
+                    status=ScanStatus.RUNNING,
+                    started_at=utcnow(),
+                    completed_at=None,
+                    error_message=None,
+                )
+            )
             db.commit()
+            if not getattr(claimed, "rowcount", 0):
+                logger.warning(
+                    "scan %s is already being processed; skipping duplicate delivery", scan_id
+                )
+                return {"scan_id": scan_id, "status": "duplicate_delivery"}
+            db.refresh(scan)
 
             workdir = create_workspace(scan_uuid)
-            outcome = run_pipeline(db, scan, workdir)
-            enrich = scan.status is ScanStatus.ANALYSIS_COMPLETE
+            with stage_timer("total"):
+                outcome = run_pipeline(db, scan, workdir)
+            metrics.scans_finished.labels(outcome.status.value).inc()
+            # run_pipeline changed the status; re-read it untyped by the earlier narrowing.
+            final_status: ScanStatus = getattr(scan, "status")  # noqa: B009
+            enrich = final_status is ScanStatus.ANALYSIS_COMPLETE
 
         if enrich:
             # Queued only after the analysis is committed; never blocks the scan.
@@ -228,10 +262,15 @@ def enrich_scan(scan_id: str) -> dict[str, Any]:
             scan = db.get(Scan, scan_uuid)
             if scan is None or not start_enrichment(db, scan):
                 return {"scan_id": scan_id, "status": "skipped"}
+            if blocked := llm_dispatch_block(db, scan):
+                status, message = EnrichmentStatus.SKIPPED, blocked
+                logger.info("scan %s: LLM stage skipped: %s", scan_id, blocked)
+                return {"scan_id": scan_id, "enrichment": status.value, "message": message}
             llm = LLMClient()
             workdir = create_workspace(scan_uuid)
             source_dir = extract_source(db, scan, workdir)
-            outcome = run_enrichment(db, scan, source_dir, llm)
+            with stage_timer("enrichment"):
+                outcome = run_enrichment(db, scan, source_dir, llm)
             status = outcome.status
             message = " ".join(outcome.problems) or None
             logger.info("scan %s enrichment %s: %s", scan_id, status.value, outcome.fixes)
@@ -363,7 +402,9 @@ def analyze_site_task(analysis_id: str) -> dict[str, Any]:
             llm = None
         message: str | None = None
         try:
-            run_site_analysis(db, analysis, llm=llm)
+            with stage_timer("site_analysis"):
+                run_site_analysis(db, analysis, llm=llm)
+            metrics.site_analyses_finished.labels("completed").inc()
             return {"analysis": analysis_id, "status": "completed", "risk": analysis.risk_score}
         except BlockedUrlError as exc:
             message = f"Blocked for safety: {exc.reason}"
@@ -382,6 +423,7 @@ def analyze_site_task(analysis_id: str) -> dict[str, Any]:
             analysis.status = SiteAnalysisStatus.FAILED
             analysis.stage = None
             analysis.error_message = message[:MAX_ERROR_MESSAGE_CHARS]
+            metrics.site_analyses_finished.labels("failed").inc()
             analysis.completed_at = utcnow()
             db.commit()
         return {"analysis": analysis_id, "status": "failed", "error": message}
@@ -403,23 +445,8 @@ def cleanup_after_crash(**_: Any) -> None:
     if stale:
         logger.warning("removed %d stale scan workspaces", stale)
     try:
-        with SessionLocal() as db:
-            stuck = db.execute(
-                update(PullRequest)
-                .where(
-                    PullRequest.status == PullRequestStatus.CREATING,
-                    PullRequest.confirmed_at < utcnow() - timedelta(minutes=15),
-                )
-                .values(
-                    status=PullRequestStatus.FAILED,
-                    error_code="interrupted",
-                    error_message="The worker stopped while creating this pull request. Check"
-                    " the repository for a partially created branch before trying again.",
-                )
-            )
-            db.commit()
-            count = getattr(stuck, "rowcount", 0)
-            if count:
-                logger.warning("marked %d interrupted pull requests failed", count)
+        from app.workers.maintenance import reap_stale_jobs_once
+
+        reap_stale_jobs_once()
     except SQLAlchemyError as exc:
-        logger.warning("skipping pull request cleanup: %s", exc)
+        logger.warning("skipping stale job cleanup: %s", exc)

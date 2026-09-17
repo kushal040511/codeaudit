@@ -7,9 +7,10 @@ from typing import BinaryIO
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.errors import AppError, PayloadTooLargeError, RateLimitedError, UnauthorizedError
 from app.config import get_settings
+from app.core.errors import AppError, PayloadTooLargeError, UnauthorizedError
 from app.models import GitHubIdentity, Scan, ScanSource, ScanStatus
+from app.services import quotas
 from app.services.archive import UnsafeArchiveError, archive_limits_from_settings, inspect_zip
 from app.services.auth.oauth import access_token
 from app.services.auth.sessions import Principal
@@ -20,11 +21,8 @@ from app.services.github.client import (
     GitHubValidationError,
 )
 from app.services.github.urls import SHA, InvalidRepoUrlError, parse_repo_url
-from app.services.rate_limit import hit
 
 logger = logging.getLogger(__name__)
-
-WINDOW_SECONDS = 3600
 
 
 class GitHubApiError(AppError):
@@ -36,19 +34,7 @@ class GitHubApiError(AppError):
 
 
 def enforce_scan_rate_limit(principal: Principal | None, client_ip: str) -> None:
-    settings = get_settings()
-    if principal is not None:
-        key, limit = f"scans:user:{principal.user.id}", settings.scans_per_hour_per_user
-    else:
-        key, limit = f"scans:ip:{client_ip}", settings.scans_per_hour_anonymous
-    result = hit(key, limit, WINDOW_SECONDS)
-    if not result.allowed:
-        who = "" if principal else " Sign in for a higher limit."
-        raise RateLimitedError(
-            f"Scan limit reached ({limit} per hour). Try again in"
-            f" {result.retry_after_seconds // 60 + 1} minutes.{who}",
-            details={"retry_after_seconds": result.retry_after_seconds},
-        )
+    quotas.consume(quotas.subject_for(principal.user if principal else None, client_ip), "scans")
 
 
 def validate_upload(filename: str, size: int, fileobj: BinaryIO) -> int:

@@ -39,7 +39,7 @@ def test_safe_extract_writes_files_inside_dest(tmp_path: Path) -> None:
 
     assert summary.file_count == 2
     assert (dest / "repo/app.py").read_bytes() == b"print('hi')\n"
-    assert stat.S_IMODE((dest / "repo/pkg/util.py").stat().st_mode) == 0o644
+    assert stat.S_IMODE((dest / "repo/pkg/util.py").stat().st_mode) == 0o640
 
 
 @pytest.mark.parametrize(

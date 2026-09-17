@@ -54,7 +54,7 @@ def roc(scores: list[int], labels: list[int]) -> tuple[list[dict], float]:
     points = [confusion(scores, labels, t) for t in range(0, 102)]
     curve = sorted(((p["fpr"] or 0.0, p["recall"] or 0.0) for p in points))
     curve = [(0.0, 0.0), *curve, (1.0, 1.0)]
-    auc = sum((x2 - x1) * (y1 + y2) / 2 for (x1, y1), (x2, y2) in zip(curve, curve[1:]))
+    auc = sum((x2 - x1) * (y1 + y2) / 2 for (x1, y1), (x2, y2) in zip(curve, curve[1:], strict=False))
     return points, auc
 
 
@@ -102,7 +102,7 @@ def signal_table(records: list[dict]) -> list[dict]:
     coefficients = logistic_weights(records, fired_signals)
     table = []
     for signal in fired_signals:
-        def fires(r: dict) -> bool:
+        def fires(r: dict, signal: str = signal) -> bool:
             return any(e["signal"] == signal and e["status"] == "fired" for e in r["evidence"])
 
         in_pos = sum(fires(r) for r in positives)

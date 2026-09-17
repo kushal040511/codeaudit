@@ -148,12 +148,16 @@ def test_scan_rate_limits(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_github.add_repo("octo", "app", {"a.py": "x = 1\n"})
-    monkeypatch.setattr(get_settings(), "scans_per_hour_anonymous", 2)
-    monkeypatch.setattr(get_settings(), "scans_per_hour_per_user", 3)
+    monkeypatch.setattr(get_settings(), "quota_anonymous_scans_per_day", 2)
+    monkeypatch.setattr(get_settings(), "quota_free_scans_per_day", 3)
     body = {"repo_url": "https://github.com/octo/app"}
     assert [anon.post("/api/scans", json=body).status_code for _ in range(3)] == [202, 202, 429]
-    limited = anon.post("/api/scans", json=body).json()["error"]
-    assert limited["code"] == "rate_limited" and "Sign in for a higher limit" in limited["message"]
+    response = anon.post("/api/scans", json=body)
+    limited = response.json()["error"]
+    assert limited["code"] == "quota_exceeded" and "Sign in for higher limits" in limited["message"]
+    assert "2 scans per day" in limited["message"] and "It resets" in limited["message"]
+    assert int(response.headers["Retry-After"]) > 0
+    assert limited["details"]["limit"] == "scans" and limited["details"]["tier"] == "anonymous"
 
     user: SignedIn = sign_in("busy")
     codes = [
@@ -161,6 +165,18 @@ def test_scan_rate_limits(
         for _ in range(4)
     ]
     assert codes == [202, 202, 202, 429]
+    # A per-user override beats the tier default.
+    from app.core.db import SessionLocal
+    from app.models import User
+
+    with SessionLocal() as db:
+        row = db.get(User, user.user_id)
+        assert row is not None
+        row.quota_scans = 5
+        db.commit()
+    ok = user.client.post("/api/scans", json=body, headers=user.headers)
+    assert ok.status_code == 202
+    assert ok.headers["X-RateLimit-Limit"].split(",")[0].strip() != ""
 
 
 def test_github_rate_limit_is_reported_clearly(anon: TestClient, fake_github: FakeGitHub) -> None:

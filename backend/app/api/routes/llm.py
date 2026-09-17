@@ -28,6 +28,7 @@ from app.schemas.llm import (
     RegenerateFixRequest,
 )
 from app.services.llm.client import llm_configured, tokens_used
+from app.services.llm.enrichment import llm_dispatch_block
 from app.services.llm.pricing import is_priced
 from app.services.llm.usage import usage_by_purpose
 
@@ -110,6 +111,9 @@ def regenerate_fix(
     scan = load_scan(db, scan_id, principal)
     finding = _finding_or_404(db, scan_id, finding_id)
     if reason := llm_configured():
+        raise ServiceUnavailableError(reason)
+    # Spend cap, kill switch and the owner's monthly token quota: refuse before queuing.
+    if reason := llm_dispatch_block(db, scan):
         raise ServiceUnavailableError(reason)
     if scan.status not in RESULT_STATUSES:
         raise ConflictError(f"Scan {scan_id} has no results yet (status {scan.status.value}).")

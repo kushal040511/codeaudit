@@ -45,6 +45,7 @@ def list_my_scans(
     commit_sha: Annotated[str | None, Query(max_length=40)] = None,
     status: Annotated[ScanStatus | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    page: Annotated[int, Query(ge=1, le=10_000)] = 1,
 ) -> ScanList:
     """Your scans, newest first. Only scans you own are listed."""
     conditions = [Scan.user_id == principal.user.id]
@@ -68,6 +69,7 @@ def list_my_scans(
         .outerjoin(ScanScore, ScanScore.scan_id == Scan.id)
         .where(*conditions)
         .order_by(Scan.created_at.desc())
+        .offset((page - 1) * limit)
         .limit(limit)
     ).all()
     return ScanList(

@@ -17,7 +17,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from kombu.exceptions import OperationalError as BrokerError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -33,9 +33,9 @@ from app.api.errors import (
     AppError,
     ConflictError,
     NotFoundError,
-    RateLimitedError,
     ServiceUnavailableError,
 )
+from app.api.pagination import PageParams, page_params, paginate
 from app.core.db import get_db
 from app.models import (
     RESULT_STATUSES,
@@ -54,18 +54,17 @@ from app.schemas.pull_request import (
     PullRequestPreviewRequest,
     PullRequestRead,
 )
+from app.services import quotas
 from app.services.github.pr_builder import (
     PullRequestError,
     build_plan,
     preview_details,
     save_preview,
 )
-from app.services.rate_limit import hit
 
 router = APIRouter(tags=["pull requests"])
 
 DbSession = Annotated[Session, Depends(get_db)]
-PREVIEWS_PER_HOUR = 60
 # A confirmation must follow the preview reasonably soon; the plan is re-checked anyway.
 PREVIEW_TTL = timedelta(minutes=30)
 
@@ -80,8 +79,12 @@ def _app_error(exc: PullRequestError) -> AppError:
     return error
 
 
-def _owned_pull_request(db: Session, pr_id: int, principal: CurrentPrincipal) -> PullRequest:
-    row = db.get(PullRequest, pr_id)
+def pull_request_read(row: PullRequest) -> PullRequestRead:
+    return PullRequestRead.model_validate(row)
+
+
+def _owned_pull_request(db: Session, pr_id: uuid.UUID, principal: CurrentPrincipal) -> PullRequest:
+    row = db.scalar(select(PullRequest).where(PullRequest.public_id == pr_id))
     if row is None or row.user_id != principal.user.id:
         raise NotFoundError(f"Pull request {pr_id} not found.")
     return row
@@ -91,11 +94,17 @@ def _owned_pull_request(db: Session, pr_id: int, principal: CurrentPrincipal) ->
     "/scans/{scan_id}/fixes", response_model=list[FixCandidateRead], responses=_errors(404, 422)
 )
 def list_fix_candidates(
-    scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipal
+    scan_id: uuid.UUID,
+    db: DbSession,
+    principal: OptionalPrincipal,
+    request: Request,
+    response: Response,
+    pages: Annotated[PageParams, Depends(page_params)],
 ) -> list[FixCandidateRead]:
     """Suggestions with a verified patch: the only ones a pull request can include."""
     load_scan(db, scan_id, principal)
-    rows = db.execute(
+    rows = paginate(
+        db,
         select(FixSuggestion, Finding)
         .join(Finding, Finding.id == FixSuggestion.finding_id)
         .where(
@@ -103,8 +112,11 @@ def list_fix_candidates(
             FixSuggestion.status == FixStatus.READY,
             FixSuggestion.validation_status == ValidationStatus.VALID,
         )
-        .order_by(Finding.score_impact.desc().nulls_last(), Finding.id)
-    ).all()
+        .order_by(Finding.score_impact.desc().nulls_last(), Finding.id),
+        pages,
+        request,
+        response,
+    )
     return [
         FixCandidateRead(
             suggestion_id=suggestion.id,
@@ -142,12 +154,7 @@ def preview_pull_request(
     scan = load_owned_scan(db, scan_id, principal)
     if scan.status not in RESULT_STATUSES:
         raise ConflictError(f"Scan {scan_id} has no results yet (status {scan.status.value}).")
-    limit = hit(f"pr_preview:{principal.user.id}", PREVIEWS_PER_HOUR, 3600)
-    if not limit.allowed:
-        raise RateLimitedError(
-            f"Preview limit reached ({PREVIEWS_PER_HOUR} per hour).",
-            details={"retry_after_seconds": limit.retry_after_seconds},
-        )
+    quotas.consume(quotas.subject_for(principal.user, ""), "pr_previews")
     try:
         plan = build_plan(
             db,
@@ -161,7 +168,7 @@ def preview_pull_request(
         raise _app_error(exc) from None
     row = save_preview(db, scan, principal.user, plan)
     return PullRequestPreviewRead(
-        **PullRequestRead.model_validate(row).model_dump(),
+        **pull_request_read(row).model_dump(),
         combined_diff=plan.combined_diff,
         **preview_details(plan, scan),
     )
@@ -174,7 +181,7 @@ def preview_pull_request(
     responses=_errors(401, 403, 404, 409, 422, 503),
 )
 def confirm_pull_request(
-    pr_id: int,
+    pr_id: uuid.UUID,
     request: PullRequestConfirmRequest,
     db: DbSession,
     principal: SessionPrincipal,
@@ -184,7 +191,7 @@ def confirm_pull_request(
 
     row = db.scalar(
         select(PullRequest)
-        .where(PullRequest.id == pr_id, PullRequest.user_id == principal.user.id)
+        .where(PullRequest.public_id == pr_id, PullRequest.user_id == principal.user.id)
         .with_for_update()
     )
     if row is None:
@@ -200,6 +207,7 @@ def confirm_pull_request(
             "This preview has expired. Open a new preview and confirm again.",
             code="preview_expired",
         )
+    quotas.consume(quotas.subject_for(principal.user, ""), "pull_requests")
     if request.title is not None:
         row.title = request.title
     if request.body is not None:
@@ -217,7 +225,7 @@ def confirm_pull_request(
         db.commit()
         raise ServiceUnavailableError("Job queue is unavailable. Try again later.") from exc
     db.refresh(row)
-    return PullRequestRead.model_validate(row)
+    return pull_request_read(row)
 
 
 @router.get(
@@ -226,24 +234,35 @@ def confirm_pull_request(
     responses=_errors(401, 404, 422),
 )
 def list_pull_requests(
-    scan_id: uuid.UUID, db: DbSession, principal: CurrentPrincipal
+    scan_id: uuid.UUID,
+    db: DbSession,
+    principal: CurrentPrincipal,
+    request: Request,
+    response: Response,
+    pages: Annotated[PageParams, Depends(page_params)],
 ) -> list[PullRequestRead]:
     """Pull requests you confirmed for this scan (previews that were never confirmed are hidden)."""
     load_owned_scan(db, scan_id, principal)
-    rows = db.scalars(
+    rows = paginate(
+        db,
         select(PullRequest)
         .where(
             PullRequest.scan_id == scan_id,
             PullRequest.user_id == principal.user.id,
             PullRequest.status != PullRequestStatus.PREVIEWED,
         )
-        .order_by(PullRequest.id.desc())
-    ).all()
-    return [PullRequestRead.model_validate(row) for row in rows]
+        .order_by(PullRequest.id.desc()),
+        pages,
+        request,
+        response,
+    )
+    return [pull_request_read(row[0]) for row in rows]
 
 
 @router.get(
     "/pull-requests/{pr_id}", response_model=PullRequestRead, responses=_errors(401, 404, 422)
 )
-def get_pull_request(pr_id: int, db: DbSession, principal: CurrentPrincipal) -> PullRequestRead:
-    return PullRequestRead.model_validate(_owned_pull_request(db, pr_id, principal))
+def get_pull_request(
+    pr_id: uuid.UUID, db: DbSession, principal: CurrentPrincipal
+) -> PullRequestRead:
+    return pull_request_read(_owned_pull_request(db, pr_id, principal))

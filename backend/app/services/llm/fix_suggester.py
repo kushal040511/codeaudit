@@ -103,7 +103,10 @@ class FixRunStats:
     errors: list[str] = field(default_factory=list)
 
     def count(self, status: ValidationStatus) -> None:
+        from app.core import metrics
+
         self.by_validation[status.value] = self.by_validation.get(status.value, 0) + 1
+        metrics.patch_validations.labels(status.value).inc()
 
 
 def group_key(finding: Finding) -> str:
@@ -385,7 +388,7 @@ def generate_fixes(
                 db,
                 scan_id,
                 remaining,
-                f"Not generated: the scan's token budget is exhausted. {exc}",
+                f"Not generated: {exc}",
             )
             break
     return stats

@@ -21,9 +21,9 @@ from app.api.errors import (
     AppError,
     ConflictError,
     NotFoundError,
-    RateLimitedError,
     ServiceUnavailableError,
 )
+from app.api.pagination import PageParams, page_params, paginate
 from app.config import get_settings
 from app.core.db import get_db
 from app.core.storage import StorageError, get_bytes
@@ -38,8 +38,8 @@ from app.schemas.site import (
     SiteAnalyzeRequest,
     VisualMatchRead,
 )
+from app.services import quotas
 from app.services.auth.sessions import Principal
-from app.services.rate_limit import hit
 from app.services.web.design import to_css, to_tailwind
 from app.services.web.netguard import BlockedUrlError, validate_url
 from app.services.web.references import load_references
@@ -120,18 +120,9 @@ def _read(analysis: SiteAnalysis, principal: Principal | None) -> SiteAnalysisRe
 
 
 def _enforce_rate_limit(principal: Principal | None, client_ip: str) -> None:
-    settings = get_settings()
-    if principal is not None:
-        key, limit = f"sites:user:{principal.user.id}", settings.site_analyses_per_hour_per_user
-    else:
-        key, limit = f"sites:ip:{client_ip}", settings.site_analyses_per_hour_anonymous
-    result = hit(key, limit, 3600)
-    if not result.allowed:
-        who = "" if principal else " Sign in for a higher limit."
-        raise RateLimitedError(
-            f"Site analysis limit reached ({limit} per hour).{who}",
-            details={"retry_after_seconds": result.retry_after_seconds},
-        )
+    quotas.consume(
+        quotas.subject_for(principal.user if principal else None, client_ip), "site_analyses"
+    )
 
 
 @router.post(
@@ -218,8 +209,7 @@ def _create(
                 cached=False,
             )
 
-    client_ip = request.client.host if request.client else "unknown"
-    _enforce_rate_limit(principal, client_ip)
+    _enforce_rate_limit(principal, quotas.client_ip(request))
     analysis = SiteAnalysis(
         id=uuid.uuid4(),
         user_id=owner,
@@ -248,14 +238,22 @@ def _create(
 def list_site_analyses(
     db: DbSession,
     principal: CurrentPrincipal,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    request: Request,
+    response: Response,
+    pages: Annotated[PageParams, Depends(page_params)],
 ) -> list[SiteAnalysisListItem]:
-    rows = db.scalars(
-        select(SiteAnalysis)
-        .where(SiteAnalysis.user_id == principal.user.id)
-        .order_by(SiteAnalysis.created_at.desc())
-        .limit(limit)
-    ).all()
+    rows = [
+        row[0]
+        for row in paginate(
+            db,
+            select(SiteAnalysis)
+            .where(SiteAnalysis.user_id == principal.user.id)
+            .order_by(SiteAnalysis.created_at.desc()),
+            pages,
+            request,
+            response,
+        )
+    ]
     return [
         SiteAnalysisListItem(
             id=r.id,

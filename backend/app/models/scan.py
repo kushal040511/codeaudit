@@ -58,6 +58,7 @@ class Scan(Base):
     __table_args__ = (
         Index("ix_scans_user_id_created_at", "user_id", "created_at"),
         Index("ix_scans_repo", "repo_owner", "repo_name", "commit_sha"),
+        Index("ix_scans_content_sha256", "content_sha256"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -79,6 +80,9 @@ class Scan(Base):
     repo_ref: Mapped[str | None] = mapped_column(String(255))  # as requested (branch/tag/sha)
     repo_default_branch: Mapped[str | None] = mapped_column(String(255))
     commit_sha: Mapped[str | None] = mapped_column(String(40))
+    # Cache identity: sha256 of the uploaded archive, and the analyzer set that ran.
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    analysis_version: Mapped[str | None] = mapped_column(String(32))
     repo_private: Mapped[bool | None] = mapped_column(Boolean)
     # [{"language": "python", "file_count": 12, "manifests": ["requirements.txt"]}, ...]
     detected_languages: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)

@@ -1,7 +1,8 @@
+import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.models import PullRequestStatus, Severity
 from app.services.github.urls import InvalidRepoUrlError, validate_ref
@@ -68,7 +69,8 @@ class ScoreProjectionSummary(BaseModel):
 class PullRequestRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    # The public UUID; the sequential primary key is never exposed.
+    id: uuid.UUID = Field(validation_alias=AliasChoices("public_id", "id"))
     scan_id: Any
     status: PullRequestStatus
     repo_full_name: str

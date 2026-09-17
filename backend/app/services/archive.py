@@ -124,10 +124,10 @@ def safe_extract(archive_path: Path, dest: Path, limits: ArchiveLimits) -> Archi
                             f"Archive entry escapes the extraction root: {info.filename!r}"
                         )
                     if info.is_dir():
-                        target.mkdir(mode=0o755, parents=True, exist_ok=True)
+                        target.mkdir(mode=0o750, parents=True, exist_ok=True)
                         continue
 
-                    target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+                    target.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
                     written = 0
                     with zf.open(info) as src, target.open("wb") as out:
                         while chunk := src.read(_CHUNK):
@@ -140,7 +140,7 @@ def safe_extract(archive_path: Path, dest: Path, limits: ArchiveLimits) -> Archi
                             if written_total > limits.max_total_bytes:
                                 raise UnsafeArchiveError("Archive expands beyond the allowed size.")
                             out.write(chunk)
-                    os.chmod(target, 0o644)
+                    os.chmod(target, 0o640)
         except zipfile.BadZipFile as exc:
             raise UnsafeArchiveError("Zip archive is corrupt (CRC or header mismatch).") from exc
         except NotImplementedError as exc:

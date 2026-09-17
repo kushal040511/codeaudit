@@ -49,3 +49,16 @@ def cost_usd(
         + output_tokens * price.output_per_mtok
     )
     return round(total / 1_000_000, 6)
+
+
+def estimate_cost_usd(model: str, input_tokens: int, max_output_tokens: int) -> float:
+    """Worst-case cost of a call before it's sent. Unknown models are priced at the most
+    expensive known rate, so the daily cap can't be bypassed by a new model name."""
+    if model in PRICES:
+        return cost_usd(model, input_tokens, max_output_tokens)
+    worst = max(PRICES.values(), key=lambda p: p.output_per_mtok)
+    return round(
+        (input_tokens * worst.input_per_mtok + max_output_tokens * worst.output_per_mtok)
+        / 1_000_000,
+        6,
+    )

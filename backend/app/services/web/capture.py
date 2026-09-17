@@ -151,8 +151,8 @@ def capture_page(
     out = workdir / "out"
     job.mkdir(parents=True)
     out.mkdir()
-    os.chmod(job, 0o755)  # noqa: S103 - read by the sandbox user
-    os.chmod(out, 0o777)  # noqa: S103 - written by the sandbox user
+    os.chmod(job, 0o750)  # noqa: S103 - read by the sandbox (worker group)
+    os.chmod(out, 0o770)  # noqa: S103 - written by the sandbox (worker group)
     shutil.copyfile(SCRIPT, job / "capture_script.py")
     environment = {
         "TARGET_URL": url,
@@ -168,7 +168,7 @@ def capture_page(
         environment["PROXY_SERVER"] = settings.web_egress_proxy_url
         network = settings.web_capture_network
     for path in job.iterdir():
-        os.chmod(path, 0o644)
+        os.chmod(path, 0o640)
 
     try:
         result = run_in_sandbox(

@@ -139,7 +139,7 @@ def _ensure_database(
 
     path.parent.mkdir(parents=True, exist_ok=True)
     for directory in (cache_root, cache_root / LAYOUT_DIR, path.parent):
-        os.chmod(directory, 0o755)  # noqa: S103 - read by the sandbox user
+        os.chmod(directory, 0o750)  # noqa: S103 - read by the sandbox (worker group)
 
     with _file_lock(path.parent / ".lock"):
         if _is_fresh(path, max_age):  # another worker refreshed it while we waited
@@ -160,7 +160,7 @@ def _ensure_database(
                 f"Could not download the OSV {ecosystem} vulnerability database: {exc}"
             ) from exc
 
-        os.chmod(tmp, 0o644)
+        os.chmod(tmp, 0o640)
         os.replace(tmp, path)  # atomic: running scans keep their open file
         logger.info("cached OSV %s database (%d bytes)", ecosystem, path.stat().st_size)
 

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { QuotaHint } from '@/components/scans/QuotaHint'
 import {
   type ApiError,
   createRepoScan,
@@ -287,6 +288,9 @@ export function UploadPage() {
             <ZipUpload />
           </TabsContent>
         </Tabs>
+        <div className="mt-4">
+          <QuotaHint name="scans" />
+        </div>
       </CardContent>
     </Card>
   )

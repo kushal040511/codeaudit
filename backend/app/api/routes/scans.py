@@ -40,6 +40,7 @@ from app.schemas.scan import (
     SeverityCounts,
 )
 from app.schemas.score import ScoreSummary
+from app.services import quotas, scan_cache
 from app.services.analyzers.registry import DISPLAY_NAMES
 from app.services.auth.sessions import Principal
 from app.services.llm.usage import llm_usage_summary
@@ -106,7 +107,7 @@ async def create_scan(request: Request, db: DbSession, principal: OptionalPrinci
 
     Returns as soon as the job is queued.
     """
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = quotas.client_ip(request)
     content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
     if content_type == "application/json":
         try:
@@ -117,6 +118,16 @@ async def create_scan(request: Request, db: DbSession, principal: OptionalPrinci
             ) from exc
         await run_in_threadpool(enforce_scan_rate_limit, principal, client_ip)
         scan = await run_in_threadpool(build_repo_scan, db, principal, body.repo_url, body.ref)
+        cached = await run_in_threadpool(
+            scan_cache.find_reusable,
+            db,
+            principal,
+            repo_owner=scan.repo_owner or "",
+            repo_name=scan.repo_name or "",
+            commit_sha=scan.commit_sha or "",
+        )
+        if cached is not None:
+            return ScanCreated(scan_id=cached.id, status=cached.status, cached=True)
         return await run_in_threadpool(_queue, db, scan, None)
     if content_type == "multipart/form-data":
         form = await request.form()
@@ -138,6 +149,11 @@ def _create_upload_scan(
     filename = _sanitize_filename(file.filename)
     size = file.size if file.size is not None else _stream_size(file.file)
     file_count = validate_upload(filename, size, file.file)
+    content_sha256 = scan_cache.sha256_of(file.file)
+    cached = scan_cache.find_reusable(db, principal, content_sha256=content_sha256)
+    if cached is not None:
+        logger.info("upload matches scan %s; reusing its results", cached.id)
+        return ScanCreated(scan_id=cached.id, status=cached.status, cached=True)
     enforce_scan_rate_limit(principal, client_ip)
 
     scan_id = uuid.uuid4()
@@ -155,12 +171,14 @@ def _create_upload_scan(
         user_id=principal.user.id if principal else None,
         original_filename=filename,
         storage_key=storage_key,
+        content_sha256=content_sha256,
     )
     logger.info("upload scan %s (%s, %d files)", scan_id, filename, file_count)
     return _queue(db, scan, storage_key)
 
 
 def _queue(db: Session, scan: Scan, storage_key: str | None) -> ScanCreated:
+    scan.analysis_version = scan_cache.analysis_version()
     try:
         db.add(scan)
         db.commit()

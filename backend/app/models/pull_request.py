@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Identity, Integer, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,8 @@ class PullRequest(Base):
     __tablename__ = "pull_requests"
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    # Exposed in URLs and responses instead of the sequential primary key.
+    public_id: Mapped[uuid.UUID] = mapped_column(Uuid, unique=True, default=uuid.uuid4)
     scan_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("scans.id", ondelete="CASCADE"), index=True
     )

@@ -21,7 +21,8 @@ WEB = "github.com"
 
 
 def _sha(*parts: str) -> str:
-    return hashlib.sha1("\0".join(parts).encode()).hexdigest()  # noqa: S324 - fake object ids
+    # Fake git object ids.
+    return hashlib.sha1("\0".join(parts).encode(), usedforsecurity=False).hexdigest()
 
 
 @dataclass

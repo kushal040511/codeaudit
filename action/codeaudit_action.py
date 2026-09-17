@@ -85,8 +85,11 @@ class Config:
 def request(
     method: str, url: str, token: str, body: dict[str, Any] | None = None
 ) -> tuple[int, Any]:
+    # urllib also opens file:// and custom schemes; only ever talk HTTP(S).
+    if not url.startswith(("https://", "http://")):
+        raise ActionError(f"Refusing to request a non-HTTP URL: {url.split(':', 1)[0]}:")
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - https/http only
+    req = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - checked above
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Accept", "application/json")
     req.add_header("User-Agent", "codeaudit-action")

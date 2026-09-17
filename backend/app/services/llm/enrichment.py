@@ -56,16 +56,17 @@ def run_enrichment(db: Session, scan: Scan, source_dir: Path, llm: LLMClient) ->
     outcome.fixes = generate_fixes(db, scan.id, source_dir, conventions, llm)
     stats = outcome.fixes
     if stats.budget_exhausted:
-        outcome.problems.append(
-            "The token budget ran out before every fix suggestion was generated."
-        )
+        # A budget cut (scan ceiling, monthly quota or daily spend cap) is not a failure:
+        # the scan stays complete, enrichment is partial or skipped with this reason.
+        reason = stats.errors[-1] if stats.errors else "The token budget ran out."
+        outcome.problems.append(f"Fix suggestions stopped early: {reason}")
     if stats.llm_requests_failed:
         outcome.problems.append(
             f"{stats.llm_requests_failed} of {stats.groups} fix requests failed: {stats.errors[0]}"
         )
 
     if stats.budget_exhausted:
-        outcome.problems.append("Architecture review skipped: token budget exhausted.")
+        outcome.problems.append("Architecture review skipped: the LLM budget is exhausted.")
     else:
         try:
             outcome.review_generated = (
@@ -78,8 +79,14 @@ def run_enrichment(db: Session, scan: Scan, source_dir: Path, llm: LLMClient) ->
 
     produced_something = outcome.review_generated or sum(stats.by_validation.values()) > 0
     attempted_something = stats.groups > 0 or outcome.review_generated or outcome.problems
+    budget_cut = stats.budget_exhausted or any("skipped:" in p for p in outcome.problems)
     if outcome.problems:
-        outcome.status = EnrichmentStatus.PARTIAL if produced_something else EnrichmentStatus.FAILED
+        if produced_something:
+            outcome.status = EnrichmentStatus.PARTIAL
+        elif budget_cut and not stats.llm_requests_failed:
+            outcome.status = EnrichmentStatus.SKIPPED
+        else:
+            outcome.status = EnrichmentStatus.FAILED
     elif not attempted_something:
         outcome.status = EnrichmentStatus.SKIPPED
         outcome.problems.append("Nothing to enrich: no fixable findings and no architecture graph.")
@@ -107,3 +114,25 @@ def finish_enrichment(
     scan.enrichment_status = status
     scan.enrichment_error = message[:2000] if message else None
     db.commit()
+
+
+def llm_dispatch_block(db: Session, scan: Scan) -> str | None:
+    """Checked when the enrichment task starts, before cloning or counting tokens:
+    why the LLM stage must not run for this scan right now, or None."""
+    from app.config import get_settings
+    from app.core import metrics
+    from app.models import User
+    from app.services import costs, quotas
+
+    if reason := costs.blocked_reason(db):
+        metrics.quota_rejections.labels("spend_cap", "dispatch").inc()
+        return reason
+    owner = db.get(User, scan.user_id) if scan.user_id else None
+    quota = quotas.llm_token_quota(db, owner)
+    if quota.remaining < get_settings().llm_max_output_tokens:
+        metrics.quota_rejections.labels("llm_tokens", "dispatch").inc()
+        return (
+            f"The monthly LLM token quota ({quota.limit:,}) is used up; it resets"
+            f" {quota.resets_at:%Y-%m-%d}."
+        )
+    return None

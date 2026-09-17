@@ -6,7 +6,8 @@ tool's output file. `run_in_sandbox` is the lower-level container runner.
 
 Every container gets:
 - no network, a read-only root filesystem, and a size-capped tmpfs for /tmp
-- an unprivileged user (nobody), all capabilities dropped, no-new-privileges
+- an unprivileged user (nobody, in the worker's group), all capabilities dropped,
+  no-new-privileges
 - memory (no swap), CPU and PID limits, and a wall-clock timeout that kills it
 - source mounted read-only; only an explicit per-run output directory is writable
 
@@ -18,6 +19,7 @@ share the host kernel. gVisor/Kata or a dedicated runner service is still TODO.
 import logging
 import os
 import socket
+import threading
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -26,7 +28,7 @@ from typing import Any
 
 import docker
 from docker.errors import APIError, DockerException, ImageNotFound, NotFound
-from docker.types import LogConfig, Mount
+from docker.types import LogConfig, Mount, Ulimit
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ReadTimeout
 
@@ -35,7 +37,15 @@ from app.core.errors import AnalysisError, AnalyzerTimeoutError, TransientInfraE
 
 logger = logging.getLogger(__name__)
 
-SANDBOX_USER = "65534:65534"  # nobody:nogroup
+SANDBOX_UID = 65534  # nobody
+
+
+def sandbox_user() -> str:
+    """nobody, in the worker's primary group: per-scan directories are shared through
+    the group (0o770 / 0o750), never world-writable."""
+    return f"{SANDBOX_UID}:{os.getgid()}"
+
+
 SANDBOX_LABEL = "codeaudit.sandbox"
 WORKER_LABEL = "codeaudit.worker"
 
@@ -56,6 +66,138 @@ class AnalyzerOutputError(AnalysisError):
     """The tool ran but its output could not be parsed."""
 
 
+class SandboxDiskQuotaError(AnalysisError):
+    """The container wrote more than its disk quota and was killed."""
+
+
+class SandboxCapacityError(TransientInfraError):
+    """No global sandbox slot became free in time (the job is retried later)."""
+
+
+# ------------------------------------------------------------------ global capacity
+
+SLOTS_KEY = "codeaudit:sandbox:slots"
+# Atomic counting semaphore with leases: expired leases (crashed holders) are dropped.
+ACQUIRE_SLOT_LUA = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local limit = tonumber(ARGV[2])
+redis.call('ZREMRANGEBYSCORE', key, 0, now)
+if redis.call('ZCARD', key) < limit then
+  redis.call('ZADD', key, tonumber(ARGV[3]), ARGV[4])
+  return 1
+end
+return 0
+"""
+
+
+class SandboxSlot:
+    """Holds one of MAX_CONCURRENT_SANDBOXES slots shared by every worker (Redis).
+
+    Bursts of scans queue here instead of starting more containers than the host can
+    run. A lease outlives the container's own timeout, so a crashed holder's slot is
+    freed automatically.
+    """
+
+    def __init__(self, lease_seconds: int) -> None:
+        self.member = f"{_worker_id()}:{os.getpid()}:{time.monotonic_ns()}"
+        self.lease_seconds = lease_seconds
+
+    def __enter__(self) -> "SandboxSlot":
+        from app.core import metrics
+        from app.core.redis_client import get_redis
+
+        settings = get_settings()
+        redis = get_redis()
+        started = time.monotonic()
+        delay = 0.25
+        while True:
+            now = time.time()
+            acquired = redis.eval(
+                ACQUIRE_SLOT_LUA,
+                1,
+                SLOTS_KEY,
+                str(now),
+                str(settings.max_concurrent_sandboxes),
+                str(now + self.lease_seconds),
+                self.member,
+            )
+            if acquired:
+                metrics.sandbox_slot_wait.observe(time.monotonic() - started)
+                return self
+            if time.monotonic() - started > settings.sandbox_slot_timeout_seconds:
+                metrics.quota_rejections.labels("sandbox_slots", "sandbox").inc()
+                raise SandboxCapacityError(
+                    f"All {settings.max_concurrent_sandboxes} analysis sandboxes stayed busy for"
+                    f" {settings.sandbox_slot_timeout_seconds}s."
+                )
+            time.sleep(delay)
+            delay = min(delay * 1.5, 3.0)
+
+    def __exit__(self, *_: object) -> None:
+        from app.core.redis_client import get_redis
+
+        try:
+            get_redis().zrem(SLOTS_KEY, self.member)
+        except Exception:  # noqa: BLE001 - the lease expires on its own
+            logger.warning("could not release sandbox slot %s", self.member)
+
+
+def _directory_bytes(paths: Sequence[Path], stop_after: int) -> int:
+    total = 0
+    stack = [p for p in paths if p.exists()]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir(follow_symlinks=False):
+                        stack.append(Path(entry.path))
+                    else:
+                        total += entry.stat(follow_symlinks=False).st_size
+                        if total > stop_after:
+                            return total
+        except OSError:
+            continue
+    return total
+
+
+class DiskWatch:
+    """Kills the container when its writable mounts exceed the quota."""
+
+    INTERVAL_SECONDS = 1.0
+
+    def __init__(self, container: Any, paths: Sequence[Path], quota: int) -> None:
+        self.container = container
+        self.paths = list(paths)
+        self.quota = quota
+        self.exceeded = False
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True, name="sandbox-disk-watch")
+
+    def __enter__(self) -> "DiskWatch":
+        if self.paths:
+            self._thread.start()
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self._stop.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout=5)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.INTERVAL_SECONDS):
+            if _directory_bytes(self.paths, self.quota) > self.quota:
+                self.exceeded = True
+                try:
+                    self.container.kill()
+                except DockerException:
+                    pass
+                return
+
+
 @dataclass(frozen=True)
 class SandboxMount:
     source: Path  # must live inside settings.scan_workspace_dir
@@ -70,6 +212,10 @@ class SandboxLimits:
     timeout_seconds: int
     pids: int = 512
     tmpfs_size: str = "512m"
+    # Total bytes the container may write into its writable mounts. Enforced twice:
+    # RLIMIT_FSIZE caps any single file, and a watcher kills the container when the
+    # writable mounts together exceed it (zip bombs, runaway tool output, huge clones).
+    disk_bytes: int = 512 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -177,17 +323,25 @@ def run_in_sandbox(
         for m in mounts
     ]
 
-    client = _client()
+    from app.core import metrics
+
+    writable = [m.source for m in mounts if not m.read_only]
+    slot = SandboxSlot(lease_seconds=limits.timeout_seconds + 300)
+    slot.__enter__()
+    client: Any = None
     container: Any = None
     started = time.monotonic()
+    active = False
     try:
+        # Inside the try: a daemon that can't be reached must still release the slot.
+        client = _client()
         _ensure_image(client, image)
         container = client.containers.create(
             image=image,
             command=list(command),
             entrypoint=list(entrypoint) if entrypoint is not None else None,
             working_dir=working_dir,
-            user=SANDBOX_USER,
+            user=sandbox_user(),
             environment={**(environment or {}), "HOME": "/tmp"},  # noqa: S108 - tmpfs
             network_mode=(
                 network if isinstance(network, str) else ("bridge" if network else "none")
@@ -201,13 +355,26 @@ def run_in_sandbox(
             pids_limit=limits.pids,
             cap_drop=["ALL"],
             security_opt=["no-new-privileges:true"],
+            # PID 1 reaps zombies; the kernel kills the sandbox before anything else on OOM.
+            init=True,
+            oom_score_adj=800,
+            ulimits=[
+                Ulimit(name="fsize", soft=limits.disk_bytes, hard=limits.disk_bytes),
+                Ulimit(name="nofile", soft=4096, hard=4096),
+                Ulimit(name="core", soft=0, hard=0),
+            ],
+            ipc_mode="private",
             log_config=LogConfig(type="json-file", config={"max-size": "10m", "max-file": "1"}),
             labels={SANDBOX_LABEL: "true", WORKER_LABEL: _worker_id(), **(labels or {})},
         )
         container.start()
+        metrics.sandbox_containers_active.inc()
+        active = True
 
+        watch = DiskWatch(container, writable, limits.disk_bytes)
         try:
-            status = container.wait(timeout=limits.timeout_seconds)
+            with watch:
+                status = container.wait(timeout=limits.timeout_seconds)
         except (ReadTimeout, RequestsConnectionError) as exc:
             if time.monotonic() - started < limits.timeout_seconds:
                 raise SandboxUnavailableError("Lost connection to the Docker daemon.") from exc
@@ -219,6 +386,11 @@ def run_in_sandbox(
                 f"Exceeded the {limits.timeout_seconds}s time limit and was stopped."
             ) from exc
 
+        if watch.exceeded:
+            raise SandboxDiskQuotaError(
+                f"The sandbox wrote more than {limits.disk_bytes // (1024 * 1024)} MB"
+                " and was stopped."
+            )
         container.reload()
         return SandboxResult(
             exit_code=int(status.get("StatusCode", -1)),
@@ -233,9 +405,13 @@ def run_in_sandbox(
     except DockerException as exc:
         raise SandboxUnavailableError(f"Docker daemon unavailable: {exc}") from exc
     finally:
+        if active:
+            metrics.sandbox_containers_active.dec()
         if container is not None:
             _remove_quietly(container)
-        client.close()
+        if client is not None:
+            client.close()
+        slot.__exit__()
 
 
 SOURCE_MOUNT = "/src"
@@ -267,7 +443,7 @@ def run_tool(
     unexpected exit codes and missing or oversized output.
     """
     output_dir.mkdir(parents=True, exist_ok=False)
-    os.chmod(output_dir, 0o777)  # noqa: S103 - per-scan dir; the sandbox runs as nobody
+    os.chmod(output_dir, 0o770)  # noqa: S103 - shared with the sandbox through the group
 
     result = run_in_sandbox(
         image=image,
@@ -301,6 +477,59 @@ def run_tool(
         stderr=result.stderr,
         duration_seconds=result.duration_seconds,
     )
+
+
+def max_sandbox_seconds() -> int:
+    """The longest any sandbox may legitimately run (plus margin)."""
+    settings = get_settings()
+    return (
+        max(
+            settings.semgrep_timeout_seconds,
+            settings.bandit_timeout_seconds,
+            settings.ruff_timeout_seconds,
+            settings.osv_scanner_timeout_seconds,
+            settings.git_clone_timeout_seconds,
+            settings.web_capture_timeout_seconds + 10,
+            settings.architecture_timeout_seconds,
+        )
+        + 120
+    )
+
+
+def reap_expired_sandboxes(max_age_seconds: int | None = None) -> int:
+    """Remove sandbox containers (from any worker) older than the longest allowed run.
+
+    Covers workers that died without cleaning up (OOM kill, host restart, deploy).
+    """
+    from datetime import UTC, datetime
+
+    from app.core import metrics
+
+    limit = max_sandbox_seconds() if max_age_seconds is None else max_age_seconds
+    client = _client()
+    removed = 0
+    try:
+        for container in client.containers.list(
+            all=True, filters={"label": f"{SANDBOX_LABEL}=true"}
+        ):
+            created = container.attrs.get("Created", "")
+            try:
+                started = datetime.fromisoformat(created.replace("Z", "+00:00")[:26] + "+00:00")
+            except ValueError:
+                continue
+            if (datetime.now(UTC) - started).total_seconds() > limit:
+                logger.warning(
+                    "reaping sandbox %s (%s) older than %ss",
+                    container.short_id,
+                    container.labels.get("codeaudit.analyzer"),
+                    limit,
+                )
+                _remove_quietly(container)
+                removed += 1
+        metrics.sandbox_reaped.inc(removed)
+        return removed
+    finally:
+        client.close()
 
 
 def remove_orphaned_sandboxes() -> int:

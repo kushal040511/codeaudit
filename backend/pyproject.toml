@@ -44,6 +44,8 @@ dependencies = [
     "pillow>=11,<13",
     "dnspython>=2.7,<3",
     "tldextract>=5.3,<6",
+    "prometheus-client>=0.22,<1",
+    "sentry-sdk[celery,fastapi]>=2.30,<3",
 ]
 
 [dependency-groups]
@@ -101,5 +103,5 @@ module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "networkx.*", "docker.
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["app.workers.*"]
+module = ["app.workers.*", "app.core.celery_app"]
 disallow_untyped_decorators = false

@@ -1,0 +1,212 @@
+# Production stack on one Docker host (or the worker VM half of a split deployment,
+# see README "Deploying"). Nothing here mounts source code; images are built once
+# and promoted.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production build
+#   docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Budget below: ~7.5 GB RAM and ~9 CPUs at full load on an 8 vCPU / 16 GB host,
+# including MAX_CONCURRENT_SANDBOXES analyzer containers (up to 2 GB / 2 CPUs each for
+# Semgrep, less for the others).
+
+name: codeaudit-prod
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:-codeaudit-backend:prod}
+  build:
+    context: ./backend
+    dockerfile: ../docker/backend/Dockerfile
+    target: runtime
+  env_file: .env.production
+  environment: &backend-env
+    ENVIRONMENT: production
+    LOG_FORMAT: json
+    SESSION_COOKIE_SECURE: "true"
+    SCAN_WORKSPACE_DIR: /var/lib/codeaudit/workspace
+    SANDBOX_WORKSPACE_VOLUME: codeaudit_prod_scan_workspace
+    WEB_CAPTURE_NETWORK: codeaudit_prod_web_capture
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,uid=10001,gid=10001
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+services:
+  # --- edge ---------------------------------------------------------------------
+  web:
+    image: ${WEB_IMAGE:-codeaudit-web:prod}
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    environment:
+      API_UPSTREAM: api:8000
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs: ["/data:uid=10002,gid=10002", "/config:uid=10002,gid=10002"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+    restart: unless-stopped
+    logging: *logging
+
+  # --- application ----------------------------------------------------------------
+  # One-shot. Run before `up` on every deploy; the API never migrates on boot.
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    profiles: ["migrate"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+  api:
+    <<: *backend
+    # One process per container: scale with replicas, not uvicorn workers.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]
+    environment:
+      <<: *backend-env
+      # web (Caddy) is the only hop in front of the API.
+      TRUSTED_PROXY_HOPS: "1"
+    expose: ["8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512m }
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "app.core.celery_app:celery_app", "worker", "--loglevel=INFO",
+              "--concurrency=${CELERY_CONCURRENCY:-4}", "--max-tasks-per-child=50"]
+    environment:
+      <<: *backend-env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/codeaudit-metrics
+    # Docker socket = root on this host. The worker is the only service with it; run it
+    # on a dedicated VM in a split deployment. See README "Sandboxing".
+    group_add: ["${DOCKER_SOCKET_GID:-999}"]
+    volumes:
+      - scan_workspace:/var/lib/codeaudit/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    expose: ["9100"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      egress-proxy: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.core.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q pong"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    # Warm shutdown: running scans finish (or are redelivered and resumed) within this.
+    stop_signal: SIGTERM
+    stop_grace_period: 10m
+    deploy:
+      resources:
+        # The worker itself (orchestration, git, patch validation). Analyzer containers
+        # have their own per-container limits and the global sandbox slot cap.
+        limits: { cpus: "2.0", memory: 1536m }
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.core.celery_app:celery_app", "beat", "--loglevel=INFO",
+              "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on:
+      redis: { condition: service_healthy }
+    deploy:
+      replicas: 1 # never more than one scheduler
+      resources:
+        limits: { cpus: "0.25", memory: 192m }
+
+  egress-proxy:
+    <<: *backend
+    command: ["python", "-m", "app.services.web.egress_proxy"]
+    environment:
+      <<: *backend-env
+      EGRESS_PROXY_PORT: "8888"
+    networks:
+      default: {}
+      web_capture:
+        aliases: [egress-proxy]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8888), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 192m }
+
+  # --- data (use managed Postgres/Redis/S3 when available) --------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-codeaudit}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    shm_size: 256m
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }
+    restart: unless-stopped
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb",
+              "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384m }
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  web_capture:
+    name: codeaudit_prod_web_capture
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  scan_workspace:
+    name: codeaudit_prod_scan_workspace

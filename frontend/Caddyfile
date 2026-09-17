@@ -1,0 +1,62 @@
+# Reverse proxy for CodeAudit. TLS terminates at the platform edge (Render/Railway/Fly)
+# or at a Caddy with a real domain (replace :8080 with the hostname).
+{
+	admin off
+	auto_https off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:8080 {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# The SPA loads only its own bundle; screenshots come from /api (same origin).
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self' https://github.com"
+		-Server
+	}
+
+	# Upload cap: the API's own limit is MAX_UPLOAD_SIZE_MB (50); a little headroom for
+	# multipart framing. Everything else under /api is small JSON.
+	@upload {
+		method POST
+		path /api/scans
+	}
+	handle @upload {
+		request_body {
+			max_size 52MB
+		}
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+	handle /api/* {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+	handle /health {
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+	handle /ready {
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+	# Metrics are scraped from the API and worker on the private network, never the edge.
+	handle /metrics* {
+		respond 404
+	}
+
+	handle {
+		root * /srv
+		@immutable path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

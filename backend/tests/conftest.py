@@ -23,12 +23,17 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL") or _base_url.set(
 ).render_as_string(hide_password=False)
 # Stable across runs so downloaded rule packs and vulnerability databases (~240 MB)
 # stay cached; only per-scan directories are removed after the session.
+# Separate Redis database: quota windows, kill switch and heartbeats never mix with dev.
+TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL") or (
+    _base_settings.redis_url.rsplit("/", 1)[0] + "/13"
+)
 TEST_WORKSPACE = Path(tempfile.gettempdir()) / "codeaudit-test-workspace"
 TEST_WORKSPACE.mkdir(exist_ok=True)
 
 os.environ.update(
     {
         "DATABASE_URL": TEST_DATABASE_URL,
+        "REDIS_URL": TEST_REDIS_URL,
         "S3_BUCKET_UPLOADS": "codeaudit-test-uploads",
         "CELERY_TASK_ALWAYS_EAGER": "true",
         "SCAN_WORKSPACE_DIR": str(TEST_WORKSPACE),
@@ -65,6 +70,19 @@ def _cleanup_test_workspace() -> Iterator[None]:
     yield
     for scan_dir in TEST_WORKSPACE.glob("scan-*"):
         shutil.rmtree(scan_dir, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_redis() -> None:
+    """Every test starts with empty quota windows, no kill switch and no heartbeats."""
+    from redis.exceptions import RedisError
+
+    from app.core.redis_client import get_redis
+
+    try:
+        get_redis().flushdb()
+    except RedisError:
+        pass  # tests that need Redis skip or fail on their own
 
 
 @pytest.fixture(autouse=True)

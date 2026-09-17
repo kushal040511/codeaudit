@@ -74,7 +74,7 @@ def test_downloads_into_osv_scanner_layout(tmp_path: Path) -> None:
     path = database_path(tmp_path, "npm")
     assert path == tmp_path / "osv-scalibr" / "npm" / "all.zip"
     assert zipfile.is_zipfile(path)
-    assert oct(path.stat().st_mode & 0o777) == "0o644"
+    assert oct(path.stat().st_mode & 0o777) == "0o640"
 
 
 def test_fresh_database_skips_network(tmp_path: Path) -> None:

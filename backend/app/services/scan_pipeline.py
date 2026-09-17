@@ -9,15 +9,18 @@ import shutil
 import tempfile
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.core import metrics
 from app.core.errors import AnalysisError, TransientInfraError
 from app.core.storage import download_file
 from app.models import (
@@ -30,6 +33,7 @@ from app.models import (
     ScanSource,
     ScanStatus,
 )
+from app.models.finding import finding_fingerprint
 from app.services.analyzers.base import AnalyzerResult, FindingData, ScanContext
 from app.services.analyzers.dedup import deduplicate
 from app.services.analyzers.orchestrator import run_analyzers
@@ -67,8 +71,8 @@ def create_workspace(scan_id: uuid.UUID) -> Path:
     root = Path(get_settings().scan_workspace_dir)
     root.mkdir(parents=True, exist_ok=True)
     workdir = Path(tempfile.mkdtemp(prefix=f"{WORKSPACE_PREFIX}{scan_id}-", dir=root))
-    # mkdtemp creates 0700; the sandbox user must be able to traverse it.
-    os.chmod(workdir, 0o755)  # noqa: S103
+    # mkdtemp creates 0700; the sandbox (worker group) must be able to traverse it.
+    os.chmod(workdir, 0o750)  # noqa: S103
     return workdir
 
 
@@ -145,7 +149,8 @@ def run_pipeline(
 
     Raises AnalysisError / TransientInfraError when the scan as a whole fails.
     """
-    source_dir = extract_source(db, scan, workdir)
+    with stage_timer("extract"):
+        source_dir = extract_source(db, scan, workdir)
     languages = detect_languages(source_dir)
     scan.detected_languages = [lang.to_dict() for lang in languages]
     scan.source_loc = count_source_lines(source_dir)
@@ -209,17 +214,21 @@ def analyze_and_persist(
             )
         run.duration_ms = result.duration_ms
         run.error_message = result.error_message
+        metrics.analyzer_runs.labels(result.analyzer, run.status.value).inc()
+        if result.duration_ms is not None:
+            metrics.analyzer_duration.labels(result.analyzer).observe(result.duration_ms / 1000)
         run.warnings = list(result.warnings)
         run.completed_at = utcnow()
         db.commit()
 
-    results = run_analyzers(
-        applicable,
-        source_dir,
-        context,
-        max_workers=get_settings().analyzer_max_workers,
-        on_result=record,
-    )
+    with stage_timer("analyzers"):
+        results = run_analyzers(
+            applicable,
+            source_dir,
+            context,
+            max_workers=get_settings().analyzer_max_workers,
+            on_result=record,
+        )
 
     succeeded = [r for r in results if r.success]
     failed = [r for r in results if not r.success]
@@ -248,7 +257,8 @@ def analyze_and_persist(
         analyzers_run=frozenset(r.analyzer for r in succeeded),
         analyzers_failed=frozenset(r.analyzer for r in failed),
     )
-    persist_results(db, scan, unique, stored_status, architecture, score_context)
+    with stage_timer("persist"):
+        persist_results(db, scan, unique, stored_status, architecture, score_context)
     logger.info(
         "scan %s %s: %d/%d analyzers succeeded, %d findings (%d before dedup)",
         scan.id,
@@ -293,7 +303,9 @@ def persist_results(
         delete_architecture(db, scan.id)
     if findings:
         db.execute(
-            insert(Finding),
+            postgresql_insert(Finding).on_conflict_do_nothing(
+                constraint="uq_findings_scan_id_fingerprint"
+            ),
             [
                 {
                     "scan_id": scan.id,
@@ -311,6 +323,17 @@ def persist_results(
                     "dependency": f.dependency,
                     "score_impact": impacts.get(index),
                     "raw": f.raw,
+                    "fingerprint": finding_fingerprint(
+                        {
+                            "analyzer": f.analyzer,
+                            "rule_id": f.rule_id,
+                            "file_path": f.file_path,
+                            "start_line": f.start_line,
+                            "end_line": f.end_line,
+                            "message": f.message,
+                            "dependency": f.dependency,
+                        }
+                    ),
                 }
                 for index, f in enumerate(findings)
             ],
@@ -319,3 +342,15 @@ def persist_results(
     scan.completed_at = utcnow()
     scan.error_message = None
     db.commit()
+
+
+@contextmanager
+def stage_timer(stage: str) -> Iterator[None]:
+    """Observe a pipeline stage's duration, labelled with whether it raised."""
+    started = time.monotonic()
+    outcome = "error"
+    try:
+        yield
+        outcome = "ok"
+    finally:
+        metrics.scan_stage_duration.labels(stage, outcome).observe(time.monotonic() - started)

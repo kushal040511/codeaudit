@@ -22,10 +22,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
+from app.core import metrics
 from app.core.db import SessionLocal
 from app.models import LLMCall, LLMPurpose, Scan, SiteAnalysis
+from app.services import costs, quotas
 from app.services.llm.json_output import OutputParseError, parse_model_output
-from app.services.llm.pricing import cost_usd
+from app.services.llm.pricing import cost_usd, estimate_cost_usd
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,18 @@ class LLMUnavailableError(LLMError):
 
 class LLMBudgetExceededError(LLMError):
     error_type = "budget_exceeded"
+
+
+class LLMSpendCapError(LLMBudgetExceededError):
+    """The global daily spend cap is reached or the kill switch is on."""
+
+    error_type = "spend_cap"
+
+
+class LLMQuotaExceededError(LLMBudgetExceededError):
+    """The owner's monthly token quota is used up."""
+
+    error_type = "quota_exceeded"
 
 
 class LLMRefusalError(LLMError):
@@ -328,11 +342,19 @@ class LLMClient:
         purpose: LLMPurpose,
         prompt_text: str,
         context: dict[str, Any] | None,
-        reserve: int,
+        input_tokens: int,
+        max_tokens: int,
     ) -> int:
-        """Record the call as pending with its worst-case tokens, or refuse it."""
+        """Record the call as pending with its worst-case tokens and cost, or refuse it.
+
+        Checks, in one transaction: the per-scan (or per-site) token ceiling, the owner's
+        monthly token quota, and the global daily spend cap / kill switch.
+        """
+        reserve = input_tokens + max_tokens
+        estimate = estimate_cost_usd(self.model, input_tokens, max_tokens)
         with self._session_factory() as db:
-            # Serialise budget checks for this scan / site analysis across workers.
+            # Serialise the global spend check, then this scan's budget, across workers.
+            costs.lock_daily_spend(db)
             if subject.scan_id:
                 db.execute(select(Scan.id).where(Scan.id == subject.id).with_for_update())
             else:
@@ -341,7 +363,23 @@ class LLMClient:
                 )
             used = tokens_used(db, subject)
             budget = subject.budget(self.settings)
-            refused = used + reserve > budget
+            refusal: LLMBudgetExceededError | None = None
+            if used + reserve > budget:
+                refusal = LLMBudgetExceededError(
+                    f"Needs up to {reserve:,} tokens but only {max(0, budget - used):,} of the"
+                    f" {budget:,} token budget remain."
+                )
+            if refusal is None:
+                _, owner = costs.owner_of_subject(db, subject.scan_id, subject.site_analysis_id)
+                quota = quotas.llm_token_quota(db, owner)
+                if quota.used + reserve > quota.limit:
+                    refusal = LLMQuotaExceededError(
+                        f"The monthly LLM token quota ({quota.limit:,}) is used up"
+                        f" ({quota.used:,} used); it resets {quota.resets_at:%Y-%m-%d}."
+                    )
+            if refusal is None and (reason := costs.blocked_reason(db, estimate)):
+                refusal = LLMSpendCapError(reason)
+            refused = refusal is not None
             call = LLMCall(
                 scan_id=subject.scan_id,
                 site_analysis_id=subject.site_analysis_id,
@@ -350,23 +388,20 @@ class LLMClient:
                 success=False,
                 pending=not refused,
                 reserved_tokens=0 if refused else reserve,
-                error_type="budget_exceeded" if refused else None,
-                error_message=(
-                    f"Needs up to {reserve:,} tokens but only {max(0, budget - used):,} of the"
-                    f" {budget:,} token budget remain."
-                    if refused
-                    else None
-                ),
+                # In-flight calls count at their worst case until they finish.
+                cost_usd=0 if refused else estimate,
+                error_type=refusal.error_type if refusal else None,
+                error_message=str(refusal) if refusal else None,
                 prompt=_truncate(prompt_text),
                 context=context or {},
             )
             db.add(call)
             db.commit()
-            if refused:
-                logger.warning(
-                    "%s: LLM call refused, budget exhausted (%s)", subject.id, call.error_message
-                )
-                raise LLMBudgetExceededError(call.error_message)
+            if refusal is not None:
+                metrics.quota_rejections.labels(refusal.error_type, "llm_reserve").inc()
+                metrics.llm_requests.labels(purpose.value, refusal.error_type).inc()
+                logger.warning("LLM call refused (%s): %s", refusal.error_type, refusal)
+                raise refusal
             return call.id
 
     def _complete(
@@ -400,7 +435,7 @@ class LLMClient:
                 subject, purpose, prompt_text, context, failed.error, started
             ) from failed.error
         call_id = self._reserve(
-            subject, purpose, prompt_text, context, counted.input_tokens + max_tokens
+            subject, purpose, prompt_text, context, counted.input_tokens, max_tokens
         )
 
         try:
@@ -499,6 +534,21 @@ class LLMClient:
                 call.cache_read_input_tokens or 0,
             )
             db.commit()
+            purpose = call.purpose.value
+            metrics.llm_requests.labels(
+                purpose, "success" if call.success else (call.error_type or "error")
+            ).inc()
+            metrics.llm_latency.labels(purpose).observe(call.duration_ms / 1000)
+            for kind, count in (
+                ("input", call.input_tokens),
+                ("output", call.output_tokens),
+                ("cache_write", call.cache_creation_input_tokens),
+                ("cache_read", call.cache_read_input_tokens),
+            ):
+                if count:
+                    metrics.llm_tokens.labels(purpose, kind).inc(count)
+            metrics.llm_cost.labels(purpose).inc(float(call.cost_usd or 0))
+            costs.check_spend_alerts(db)
 
     def _mark_failed(self, call_id: int, error_type: str, message: str) -> None:
         with self._session_factory() as db:

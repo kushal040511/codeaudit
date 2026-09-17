@@ -28,6 +28,8 @@ class RepositoryRead(BaseModel):
 class ScanCreated(BaseModel):
     scan_id: uuid.UUID
     status: ScanStatus
+    # True when an identical upload / commit was already scanned: no new scan was queued.
+    cached: bool = False
 
 
 class DetectedLanguageRead(BaseModel):

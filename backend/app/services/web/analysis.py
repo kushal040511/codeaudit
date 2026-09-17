@@ -20,6 +20,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.core.db import SessionLocal
 from app.core.storage import upload_bytes
 from app.models import LLMPurpose, SiteAnalysis, SiteAnalysisStatus
 from app.services.llm.client import ImageInput, LLMClient, LLMError, llm_configured
@@ -166,6 +167,11 @@ def describe_design(
 ) -> tuple[VisionDesign | None, str | None]:
     if llm is None:
         return None, llm_configured() or "Vision model unavailable."
+    from app.services import costs
+
+    with SessionLocal() as db:
+        if reason := costs.blocked_reason(db):
+            return None, f"Vision description skipped: {reason}"
     images = _vision_images(capture)
     if not images:
         return None, "No screenshot to describe."

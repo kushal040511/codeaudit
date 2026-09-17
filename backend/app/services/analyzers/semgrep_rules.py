@@ -69,7 +69,7 @@ def ensure_rule_packs(
     A stale pack that fails to refresh is still used; a missing one raises.
     """
     cache_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(cache_dir, 0o755)  # noqa: S103 - rules must be readable by the sandbox user
+    os.chmod(cache_dir, 0o750)  # noqa: S103 - rules are read by the sandbox (worker group)
     client = http or httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0), follow_redirects=True)
     try:
         return [_ensure_pack(client, pack, cache_dir, max_age) for pack in packs]
@@ -109,7 +109,7 @@ def _ensure_pack(client: httpx.Client, pack: str, cache_dir: Path, max_age: time
     # Atomic replace: concurrent scans never see a half-written file.
     tmp = cache_dir / f".{path.name}.{uuid.uuid4().hex}.tmp"
     tmp.write_text(response.text, encoding="utf-8")
-    os.chmod(tmp, 0o644)
+    os.chmod(tmp, 0o640)
     os.replace(tmp, path)
     logger.info("cached Semgrep rule pack %s (%d bytes)", pack, len(response.content))
     return path

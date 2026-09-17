@@ -1,38 +1,48 @@
 # syntax=docker/dockerfile:1.7
-# Image for the API and the Celery worker (build context: ./backend).
-# NOTE: this is NOT the sandbox image. Analyzers must eventually run against
-# untrusted code in a separate, locked-down container (see README "Sandboxing").
-FROM python:3.12-slim-bookworm
+# API, Celery worker, beat, egress proxy and migrations share this image
+# (build context: ./backend). Analyzers never run in it: they run in separate,
+# locked-down sandbox containers started by the worker (see README "Sandboxing").
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
+# ---------------------------------------------------------------- build stage
+FROM python:3.12-slim-bookworm AS build
+
+ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
-    UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
-COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /bin/uv
 
-# git: GitHub-URL sources and semgrep's git-aware file targeting.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Dependencies first (cached layer), exactly as locked in uv.lock.
+# Dependencies only, exactly as locked; no compilers or uv in the runtime image.
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     uv sync --frozen --no-dev --no-install-project
 
-COPY . .
+# -------------------------------------------------------------- runtime stage
+FROM python:3.12-slim-bookworm AS runtime
 
-RUN useradd --create-home --uid 10001 codeaudit \
-    && mkdir -p /var/lib/codeaudit/workspace \
-    && chown -R codeaudit:codeaudit /var/lib/codeaudit
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+# git: GitHub-URL sources and patch validation. tini: signal forwarding for graceful
+# shutdown (SIGTERM reaches uvicorn/celery, zombies are reaped).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --user-group --no-create-home --shell /usr/sbin/nologin codeaudit \
+    && mkdir -p /var/lib/codeaudit/workspace /tmp/codeaudit-metrics \
+    && chown codeaudit:codeaudit /var/lib/codeaudit/workspace /tmp/codeaudit-metrics
+
+COPY --from=build /opt/venv /opt/venv
+WORKDIR /app
+# Code is owned by root and read-only to the service user.
+COPY alembic.ini pyproject.toml ./
+COPY alembic ./alembic
+COPY app ./app
+
 USER codeaudit
-
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
