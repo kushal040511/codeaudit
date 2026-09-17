@@ -79,6 +79,9 @@ services:
       PROMETHEUS_MULTIPROC_DIR: /tmp/codeaudit-metrics
     tmpfs:
       - /tmp/codeaudit-metrics:uid=10001,gid=10001
+    # Reach a local Ollama on the host (automatic on Docker Desktop, needed on Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${WORKER_METRICS_HOST_PORT:-9100}:9100"
     # Warm shutdown: in-flight scans get this long to finish before SIGKILL.

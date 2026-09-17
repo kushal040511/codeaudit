@@ -72,7 +72,10 @@ def blocked_reason(db: Session, additional_usd: float = 0.0) -> str | None:
     """Why no (further) LLM spend is allowed right now, or None."""
     if reason := kill_switch_reason():
         return f"LLM features are switched off by an operator ({reason})."
-    cap = get_settings().llm_daily_spend_cap_usd
+    settings = get_settings()
+    if settings.llm_provider == "ollama":
+        return None  # local models cost nothing; only the kill switch applies
+    cap = settings.llm_daily_spend_cap_usd
     spent = spend_today(db)
     if cap <= 0 or spent + additional_usd > cap:
         return (

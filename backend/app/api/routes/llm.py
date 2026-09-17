@@ -216,9 +216,13 @@ def get_llm_usage(scan_id: uuid.UUID, db: DbSession, principal: OptionalPrincipa
         failed_calls=int(failed),
         total_duration_ms=int(duration),
         pricing_note=(
-            "Anthropic first-party API list prices (2026-06-24), including cache pricing."
-            if is_priced(model_name)
-            else f"No price known for {model_name}; cost shown as $0."
+            "Local model (Ollama): no cost."
+            if model_name.startswith("ollama/")
+            else (
+                "Anthropic first-party API list prices (2026-06-24), including cache pricing."
+                if is_priced(model_name)
+                else f"No price known for {model_name}; cost shown as $0."
+            )
         ),
         by_purpose=usage_by_purpose(db, scan_id),
         recent_calls=[LLMCallRead.model_validate(c) for c in calls_list],

@@ -27,7 +27,8 @@ from app.core.db import SessionLocal
 from app.models import LLMCall, LLMPurpose, Scan, SiteAnalysis
 from app.services import costs, quotas
 from app.services.llm.json_output import OutputParseError, parse_model_output
-from app.services.llm.pricing import cost_usd, estimate_cost_usd
+from app.services.llm.ollama import OllamaClient, OllamaError
+from app.services.llm.pricing import LOCAL_PREFIX, cost_usd, estimate_cost_usd
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,9 @@ MAX_LOGGED_CHARS = 64_000
 RETRYABLE_STATUS = frozenset({408, 409, 429})
 
 
-def is_retryable(error: anthropic.APIError) -> bool:
+def is_retryable(error: Exception) -> bool:
+    if isinstance(error, OllamaError):
+        return error.retryable
     if isinstance(error, anthropic.APIConnectionError):
         return True
     if isinstance(error, anthropic.APIStatusError):
@@ -54,7 +57,7 @@ PARSE_RETRY_INSTRUCTION = (
 
 
 class _FailedRequest(Exception):
-    def __init__(self, error: anthropic.APIError, attempts: int) -> None:
+    def __init__(self, error: Exception, attempts: int) -> None:
         super().__init__(str(error))
         self.error = error
         self.attempts = attempts
@@ -117,6 +120,8 @@ def llm_configured(settings: Settings | None = None) -> str | None:
     settings = settings or get_settings()
     if not settings.llm_enabled:
         return "LLM enrichment is disabled (LLM_ENABLED=false)."
+    if settings.llm_provider == "ollama":
+        return None if settings.ollama_model else "No local model is configured (OLLAMA_MODEL)."
     if settings.anthropic_api_key is None or not settings.anthropic_api_key.get_secret_value():
         return "No Anthropic API key is configured (ANTHROPIC_API_KEY)."
     return None
@@ -200,14 +205,19 @@ def _truncate(text: str | None) -> str | None:
 class LLMClient:
     def __init__(
         self,
-        client: anthropic.Anthropic | None = None,
+        client: Any = None,
         *,
         settings: Settings | None = None,
         session_factory: sessionmaker[Session] = SessionLocal,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.settings = settings or get_settings()
-        if client is None:
+        local = self.settings.llm_provider == "ollama"
+        if client is None and local:
+            if reason := llm_configured(self.settings):
+                raise LLMUnavailableError(reason)
+            client = OllamaClient(self.settings)
+        elif client is None:
             key = self.settings.anthropic_api_key
             if (reason := llm_configured(self.settings)) or key is None:
                 raise LLMUnavailableError(reason or "No Anthropic API key is configured.")
@@ -217,7 +227,12 @@ class LLMClient:
             )
         # Retries are ours (logged, budget-aware), not the SDK's.
         self._client = client.with_options(max_retries=0)
-        self.model = self.settings.anthropic_model
+        self.provider = "Ollama" if local else "Anthropic API"
+        self.model = (
+            f"{LOCAL_PREFIX}{self.settings.ollama_model}"
+            if local
+            else self.settings.anthropic_model
+        )
         self._session_factory = session_factory
         self._sleep = sleep
 
@@ -313,12 +328,12 @@ class LLMClient:
             attempts += 1
             try:
                 return operation(), attempts
-            except anthropic.APIError as exc:
+            except (anthropic.APIError, OllamaError) as exc:
                 if not is_retryable(exc) or attempts > self.settings.llm_max_retries:
                     raise _FailedRequest(exc, attempts) from exc
                 delay = self._retry_delay(exc, attempts)
                 logger.warning(
-                    "anthropic request failed (%s), retry %d in %.1fs",
+                    "LLM request failed (%s), retry %d in %.1fs",
                     type(exc).__name__,
                     attempts,
                     delay,
@@ -441,7 +456,9 @@ class LLMClient:
         try:
             response, attempts = self._with_retries(lambda: self._client.messages.create(**params))
         except _FailedRequest as failed:
-            if isinstance(failed.error, anthropic.RateLimitError):
+            if isinstance(failed.error, OllamaError):
+                failure = failed.error.kind
+            elif isinstance(failed.error, anthropic.RateLimitError):
                 failure = "rate_limited"
             elif isinstance(failed.error, anthropic.APIConnectionError):
                 failure = "connection_error"
@@ -455,7 +472,7 @@ class LLMClient:
                 error_type=failure,
                 error_message=str(failed.error)[:2000],
             )
-            raise LLMError(f"Anthropic API request failed: {failed.error}") from failed.error
+            raise LLMError(f"{self.provider} request failed: {failed.error}") from failed.error
 
         usage = response.usage
         text = "".join(block.text for block in response.content if block.type == "text")
@@ -515,7 +532,7 @@ class LLMClient:
                 )
             )
             db.commit()
-        return LLMError(f"Anthropic API request failed: {exc}")
+        return LLMError(f"{self.provider} request failed: {exc}")
 
     def _finish(self, call_id: int, started: float, **values: Any) -> None:
         with self._session_factory() as db:

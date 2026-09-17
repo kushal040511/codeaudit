@@ -28,8 +28,16 @@ CACHE_WRITE_MULTIPLIER = 1.25
 CACHE_READ_MULTIPLIER = 0.1
 
 
+# Models run locally through Ollama are recorded as "ollama/<name>" and cost nothing.
+LOCAL_PREFIX = "ollama/"
+
+
+def is_local(model: str) -> bool:
+    return model.startswith(LOCAL_PREFIX)
+
+
 def is_priced(model: str) -> bool:
-    return model in PRICES
+    return model in PRICES or is_local(model)
 
 
 def cost_usd(
@@ -40,7 +48,7 @@ def cost_usd(
     cache_read_input_tokens: int = 0,
 ) -> float:
     price = PRICES.get(model)
-    if price is None:
+    if price is None or is_local(model):
         return 0.0
     total = (
         input_tokens * price.input_per_mtok
@@ -54,7 +62,7 @@ def cost_usd(
 def estimate_cost_usd(model: str, input_tokens: int, max_output_tokens: int) -> float:
     """Worst-case cost of a call before it's sent. Unknown models are priced at the most
     expensive known rate, so the daily cap can't be bypassed by a new model name."""
-    if model in PRICES:
+    if model in PRICES or is_local(model):
         return cost_usd(model, input_tokens, max_output_tokens)
     worst = max(PRICES.values(), key=lambda p: p.output_per_mtok)
     return round(

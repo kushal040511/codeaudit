@@ -46,6 +46,11 @@ os.environ.update(
         "GITHUB_OAUTH_URL": "https://github.com",
         "TOKEN_ENCRYPTION_KEYS": "J2mV0z7rQn3o4a9sJq1dYb3kq8m8yZq0yq3yWm0x3kE=",
         "FRONTEND_URL": "http://frontend.test",
+        # A developer's .env (e.g. a free local-LLM setup) must not change test behaviour.
+        "LLM_PROVIDER": "anthropic",
+        "LLM_ENABLED": "true",
+        "LLM_DAILY_SPEND_CAP_USD": "50",
+        "ANTHROPIC_MODEL": "claude-sonnet-4-6",
     }
 )
 

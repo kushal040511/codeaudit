@@ -96,9 +96,21 @@ class Settings(BaseSettings):
     s3_bucket_uploads: str = "codeaudit-uploads"
 
     # --- LLM (fix suggestions, architecture review) ---
+    # anthropic: Claude API (paid, needs ANTHROPIC_API_KEY).
+    # ollama: a free local model served by Ollama; no key, no cost, weaker suggestions.
+    llm_provider: Literal["anthropic", "ollama"] = "anthropic"
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-6"
-    # Master switch; the stage is also skipped when no API key is configured.
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:7b"
+    # Optional model that reads images (site design summary); empty skips that step.
+    ollama_vision_model: str = ""
+    # Context window requested from Ollama (its own default, 2-4k, truncates prompts).
+    ollama_num_ctx: int = 16_384
+    ollama_max_output_tokens: int = 4_096
+    ollama_timeout_seconds: float = 600.0
+    ollama_keep_alive: str = "10m"
+    # Master switch; the stage is also skipped when the provider isn't configured.
     llm_enabled: bool = True
     # Hard ceiling on input + output tokens across all calls for one scan. A call that
     # could exceed it (counted input + max output) is refused, not sent.

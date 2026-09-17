@@ -107,6 +107,20 @@ Scans analysed before the rubric existed can be scored with `uv run python -m ap
 
 ### LLM enrichment
 
+**Running it for free.** Set `LLM_PROVIDER=ollama` to use a local model through [Ollama](https://ollama.com) instead of the paid Claude API. No key is needed and calls are recorded at $0.
+1. Install Ollama (`brew install ollama`) and start it (`ollama serve`).
+2. Download the model: `ollama pull qwen2.5-coder:7b` (about 4.7 GB; needs about 8 GB free RAM).
+3. In `.env`, set `LLM_PROVIDER=ollama`, `LLM_ENABLED=true` and `OLLAMA_BASE_URL=http://host.docker.internal:11434` (the worker runs in Docker).
+4. Run `docker compose restart worker`.
+
+What to expect:
+- **Speed:** suggestions are slower (tens of seconds per request on a laptop).
+- **Patch quality:** a 7B model more often produces patches that fail validation. Those are shown as "not verified", never as fixes.
+- **Screenshots:** the Site Analyzer's design summary needs `OLLAMA_VISION_MODEL` (e.g. `qwen2.5vl:7b`); without it that step is skipped.
+- **Unchanged:** budgets, retries, JSON validation and patch verification work as with Claude. The daily spend cap doesn't apply to local calls; the kill switch does.
+
+Without any LLM (`LLM_ENABLED=false`), scans, scores, the architecture graph and the Site Analyzer's risk signals all still work.
+
 After analysis the scan is `analysis_complete`: findings, graph and issues are readable. A separate Celery task (`enrich_scan`) then moves it to `enriching` and finally `completed` (or `partial` if analyzers failed). `enrichment_status` (`pending`, `running`, `completed`, `partial`, `failed`, `skipped`) and `enrichment_error` record how the LLM stage went; **nothing in it can fail the scan**. Without `ANTHROPIC_API_KEY`, or with `LLM_ENABLED=false`, scans go straight to `completed` with enrichment `skipped`.
 
 **Client** (`services/llm/client.py`): every request is logged as an `llm_calls` row (purpose, model, input/output/cache tokens, cost at list price, latency, attempts, stop reason, request id, prompt and response, truncated). Before each call the input is counted (`count_tokens`, free) and *input + max output* is reserved against `LLM_TOKEN_BUDGET_PER_SCAN` under a row lock on the scan; a call that could exceed the budget is refused and logged, never sent. Rate limits, 408/409, every 5xx (including 529 overloaded) and connection errors are retried with exponential backoff honouring `retry-after`. Responses must be JSON: fences and surrounding prose are stripped, the result is validated with Pydantic, and unparsable output gets exactly one correction request. Refusals and `max_tokens` truncation are recorded and surfaced as failures. Adaptive thinking is on (`LLM_EFFORT`). Uploaded code only ever appears inside the user message, delimited, with instructions to treat it as data.
