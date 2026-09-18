@@ -1,0 +1,21 @@
+repo,sha,commit_date,group,security,dependencies,architecture,code_health,overall,rationale
+adeyosemanputra/pygoat,19d17cc8874861142b330636d068bbde54e86b85,2026-03-28,vulnerable,1,2,2,2,1,OWASP training app; vulnerabilities are the point; Django project with lab code copied per exercise
+we45/Vulnerable-Flask-App,b6a4f97afd466e83e1f60781494252dec1c37039,2021-05-11,vulnerable,1,1,1,1,1,Deliberately vulnerable single-module Flask API; untouched since 2021 with pinned 2019-era deps
+anxolerd/dvpwa,a1d8f89fac2e57093189853c6527c2b01fc1d9c1,2022-11-04,vulnerable,1,1,3,3,1,Damn Vulnerable Python Web App (aiohttp); intentionally vulnerable but organised into a small package; deps from 2018-2022
+appsecco/dvna,9ba473add536f66ac9007966acb2a775dd31277a,2023-11-08,vulnerable,1,1,2,2,1,Damn Vulnerable NodeJS App; OWASP Top 10 by design; old Express stack
+snoopysecurity/dvws-node,eb6e2886f2206b88bf709fe1fa311adc3ae3c34f,2026-09-07,vulnerable,1,2,2,2,1,Damn Vulnerable Web Services; still maintained but insecure by design
+OWASP/NodeGoat,c5cb68a7084e4ae7dcc60e6a98768720a81841e8,2023-06-21,vulnerable,1,1,3,3,1,OWASP Top 10 training app; conventional MVC layout; deps last touched 2023 with known-old Express 4 stack
+encode/starlette,03f12b7fcf0a3e21a8da648ca0900c79472e9efe,2026-09-12,mature,5,5,5,5,5,Widely deployed ASGI framework; active maintenance; typed; security policy
+encode/httpx,b5addb64f0161ff6bfe94c124ef76f6a1fba5254,2026-02-23,mature,5,4,5,5,5,Widely deployed HTTP client; strict linting/typing; last commit Feb 2026 so deps slightly behind
+pallets/flask,d73fa1cdcbd8b1465c151db8924ba58b1dd14e35,2026-09-08,mature,5,5,5,5,5,Pallets project; active; security policy; small clean package
+psf/requests,dae7ef63b4df6eded86637f251fc4e3a06c3b479,2026-09-02,mature,5,5,4,4,5,Very widely deployed; active; older codebase with some legacy structure
+encode/django-rest-framework,b92edf53e21b2de16af5d13529591f1c0d415f93,2026-09-15,mature,5,5,4,4,5,Mature and active; large flat package of mutually aware modules
+fastapi/full-stack-fastapi-template,cb740b656d7a0a6c5e12c7bf8e50343ec94ee9c7,2026-09-01,mature,4,5,5,5,5,Reference template with clean layering; active; application code (auth/secrets config) rather than a library
+expressjs/express,9a34acf03cb818ff3f8bc40e44176e277a25cbb9,2026-09-15,mature,5,5,4,4,5,Core Node framework; active; older CommonJS style
+axios/axios,56a5f1acdc41965f464eb59bec6cc828113ba546,2026-09-16,mature,5,5,4,4,5,Very widely deployed; active; had CVEs historically but patched promptly
+excalidraw/excalidraw,c0ad61c6743aef7623e641cd1460d757cc6cacf3,2026-09-16,mature,4,5,4,4,4,Large active TS monorepo; app with user content (canvas/embeds) so more attack surface; big central modules
+gothinkster/flask-realworld-example-app,4b95fb2227dfeb5dd1a45d89b2bf48630b93fd28,2019-09-01,tutorial,3,1,4,3,2,Archived RealWorld example; reasonable blueprint layout; deps frozen 2019
+gothinkster/node-express-realworld-example-app,30b68e1e881462b2f4164ea09ab4c4f5699c7b0b,2024-01-04,tutorial,3,3,4,3,3,RealWorld example rewritten in TS; modest maintenance; last commit Jan 2024
+miguelgrinberg/microblog,a975ef64864354867c88e0ed3a17ba7d17dca752,2025-04-06,tutorial,4,3,4,4,4,Flask Mega-Tutorial companion app by an experienced author; well structured; updated 2025
+gothinkster/django-realworld-example-app,29c9d42831fa0cfc5a4aa7561f674396eacf20a2,2017-04-27,tutorial,3,1,3,3,2,Archived; last commit 2017; Django 1.10-era deps
+mjhea0/flaskr-tdd,305122f48823d98fd7fe8de989af2821b3c5d46d,2023-10-18,tutorial,3,3,2,3,3,TDD tutorial app; single-module app by design; deps from 2023
