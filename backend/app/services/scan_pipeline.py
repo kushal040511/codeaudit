@@ -3,6 +3,7 @@
 Status transitions, retries and cleanup live in app.workers.tasks.
 """
 
+import dataclasses
 import logging
 import os
 import shutil
@@ -38,6 +39,7 @@ from app.services.analyzers.base import AnalyzerResult, FindingData, ScanContext
 from app.services.analyzers.dedup import deduplicate
 from app.services.analyzers.orchestrator import run_analyzers
 from app.services.analyzers.registry import AnalyzerRegistry, default_registry
+from app.services.analyzers.signals import ADVISORY, SignalReport, not_applicable
 from app.services.analyzers.snippets import fill_snippets
 from app.services.archive import archive_limits_from_settings, safe_extract
 from app.services.auth.oauth import access_token
@@ -48,7 +50,7 @@ from app.services.graph.persistence import delete_architecture, persist_architec
 from app.services.languages import DetectedLanguage, count_source_lines, detect_languages
 from app.services.llm.client import llm_configured
 from app.services.scoring.rubric import ScoreContext, finding_impacts, score
-from app.services.scoring.service import ScorableRow, store_score
+from app.services.scoring.service import ScorableRow, rubric_config, store_score
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +177,13 @@ def analyze_and_persist(
     when every analyzer failed is the scan failed, and retried if the cause was
     infrastructure.
     """
-    context = ScanContext(scan_id=str(scan.id), work_dir=workdir, languages=list(languages))
+    history = workdir / "history"
+    context = ScanContext(
+        scan_id=str(scan.id),
+        work_dir=workdir,
+        languages=list(languages),
+        git_log_path=history if (history / "git-log.txt").is_file() else None,
+    )
     applicable, skipped = registry.select(context.language_names)
 
     # A retried task starts from scratch.
@@ -221,15 +229,33 @@ def analyze_and_persist(
         run.completed_at = utcnow()
         db.commit()
 
+    first = [a for a in applicable if a.phase == 1]
+    second = [a for a in applicable if a.phase != 1]
     with stage_timer("analyzers"):
         results = run_analyzers(
-            applicable,
+            first,
             source_dir,
             context,
             max_workers=get_settings().analyzer_max_workers,
             on_result=record,
         )
+        if second:
+            # Phase 2 builds on phase-1 output (the import graph, for example).
+            phase_two = dataclasses.replace(
+                context, prior_results={r.analyzer: r for r in results if r.success}
+            )
+            results += run_analyzers(
+                second,
+                source_dir,
+                phase_two,
+                max_workers=get_settings().analyzer_max_workers,
+                on_result=record,
+            )
 
+    experimental = {a.name for a in applicable if a.experimental}
+    signal_results = [r for r in results if r.analyzer in experimental]
+    results = [r for r in results if r.analyzer not in experimental]
+    store_signals(scan, signal_results)
     succeeded = [r for r in results if r.success]
     failed = [r for r in results if not r.success]
     if applicable and not succeeded:
@@ -238,7 +264,10 @@ def analyze_and_persist(
             raise TransientInfraError(f"No analyzer could run: {reasons}")
         raise AnalysisError(f"Every analyzer failed: {reasons}")
 
-    findings = fill_snippets([f for r in succeeded for f in r.findings], source_dir)
+    signal_findings = [f for r in signal_results if r.success for f in r.findings]
+    findings = fill_snippets(
+        [f for r in succeeded for f in r.findings] + signal_findings, source_dir
+    )
     unique = deduplicate(findings)
     status = ScanStatus.PARTIAL if failed else ScanStatus.COMPLETED
     architecture = next(
@@ -256,6 +285,7 @@ def analyze_and_persist(
         module_count=architecture.summary.get("node_count", 0) if architecture else 0,
         analyzers_run=frozenset(r.analyzer for r in succeeded),
         analyzers_failed=frozenset(r.analyzer for r in failed),
+        signals=scan.signal_metrics or {},
     )
     with stage_timer("persist"):
         persist_results(db, scan, unique, stored_status, architecture, score_context)
@@ -276,6 +306,28 @@ def analyze_and_persist(
     )
 
 
+def store_signals(scan: Scan, results: Sequence[AnalyzerResult]) -> None:
+    """Keep each experimental signal's report on the scan (advisory metrics separately).
+
+    A failed signal analyzer is stored as not applicable with its error, so the rubric
+    skips it instead of penalising.
+    """
+    signals: dict[str, object] = {}
+    advisory: dict[str, object] | None = None
+    for result in results:
+        report = result.artifact if isinstance(result.artifact, SignalReport) else None
+        if report is None:
+            report = not_applicable(
+                result.analyzer, result.error_message or "the analyzer produced no report"
+            )
+        if report.name == ADVISORY:
+            advisory = report.as_dict()
+        else:
+            signals[report.name] = report.as_dict()
+    scan.signal_metrics = signals or None
+    scan.advisory_metrics = advisory
+
+
 def persist_results(
     db: Session,
     scan: Scan,
@@ -294,8 +346,9 @@ def persist_results(
             ScorableRow(i, f.analyzer, f.rule_id, f.severity, f.file_path, list(f.corroborated_by))
             for i, f in enumerate(findings)
         ]
-        impacts = finding_impacts(rows, score_context)
-        store_score(db, scan.id, score(rows, score_context), score_context)
+        config = rubric_config()
+        impacts = finding_impacts(rows, score_context, config)
+        store_score(db, scan.id, score(rows, score_context, config=config), score_context)
     db.execute(delete(Finding).where(Finding.scan_id == scan.id))
     if architecture is not None:
         persist_architecture(db, scan.id, architecture)

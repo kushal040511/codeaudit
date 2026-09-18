@@ -1,0 +1,1341 @@
+{
+  "best_subset": {
+    "in_sample": {
+      "config": "ci_quality,dep_health>security,git_history,test_quality",
+      "overall_rho": 0.814179962051379
+    },
+    "leak_free": {
+      "in_sample": {
+        "config": "dep_health>security,git_history,test_quality",
+        "overall_rho": 0.7920898080422331
+      },
+      "out_of_bag": {
+        "baseline_mean_rho": 0.6138340631679889,
+        "bootstraps": 299,
+        "mean_improvement": 0.027701538713940273,
+        "selected_mean_rho": 0.641535601881929,
+        "share_improved": 0.4414715719063545
+      },
+      "top5_in_sample": [
+        {
+          "config": "dep_health>security,git_history,test_quality",
+          "overall_rho": 0.7920898080422331
+        },
+        {
+          "config": "ci_quality,dep_health>security,git_history,test_quality",
+          "overall_rho": 0.7747332584636185
+        },
+        {
+          "config": "ci_quality,dep_health>security,test_quality,process-dimension",
+          "overall_rho": 0.7684217858895769
+        },
+        {
+          "config": "dep_health>dependencies,git_history",
+          "overall_rho": 0.7479095000239413
+        },
+        {
+          "config": "dep_health>security,test_quality",
+          "overall_rho": 0.7463316318804308
+        }
+      ]
+    },
+    "out_of_bag": {
+      "baseline_mean_rho": 0.6138340631679889,
+      "bootstraps": 299,
+      "mean_improvement": 0.05568560019602381,
+      "selected_mean_rho": 0.6695196633640126,
+      "share_improved": 0.5384615384615384
+    },
+    "top5_in_sample": [
+      {
+        "config": "ci_quality,dep_health>security,git_history,test_quality",
+        "overall_rho": 0.814179962051379
+      },
+      {
+        "config": "git_history,test_quality",
+        "overall_rho": 0.7984012806162749
+      },
+      {
+        "config": "dep_health>security,git_history,test_quality",
+        "overall_rho": 0.7984012806162749
+      },
+      {
+        "config": "dep_health>dependencies,git_history,test_quality",
+        "overall_rho": 0.7889340717552124
+      },
+      {
+        "config": "ci_quality,dep_health>security,test_quality,process-dimension",
+        "overall_rho": 0.7684217858895769
+      }
+    ]
+  },
+  "collinearity": {
+    "flagged_over_0_8": [
+      {
+        "a": "signal:ci_quality",
+        "b": "signal:git_history",
+        "n": 15,
+        "rho": 0.8124265089302066
+      }
+    ],
+    "matrix": {
+      "category:architecture": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.9999999999999999
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": -0.6153846153846153
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.3189901385378433
+        },
+        "category:security": {
+          "n": 20,
+          "rho": -0.2640090446199418
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.2522951962338761
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.40842424851461084
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.3182844243792325
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.39112451054806197
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": -0.05039488885907721
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.13238060357011328
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.012958404925518877
+        }
+      },
+      "category:code_health": {
+        "category:architecture": {
+          "n": 13,
+          "rho": -0.6153846153846153
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 1.0
+        },
+        "category:dependencies": {
+          "n": 13,
+          "rho": 0.07152689022449482
+        },
+        "category:security": {
+          "n": 13,
+          "rho": 0.34065934065934067
+        },
+        "signal:ci_quality": {
+          "n": 10,
+          "rho": -0.263823541230135
+        },
+        "signal:dep_health": {
+          "n": 13,
+          "rho": 0.42857142857142855
+        },
+        "signal:dep_health.hygiene": {
+          "n": 13,
+          "rho": 0.5392027109231149
+        },
+        "signal:dep_health.supply": {
+          "n": 13,
+          "rho": 0.2802197802197803
+        },
+        "signal:error_handling": {
+          "n": 13,
+          "rho": -0.12637362637362637
+        },
+        "signal:git_history": {
+          "n": 13,
+          "rho": -0.15384615384615383
+        },
+        "signal:test_quality": {
+          "n": 13,
+          "rho": 0.49737362862368756
+        }
+      },
+      "category:dependencies": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.3189901385378433
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.07152689022449482
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "category:security": {
+          "n": 20,
+          "rho": -0.0022641670642586306
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.48775023065581713
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.5169848130057209
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.3744830975497522
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.5381170389388014
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": -0.00754722354752877
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.20377503578327677
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.2841430044664957
+        }
+      },
+      "category:security": {
+        "category:architecture": {
+          "n": 20,
+          "rho": -0.2640090446199418
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.34065934065934067
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": -0.002264167064258631
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.2955926807045171
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.24360902255639094
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.37232044754094357
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.18496240601503755
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": 0.32631578947368417
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.22556390977443608
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.5219511596256079
+        }
+      },
+      "signal:ci_quality": {
+        "category:architecture": {
+          "n": 15,
+          "rho": 0.2522951962338761
+        },
+        "category:code_health": {
+          "n": 10,
+          "rho": -0.26382354123013496
+        },
+        "category:dependencies": {
+          "n": 15,
+          "rho": 0.4877502306558172
+        },
+        "category:security": {
+          "n": 15,
+          "rho": 0.29559268070451716
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 1.0
+        },
+        "signal:dep_health": {
+          "n": 15,
+          "rho": 0.29921958476224125
+        },
+        "signal:dep_health.hygiene": {
+          "n": 15,
+          "rho": 0.11968783390489653
+        },
+        "signal:dep_health.supply": {
+          "n": 15,
+          "rho": 0.4316015828691723
+        },
+        "signal:error_handling": {
+          "n": 15,
+          "rho": -0.12150128593375858
+        },
+        "signal:git_history": {
+          "n": 15,
+          "rho": 0.8124265089302066
+        },
+        "signal:test_quality": {
+          "n": 15,
+          "rho": 0.6098646470113839
+        }
+      },
+      "signal:dep_health": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.40842424851461084
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.42857142857142855
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.5169848130057209
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.24360902255639094
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.29921958476224125
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.8898082614968408
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.8977443609022555
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": 0.12781954887218044
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.28421052631578947
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.5379525820374877
+        }
+      },
+      "signal:dep_health.hygiene": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.3182844243792325
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.5392027109231149
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.3744830975497522
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.37232044754094357
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.1196878339048965
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.8898082614968409
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.9999999999999999
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.6491162550057258
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": 0.26551336966051126
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.2331703812882677
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.5267210472666791
+        }
+      },
+      "signal:dep_health.supply": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.3911245105480619
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.2802197802197803
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.5381170389388014
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.18496240601503755
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.4316015828691723
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.8977443609022555
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.6491162550057258
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": -0.03157894736842105
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.29172932330827067
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.5166173521549812
+        }
+      },
+      "signal:error_handling": {
+        "category:architecture": {
+          "n": 20,
+          "rho": -0.05039488885907721
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": -0.12637362637362637
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": -0.007547223547528769
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.32631578947368417
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": -0.12150128593375857
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.12781954887218044
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.26551336966051126
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": -0.03157894736842105
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": -0.1263157894736842
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.1516325266649576
+        }
+      },
+      "signal:git_history": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.13238060357011328
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": -0.15384615384615383
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.20377503578327677
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.22556390977443608
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.8124265089302066
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.28421052631578947
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.23317038128826767
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.29172932330827067
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": -0.1263157894736842
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 1.0
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.6309132265255522
+        }
+      },
+      "signal:test_quality": {
+        "category:architecture": {
+          "n": 20,
+          "rho": 0.012958404925518878
+        },
+        "category:code_health": {
+          "n": 13,
+          "rho": 0.49737362862368756
+        },
+        "category:dependencies": {
+          "n": 20,
+          "rho": 0.28414300446649565
+        },
+        "category:security": {
+          "n": 20,
+          "rho": 0.5219511596256079
+        },
+        "signal:ci_quality": {
+          "n": 15,
+          "rho": 0.6098646470113839
+        },
+        "signal:dep_health": {
+          "n": 20,
+          "rho": 0.5379525820374877
+        },
+        "signal:dep_health.hygiene": {
+          "n": 20,
+          "rho": 0.5267210472666791
+        },
+        "signal:dep_health.supply": {
+          "n": 20,
+          "rho": 0.5166173521549812
+        },
+        "signal:error_handling": {
+          "n": 20,
+          "rho": 0.1516325266649576
+        },
+        "signal:git_history": {
+          "n": 20,
+          "rho": 0.6309132265255523
+        },
+        "signal:test_quality": {
+          "n": 20,
+          "rho": 0.9999999999999999
+        }
+      }
+    }
+  },
+  "configurations": [
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "base",
+      "configuration": "baseline (no signals = rubric 1.0)",
+      "delta_overall": {
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "p_improves": 0.0,
+        "point": 0.0
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6627046202743784,
+      "overall_ci95": [
+        0.28265804984294535,
+        0.8682195526801296
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.3333333333333333,
+        "delta_mature_vs_vulnerable": 0.8518518518518519,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 74.06,
+          "tutorial": 69.52,
+          "vulnerable": 40.5
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": -0.08933322213314888,
+      "code_health_python_only": -0.14497062984095613,
+      "config_key": "error_handling",
+      "configuration": "+ error_handling",
+      "delta_overall": {
+        "ci95": [
+          -0.26406157878958414,
+          0.08239091939663154
+        ],
+        "p_improves": 0.1775,
+        "point": -0.07415980274499001
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 20,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.5885448175293884,
+      "overall_ci95": [
+        0.18987108348928722,
+        0.8370749494985107
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.15555555555555556,
+        "delta_mature_vs_vulnerable": 0.8888888888888888,
+        "delta_tutorial_vs_vulnerable": 0.5333333333333333,
+        "median": {
+          "mature": 70.73,
+          "tutorial": 69.92,
+          "vulnerable": 43.42
+        }
+      }
+    },
+    {
+      "architecture": 0.092559411328483,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "dep_health>dependencies",
+      "configuration": "+ dep_health",
+      "delta_overall": {
+        "ci95": [
+          0.0,
+          0.1629751218877738
+        ],
+        "p_improves": 0.755,
+        "point": 0.04418030801829187
+      },
+      "dependencies": 0.4382213260984845,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7068849282926702,
+      "overall_ci95": [
+        0.3565330374790751,
+        0.8860126717120073
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.37777777777777777,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 71.13,
+          "tutorial": 67.24,
+          "vulnerable": 37.245
+        }
+      }
+    },
+    {
+      "architecture": 0.19296284056615945,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "git_history",
+      "configuration": "+ git_history",
+      "delta_overall": {
+        "ci95": [
+          -0.019584837776040257,
+          0.2385506100374427
+        ],
+        "p_improves": 0.901,
+        "point": 0.082049143462542
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7447537637369204,
+      "overall_ci95": [
+        0.40830846175126667,
+        0.8972519018751305
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.5555555555555556,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 70.83,
+          "tutorial": 63.27,
+          "vulnerable": 34.144999999999996
+        }
+      }
+    },
+    {
+      "architecture": -0.14668313490191798,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "ci_quality",
+      "configuration": "+ ci_quality",
+      "delta_overall": {
+        "ci95": [
+          -0.3452949548836437,
+          0.06828890956892415
+        ],
+        "p_improves": 0.139,
+        "point": -0.10413929747168804
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.5585653228026903,
+      "overall_ci95": [
+        0.11846782940441107,
+        0.8231399111495404
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.15555555555555556,
+        "delta_mature_vs_vulnerable": 0.7407407407407407,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 68.77,
+          "tutorial": 69.52,
+          "vulnerable": 33.235
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.58105434917909,
+      "code_health_python_only": 0.7419085174213638,
+      "config_key": "test_quality",
+      "configuration": "+ test_quality",
+      "delta_overall": {
+        "ci95": [
+          -0.14513404632728824,
+          0.23185439292781504
+        ],
+        "p_improves": 0.663,
+        "point": 0.03471309915722931
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 20,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6974177194316077,
+      "overall_ci95": [
+        0.3501839845572563,
+        0.9069476218722906
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.37777777777777777,
+        "delta_mature_vs_vulnerable": 0.9629629629629629,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 73.73,
+          "tutorial": 63.44,
+          "vulnerable": 45.85
+        }
+      }
+    },
+    {
+      "architecture": 0.092559411328483,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "dep_health>security",
+      "configuration": "+ dep_health \u2192 security",
+      "delta_overall": {
+        "ci95": [
+          -0.03227822630159588,
+          0.14205007912923565
+        ],
+        "p_improves": 0.7645,
+        "point": 0.03471309915722931
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6974177194316077,
+      "overall_ci95": [
+        0.3432360064500769,
+        0.8831437138790244
+      ],
+      "security": 0.32512789471348413,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.4666666666666667,
+        "delta_mature_vs_vulnerable": 0.8518518518518519,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 69.87,
+          "tutorial": 61.21,
+          "vulnerable": 36.42
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "git_history,process-dimension",
+      "configuration": "+ git_history (process dimension)",
+      "delta_overall": {
+        "ci95": [
+          -0.026004168988532455,
+          0.23387752594768707
+        ],
+        "p_improves": 0.883,
+        "point": 0.07889340717552129
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7415980274498997,
+      "overall_ci95": [
+        0.41281982274550955,
+        0.903948960631382
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.5555555555555556,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 75.12,
+          "tutorial": 69.27,
+          "vulnerable": 44.685
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "ci_quality,process-dimension",
+      "configuration": "+ ci_quality (process dimension)",
+      "delta_overall": {
+        "ci95": [
+          -0.07855779579763364,
+          0.19659575658403575
+        ],
+        "p_improves": 0.7445,
+        "point": 0.04418030801829187
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7068849282926702,
+      "overall_ci95": [
+        0.36543348624280136,
+        0.8942334283204441
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.4666666666666667,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.6,
+        "median": {
+          "mature": 73.63,
+          "tutorial": 69.52,
+          "vulnerable": 44.015
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "ci_quality,git_history,process-dimension",
+      "configuration": "+ git_history + ci_quality (process dimension)",
+      "delta_overall": {
+        "ci95": [
+          -0.04313731012089566,
+          0.1831607270845902
+        ],
+        "p_improves": 0.735,
+        "point": 0.04418030801829187
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7068849282926702,
+      "overall_ci95": [
+        0.34552611310843084,
+        0.891064845364744
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.5111111111111111,
+        "delta_mature_vs_vulnerable": 0.8518518518518519,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 71.98,
+          "tutorial": 69.27,
+          "vulnerable": 41.16
+        }
+      }
+    },
+    {
+      "architecture": 0.10824744714686994,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "ci_quality,git_history",
+      "configuration": "+ git_history + ci_quality (in architecture)",
+      "delta_overall": {
+        "ci95": [
+          -0.1578133132775962,
+          0.2477043816703875
+        ],
+        "p_improves": 0.738,
+        "point": 0.056803253166375356
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7195078734407537,
+      "overall_ci95": [
+        0.3607022304451333,
+        0.8921696142334187
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.4666666666666667,
+        "delta_mature_vs_vulnerable": 0.8888888888888888,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 66.48,
+          "tutorial": 63.27,
+          "vulnerable": 29.145000000000003
+        }
+      }
+    },
+    {
+      "architecture": 0.15688035818386947,
+      "code_health": 0.27110690890842576,
+      "code_health_python_only": 0.4747077486948955,
+      "config_key": "ci_quality,dep_health>dependencies,error_handling,git_history,test_quality",
+      "configuration": "all signals (git/CI in architecture)",
+      "delta_overall": {
+        "ci95": [
+          -0.15332317719716346,
+          0.256993139614072
+        ],
+        "p_improves": 0.673,
+        "point": 0.04102457173127105
+      },
+      "dependencies": 0.4382213260984845,
+      "n": {
+        "architecture": 20,
+        "code_health": 20,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7037291920056494,
+      "overall_ci95": [
+        0.361747534925581,
+        0.8908460303918718
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.37777777777777777,
+        "delta_mature_vs_vulnerable": 0.9629629629629629,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 58.98,
+          "tutorial": 52.24,
+          "vulnerable": 30.674999999999997
+        }
+      }
+    },
+    {
+      "architecture": 0.092559411328483,
+      "code_health": 0.27110690890842576,
+      "code_health_python_only": 0.4747077486948955,
+      "config_key": "ci_quality,dep_health>dependencies,error_handling,git_history,test_quality,process-dimension",
+      "configuration": "all signals (process dimension)",
+      "delta_overall": {
+        "ci95": [
+          -0.13756774038104091,
+          0.1947230290356488
+        ],
+        "p_improves": 0.63,
+        "point": 0.02524589029616675
+      },
+      "dependencies": 0.4382213260984845,
+      "n": {
+        "architecture": 20,
+        "code_health": 20,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6879505105705451,
+      "overall_ci95": [
+        0.3267154749067177,
+        0.8855273542136242
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.37777777777777777,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 64.86,
+          "tutorial": 58.84,
+          "vulnerable": 40.25
+        }
+      }
+    },
+    {
+      "architecture": 0.07059616118274128,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "git_history",
+      "configuration": "+ git_history without recency/activity",
+      "delta_overall": {
+        "ci95": [
+          0.0,
+          0.20491757279188474
+        ],
+        "p_improves": 0.899,
+        "point": 0.06942619831445862
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.732130818588837,
+      "overall_ci95": [
+        0.4029351435230059,
+        0.897107832303985
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.4666666666666667,
+        "delta_mature_vs_vulnerable": 0.9259259259259259,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 69.91,
+          "tutorial": 64.58,
+          "vulnerable": 34.540000000000006
+        }
+      }
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "code_health_python_only": 0.34394992570109195,
+      "config_key": "git_history,process-dimension",
+      "configuration": "+ git_history without recency/activity (process dimension)",
+      "delta_overall": {
+        "ci95": [
+          -0.04235737918114439,
+          0.17595543985248902
+        ],
+        "p_improves": 0.8015,
+        "point": 0.047336044305312686
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7100406645796911,
+      "overall_ci95": [
+        0.3570665209999849,
+        0.8985950267003667
+      ],
+      "security": 0.3227775725830252,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.5111111111111111,
+        "delta_mature_vs_vulnerable": 0.8888888888888888,
+        "delta_tutorial_vs_vulnerable": 0.6666666666666666,
+        "median": {
+          "mature": 74.45,
+          "tutorial": 70.34,
+          "vulnerable": 44.935
+        }
+      }
+    },
+    {
+      "architecture": 0.15688035818386947,
+      "code_health": 0.58105434917909,
+      "code_health_python_only": 0.7419085174213638,
+      "config_key": "ci_quality,dep_health>security,git_history,test_quality",
+      "configuration": "best subset (in-sample search): ci_quality,dep_health>security,git_history,test_quality",
+      "delta_overall": {
+        "ci95": [
+          -0.041158639754920165,
+          0.4251305589405347
+        ],
+        "note": "in-sample selection: optimistic, see out-of-bag check",
+        "p_improves": 0.9145,
+        "point": 0.15147534177700062
+      },
+      "dependencies": 0.4192712203321425,
+      "n": {
+        "architecture": 20,
+        "code_health": 20,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.814179962051379,
+      "overall_ci95": [
+        0.5666044850143771,
+        0.9345474745447577
+      ],
+      "security": 0.32512789471348413,
+      "separation": {
+        "delta_mature_vs_tutorial": 0.6888888888888889,
+        "delta_mature_vs_vulnerable": 1.0,
+        "delta_tutorial_vs_vulnerable": 0.7333333333333333,
+        "median": {
+          "mature": 64.34,
+          "tutorial": 49.46,
+          "vulnerable": 34.22
+        }
+      }
+    }
+  ],
+  "coverage": {
+    "advisory": {
+      "applicable": 20,
+      "collected": 0,
+      "reasons": []
+    },
+    "ci_quality": {
+      "applicable": 15,
+      "collected": 20,
+      "reasons": [
+        "no CI configuration found"
+      ]
+    },
+    "dep_health": {
+      "applicable": 20,
+      "collected": 20,
+      "reasons": []
+    },
+    "error_handling": {
+      "applicable": 20,
+      "collected": 20,
+      "reasons": []
+    },
+    "git_history": {
+      "applicable": 20,
+      "collected": 20,
+      "reasons": []
+    },
+    "test_quality": {
+      "applicable": 20,
+      "collected": 20,
+      "reasons": []
+    }
+  },
+  "signal_vs_labels": {
+    "ci_quality": {
+      "architecture": 0.39391973236610867,
+      "code_health": 0.5084991923016482,
+      "dependencies": 0.8542271655668479,
+      "n": 15,
+      "overall": 0.6828634505637337,
+      "security": 0.6819878776790482
+    },
+    "dep_health": {
+      "architecture": 0.2423801533940784,
+      "code_health": 0.26566923451771235,
+      "dependencies": 0.29372672668222743,
+      "n": 20,
+      "overall": 0.35817606857686635,
+      "security": 0.2937902663073652
+    },
+    "error_handling": {
+      "architecture": -0.13491710803812776,
+      "code_health": -0.1724519592483396,
+      "dependencies": -0.048954454447037915,
+      "n": 20,
+      "overall": -0.026823758439677218,
+      "security": -0.010968169942141634
+    },
+    "git_history": {
+      "architecture": 0.5992829682623816,
+      "code_health": 0.6315470399500003,
+      "dependencies": 0.8495966610485934,
+      "n": 20,
+      "overall": 0.6989955875751181,
+      "security": 0.6894278249346171
+    },
+    "test_quality": {
+      "architecture": 0.7150405650641543,
+      "code_health": 0.7096951310162739,
+      "dependencies": 0.7813825522888131,
+      "n": 20,
+      "overall": 0.7611470999890422,
+      "security": 0.7062248968401426
+    }
+  },
+  "weights": {
+    "baseline": {
+      "dimensions": [
+        "security",
+        "dependencies",
+        "architecture",
+        "code_health"
+      ],
+      "hand_picked": {
+        "architecture": 0.2,
+        "code_health": 0.2,
+        "dependencies": 0.2,
+        "security": 0.4
+      },
+      "learned": {
+        "architecture": 0.0,
+        "code_health": 0.226,
+        "dependencies": 0.319,
+        "security": 0.455
+      },
+      "rho_hand_picked": 0.6627046202743784,
+      "rho_learned_in_sample": 0.7384422911628788,
+      "rho_learned_leave_one_out": 0.4591596297615335
+    },
+    "best_subset": {
+      "dimensions": [
+        "security",
+        "dependencies",
+        "architecture",
+        "code_health"
+      ],
+      "hand_picked": {
+        "architecture": 0.2,
+        "code_health": 0.2,
+        "dependencies": 0.2,
+        "security": 0.4
+      },
+      "learned": {
+        "architecture": 0.0,
+        "code_health": 0.407,
+        "dependencies": 0.273,
+        "security": 0.32
+      },
+      "rho_hand_picked": 0.814179962051379,
+      "rho_learned_in_sample": 0.7984012806162749,
+      "rho_learned_leave_one_out": 0.74317589559341
+    }
+  }
+}

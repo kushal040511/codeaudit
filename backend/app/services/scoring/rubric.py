@@ -29,18 +29,31 @@ of penalty halve the score. Penalty:
 
 The impact of fixing a set of findings is computed exactly by rescoring without
 them, so projections for any selection are consistent with the real score.
+
+Rubric 1.1.0: experimental signals
+----------------------------------
+`RubricConfig` switches experimental signals on (all off by default, which scores
+exactly like 1.0). Each enabled, applicable signal adds one deduction line to its
+category: penalty = category half-life x (1 - signal score), after size
+normalisation (signals are already rates). A signal scoring 0 halves its category.
+Inapplicable signals (no .git, no CI, no tests...) are skipped, never penalised.
+
+    error_handling, test_quality -> code_health
+    dep_health                   -> dependencies (or security) for supply-chain health,
+                                    architecture for unused/phantom dependencies
+    git_history, ci_quality      -> architecture, or a separate "process" dimension
 """
 
 import math
 import re
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from app.models import Severity
 
-RUBRIC_VERSION = "1.0"
+RUBRIC_VERSION = "1.1.0"
 
 
 class ScorableFinding(Protocol):
@@ -141,6 +154,31 @@ class ScoreContext:
     module_count: int
     analyzers_run: frozenset[str]
     analyzers_failed: frozenset[str] = frozenset()
+    # Stored experimental signals: {name: SignalReport.as_dict()} (see analyzers/signals.py).
+    signals: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RubricConfig:
+    """Which experimental signals are scored. The default scores exactly like rubric 1.0."""
+
+    signals: frozenset[str] = frozenset()
+    process_dimension: bool = False
+    dep_health_target: str = "dependencies"  # or "security"
+
+    def key(self) -> str:
+        """Stable identifier of the configuration, stored with every score."""
+        parts = sorted(self.signals)
+        if "dep_health" in self.signals:
+            parts[parts.index("dep_health")] = f"dep_health>{self.dep_health_target}"
+        if self.process_dimension:
+            parts.append("process-dimension")
+        return ",".join(parts) or "base"
+
+
+PROCESS_SPEC = CategorySpec("process", "Process", 0.15, frozenset(), DEFAULT_SEVERITY, 1.0, "none")
+# Deduction per unit of (1 - signal score), in half-lives of the target category.
+SIGNAL_STRENGTH = 1.0
 
 
 @dataclass
@@ -153,9 +191,12 @@ class CategoryScore:
     finding_count: int
     excluded_reason: str | None = None
     rationale: list[str] = field(default_factory=list)
+    # One line per experimental signal applied to this category (rubric 1.1.0).
+    deductions: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "deductions": self.deductions,
             "category": self.category,
             "label": self.label,
             "score": None if self.score is None else round(self.score, 2),
@@ -177,6 +218,7 @@ class ScoreReport:
     rubric_version: str
     incomplete: bool
     incomplete_reasons: list[str]
+    config: str = "base"
 
     def category(self, name: str) -> CategoryScore:
         return next(c for c in self.categories if c.category == name)
@@ -219,11 +261,58 @@ def _rule_penalty(weights: list[float]) -> float:
     return sum(w * _rank_multiplier(rank) for rank, w in enumerate(ranked, start=1))
 
 
+def signal_targets(config: RubricConfig) -> list[tuple[str, str, str, tuple[str, ...] | None]]:
+    """(signal, deduction label, category, components or None for the overall signal score)."""
+    organization = "process" if config.process_dimension else "architecture"
+    targets: list[tuple[str, str, str, tuple[str, ...] | None]] = []
+    if "error_handling" in config.signals:
+        targets.append(("error_handling", "Error handling", "code_health", None))
+    if "test_quality" in config.signals:
+        targets.append(("test_quality", "Test quality", "code_health", None))
+    if "dep_health" in config.signals:
+        targets.append(
+            (
+                "dep_health",
+                "Dependency health (count, freshness, depth, trivial packages)",
+                config.dep_health_target,
+                ("direct_count", "freshness", "transitive", "trivial"),
+            )
+        )
+        targets.append(
+            (
+                "dep_health",
+                "Dependency hygiene (unused, phantom)",
+                "architecture",
+                ("unused", "phantom"),
+            )
+        )
+    if "git_history" in config.signals:
+        targets.append(("git_history", "Git history", organization, None))
+    if "ci_quality" in config.signals:
+        targets.append(("ci_quality", "CI pipeline", organization, None))
+    return targets
+
+
+def _signal_value(
+    signal: Mapping[str, Any] | None, components: tuple[str, ...] | None
+) -> float | None:
+    if not signal or not signal.get("applicable"):
+        return None
+    if components is None:
+        value = signal.get("score")
+        return None if value is None else float(value)
+    values = [signal.get("components", {}).get(c) for c in components]
+    present = [float(v) for v in values if v is not None]
+    return sum(present) / len(present) if present else None
+
+
 def score(
     findings: Iterable[ScorableFinding],
     context: ScoreContext,
     exclude_ids: Iterable[int] = (),
+    config: RubricConfig | None = None,
 ) -> ScoreReport:
+    config = config or RubricConfig()
     excluded = set(exclude_ids)
     by_category: defaultdict[str, defaultdict[str, list[float]]] = defaultdict(
         lambda: defaultdict(list)
@@ -238,12 +327,26 @@ def score(
         )
         counts[spec.name] += 1
 
+    # Signal deductions per category: [(signal, label, value)] for applicable signals.
+    pending: defaultdict[str, list[tuple[str, str, float]]] = defaultdict(list)
+    skipped: defaultdict[str, list[str]] = defaultdict(list)
+    for name, label, category_name, components in signal_targets(config):
+        signal = context.signals.get(name)
+        value = _signal_value(signal, components)
+        if value is None:
+            reason = (signal or {}).get("reason") or "not collected"
+            skipped[category_name].append(f"{label}: not applicable ({reason})")
+        else:
+            pending[category_name].append((name, label, max(0.0, min(1.0, value))))
+
+    specs = [*CATEGORIES, *([PROCESS_SPEC] if config.process_dimension else [])]
     categories: list[CategoryScore] = []
     incomplete_reasons: list[str] = []
-    for spec in CATEGORIES:
+    for spec in specs:
         failed = spec.analyzers & context.analyzers_failed
         ran = spec.analyzers & context.analyzers_run
-        if failed or not ran:
+        signal_lines = pending.get(spec.name, [])
+        if failed or (not ran and not signal_lines):
             reason = (
                 f"{', '.join(sorted(failed))} failed"
                 if failed
@@ -256,6 +359,23 @@ def score(
         rules = by_category[spec.name]
         raw_penalty = sum(_rule_penalty(weights) for weights in rules.values())
         penalty = raw_penalty / _size_factor(spec, context)
+        deductions: list[dict[str, Any]] = []
+        for name, label, value in signal_lines:
+            signal_penalty = spec.half_life * SIGNAL_STRENGTH * (1.0 - value)
+            without = 100.0 * math.exp(-penalty * math.log(2) / spec.half_life)
+            penalty += signal_penalty
+            with_signal = 100.0 * math.exp(-penalty * math.log(2) / spec.half_life)
+            deductions.append(
+                {
+                    "signal": name,
+                    "label": label,
+                    "signal_score": round(value, 4),
+                    "penalty": round(signal_penalty, 4),
+                    "points": round(without - with_signal, 2),  # in order of application
+                }
+            )
+        for line in skipped.get(spec.name, []):
+            deductions.append({"signal": None, "label": line, "points": 0.0})
         value = 100.0 * math.exp(-penalty * math.log(2) / spec.half_life)
         worst = sorted(rules.items(), key=lambda item: -_rule_penalty(item[1]))[:3]
         categories.append(
@@ -270,13 +390,14 @@ def score(
                     f"{rule} ({len(weights)} finding{'s' if len(weights) != 1 else ''})"
                     for rule, weights in worst
                 ],
+                deductions=deductions,
             )
         )
 
     total_weight = sum(c.weight for c in categories if c.score is not None)
     if total_weight == 0:
         reasons = incomplete_reasons or ["No analyzer results could be scored."]
-        return ScoreReport(None, None, categories, RUBRIC_VERSION, True, reasons)
+        return ScoreReport(None, None, categories, RUBRIC_VERSION, True, reasons, config.key())
     for category in categories:
         if category.score is not None:
             category.weight = category.weight / total_weight
@@ -288,6 +409,7 @@ def score(
         rubric_version=RUBRIC_VERSION,
         incomplete=bool(incomplete_reasons),
         incomplete_reasons=incomplete_reasons,
+        config=config.key(),
     )
 
 
@@ -315,9 +437,13 @@ def _removal_penalties(weights: Sequence[float]) -> list[float]:
     return result
 
 
-def finding_impacts(findings: Sequence[ScorableFinding], context: ScoreContext) -> dict[int, float]:
+def finding_impacts(
+    findings: Sequence[ScorableFinding],
+    context: ScoreContext,
+    config: RubricConfig | None = None,
+) -> dict[int, float]:
     """Overall points gained if each finding alone were fixed (exact)."""
-    base = score(findings, context)
+    base = score(findings, context, config=config)
     groups: defaultdict[tuple[str, str], list[ScorableFinding]] = defaultdict(list)
     for finding in findings:
         spec = CATEGORY_BY_ANALYZER.get(finding.analyzer)

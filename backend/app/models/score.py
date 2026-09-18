@@ -18,6 +18,8 @@ class ScanScore(Base):
         ForeignKey("scans.id", ondelete="CASCADE"), primary_key=True
     )
     rubric_version: Mapped[str] = mapped_column(String(16))
+    # Which experimental signals were scored (RubricConfig.key()); "base" = none.
+    rubric_config: Mapped[str] = mapped_column(String(200), default="base", server_default="base")
     # None when no category could be scored.
     overall: Mapped[float | None] = mapped_column(Float)
     grade: Mapped[str | None] = mapped_column(String(2))

@@ -18,6 +18,7 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.core.errors import AnalysisError
+from app.services.analyzers.git_log import HISTORY_MOUNT, LOG_SHELL
 from app.services.analyzers.sandbox import SandboxError, SandboxLimits, SandboxMount, run_in_sandbox
 from app.services.archive import ArchiveLimits
 from app.services.github.urls import OWNER, REPO, SHA, UnsafeHostError, assert_public_host
@@ -26,11 +27,15 @@ logger = logging.getLogger(__name__)
 
 CLONE_MOUNT = "/src"
 # Fixed script; repository coordinates arrive as environment variables.
+# With CLONE_DEPTH > 1 the commit history is written to HISTORY_MOUNT (git_log.py)
+# before .git is deleted, so no git ever runs on this repository outside the sandbox.
 CLONE_SCRIPT = (
     "set -eu; umask 0007; cd /src; git init -q .; "
     'git remote add origin "$CLONE_URL"; '
-    'git fetch -q --depth 1 --no-tags origin "$CLONE_SHA"; '
-    "git checkout -q FETCH_HEAD; rm -rf .git"
+    'git fetch -q --depth "$CLONE_DEPTH" --no-tags origin "$CLONE_SHA"; '
+    "git checkout -q FETCH_HEAD; "
+    f'if [ "$CLONE_DEPTH" -gt 1 ]; then {LOG_SHELL}; fi; '
+    "rm -rf .git"
 )
 GIT_CONFIG = {
     "protocol.allow": "never",
@@ -54,7 +59,9 @@ class RepositoryTooLargeError(CloneError):
     """The cloned tree exceeds the configured limits."""
 
 
-def clone_environment(clone_url: str, sha: str, token: str | None) -> dict[str, str]:
+def clone_environment(
+    clone_url: str, sha: str, token: str | None, depth: int = 1
+) -> dict[str, str]:
     config = dict(GIT_CONFIG)
     if token:
         basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
@@ -62,6 +69,7 @@ def clone_environment(clone_url: str, sha: str, token: str | None) -> dict[str, 
     env = {
         "CLONE_URL": clone_url,
         "CLONE_SHA": sha,
+        "CLONE_DEPTH": str(max(1, int(depth))),
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": "/dev/null",
@@ -129,6 +137,10 @@ def clone_repository(
     destination = workdir / "src"
     destination.mkdir()
     os.chmod(destination, 0o770)  # noqa: S103 - written by the sandbox (worker group)
+    history = workdir / "history"
+    history.mkdir()
+    os.chmod(history, 0o770)  # noqa: S103 - written by the sandbox (worker group)
+    depth = settings.git_history_depth if settings.experimental_signals_enabled else 1
     clone_url = f"https://github.com/{owner}/{name}.git"
     try:
         result = run_in_sandbox(
@@ -136,14 +148,17 @@ def clone_repository(
             entrypoint=["sh", "-c"],
             command=[CLONE_SCRIPT],
             working_dir=CLONE_MOUNT,
-            mounts=[SandboxMount(destination, CLONE_MOUNT, read_only=False)],
+            mounts=[
+                SandboxMount(destination, CLONE_MOUNT, read_only=False),
+                SandboxMount(history, HISTORY_MOUNT, read_only=False),
+            ],
             limits=SandboxLimits(
                 cpus=1.0,
                 memory=settings.git_clone_memory_limit,
                 timeout_seconds=settings.git_clone_timeout_seconds,
             ),
             labels={"codeaudit.scan_id": scan_id, "codeaudit.analyzer": "git-clone"},
-            environment=clone_environment(clone_url, sha, token),
+            environment=clone_environment(clone_url, sha, token, depth),
             network=True,
         )
     except SandboxError as exc:

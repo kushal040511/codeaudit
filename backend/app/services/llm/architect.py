@@ -30,6 +30,7 @@ from app.models import (
     GraphNode,
     LLMPurpose,
     ReviewStatus,
+    Scan,
 )
 from app.services.llm.client import LLMClient, LLMError
 from app.services.llm.context import ProjectConventions
@@ -42,6 +43,7 @@ MAX_VIOLATIONS = 25
 MAX_ORPHANS = 15
 TREE_DEPTH = 3
 MAX_TREE_ENTRIES = 80
+MAX_ADVISORY_EXAMPLES = 10
 REVIEW_MAX_TOKENS = 16_000
 
 SYSTEM_PROMPT = """You are a principal software architect reviewing the structure of a \
@@ -61,6 +63,10 @@ tree ending in "/" (e.g. "app/services/"), or an import edge as "<importer path>
 - Never cite, guess or invent modules, files or imports that are not in the digest. \
 If you can't support an issue with the digest, leave the issue out.
 - Base severity on impact: "critical" | "error" | "warning" | "info".
+
+`advisory_metrics` (naming conventions, generic or single-letter names, comment \
+density, docstring coverage), when present, are qualitative, non-scored hints: use \
+them only as supporting context, never as the basis of an issue on their own.
 
 Reply with only a JSON object, no Markdown and no text before or after it:
 {"summary": "2-3 sentence assessment of the overall structure",
@@ -161,6 +167,33 @@ def _directory_tree(nodes: list[GraphNode]) -> list[dict[str, Any]]:
     return [{"dir": d, "modules": m, "loc": loc} for d, (m, loc) in ordered[:MAX_TREE_ENTRIES]]
 
 
+def advisory_digest(advisory: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Compact summary of the advisory naming/comment metrics (ADR 0005)."""
+    if not advisory or not advisory.get("applicable"):
+        return None
+    metrics = advisory.get("metrics") or {}
+    single = metrics.get("single_letter") or {}
+    generic = metrics.get("generic_names") or {}
+    comments = metrics.get("comments") or {}
+    docstrings = metrics.get("docstrings") or {}
+    naming_examples = [
+        f"{e.get('location')} {e.get('kind')} {e.get('name')!r} (expected {e.get('expected')})"
+        for e in metrics.get("naming_examples") or []
+    ]
+    examples = [*naming_examples, *(generic.get("examples") or [])][:MAX_ADVISORY_EXAMPLES]
+    return {
+        "naming_conformance": {
+            language: values.get("overall_rate")
+            for language, values in (metrics.get("naming") or {}).items()
+        },
+        "single_letter_per_1k_identifiers": single.get("per_1k_identifiers"),
+        "generic_names_per_1k_identifiers": generic.get("per_1k_identifiers"),
+        "comment_density": comments.get("density"),
+        "docstring_coverage": docstrings.get("coverage"),
+        "examples": examples,
+    }
+
+
 def build_digest(
     db: Session, scan_id: uuid.UUID, conventions: ProjectConventions
 ) -> dict[str, Any]:
@@ -168,6 +201,7 @@ def build_digest(
     path_of = {n.module_id: n.path for n in nodes}
     summary_row = db.get(ArchitectureSummary, scan_id)
     summary = summary_row.summary if summary_row else {}
+    scan = db.get(Scan, scan_id)
     issues = db.scalars(
         select(ArchitectureIssue)
         .where(ArchitectureIssue.scan_id == scan_id)
@@ -285,6 +319,7 @@ def build_digest(
             {"package": name, "importing_modules": count}
             for name, count in externals.most_common(15)
         ],
+        "advisory_metrics": advisory_digest(scan.advisory_metrics if scan else None),
     }
 
 

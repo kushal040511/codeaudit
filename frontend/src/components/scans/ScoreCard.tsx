@@ -82,6 +82,15 @@ export function ScoreCard({ scan }: { scan: Scan }) {
                       Worst: {category.rationale[0]}
                     </p>
                   )}
+                  {(category.deductions ?? []).map((line) => (
+                    <p key={line.label} className="flex justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="truncate" title={line.label}>
+                        {line.label}
+                        {line.signal_score != null && <> · signal {Math.round(line.signal_score * 100)}%</>}
+                      </span>
+                      {line.signal !== null && <span className="tabular-nums">−{line.points.toFixed(1)}</span>}
+                    </p>
+                  ))}
                 </>
               )}
             </div>

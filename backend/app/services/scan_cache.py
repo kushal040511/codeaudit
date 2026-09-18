@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.models import RESULT_STATUSES, Scan, ScanStatus
 from app.services.auth.sessions import Principal
 from app.services.scoring.rubric import RUBRIC_VERSION
+from app.services.scoring.service import rubric_config_key
 
 CHUNK = 1024 * 1024
 REUSABLE = frozenset(RESULT_STATUSES) - {ScanStatus.ENRICHING}
@@ -34,6 +35,8 @@ def analysis_version() -> str:
         settings.osv_scanner_image,
         RUBRIC_VERSION,
         "architecture-1",
+        # Experimental signals change what's collected and (if flagged on) the score.
+        f"signals:{int(settings.experimental_signals_enabled)}:{rubric_config_key(settings)}",
     ]
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
 

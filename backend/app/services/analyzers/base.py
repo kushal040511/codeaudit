@@ -1,6 +1,7 @@
 """The analyzer interface: every tool is run, parsed and reported the same way."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
@@ -60,6 +61,10 @@ class ScanContext:
     scan_id: str
     work_dir: Path  # per-scan scratch directory inside the workspace
     languages: list[DetectedLanguage]
+    # Commit history captured by the clone sandbox (git_log.py format), if any.
+    git_log_path: Path | None = None
+    # Phase-2 analyzers see the phase-1 results (e.g. the architecture graph).
+    prior_results: Mapping[str, "AnalyzerResult"] = field(default_factory=dict)
 
     @property
     def language_names(self) -> set[str]:
@@ -71,6 +76,11 @@ class Analyzer(ABC):
     display_name: ClassVar[str]
     # Empty set = language-agnostic: the analyzer applies to every codebase.
     supported_languages: ClassVar[frozenset[str]] = frozenset()
+    # 2 = runs after every phase-1 analyzer and receives their results.
+    phase: ClassVar[int] = 1
+    # Experimental (rubric 1.1 signals): registered only with EXPERIMENTAL_SIGNALS_ENABLED,
+    # and a failure doesn't make the scan partial.
+    experimental: ClassVar[bool] = False
 
     docker_image: str | None
     timeout_seconds: int

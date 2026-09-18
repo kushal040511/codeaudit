@@ -62,7 +62,10 @@ def scan_id(database: None, tmp_path: Path) -> uuid.UUID:
 
 def test_pipeline_stores_score_and_exact_impacts(scan_id: uuid.UUID, api: TestClient) -> None:
     score = api.get(f"/api/scans/{scan_id}/score").json()
-    assert score["rubric_version"] == "1.0"
+    assert score["rubric_version"] == "1.1.0"
+    # No experimental signal flag is on by default: scored exactly like rubric 1.0.
+    assert score["rubric_config"] == "base"
+    assert all(c["deductions"] == [] for c in score["categories"])
     assert score["incomplete"] is False
     categories = {c["category"]: c for c in score["categories"]}
     assert (
@@ -78,7 +81,7 @@ def test_pipeline_stores_score_and_exact_impacts(scan_id: uuid.UUID, api: TestCl
         "overall": score["overall"],
         "grade": score["grade"],
         "incomplete": False,
-        "rubric_version": "1.0",
+        "rubric_version": "1.1.0",
     }
 
     items = api.get(f"/api/scans/{scan_id}/findings", params={"page_size": 100}).json()["items"]

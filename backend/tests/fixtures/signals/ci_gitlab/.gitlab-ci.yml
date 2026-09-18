@@ -1,0 +1,23 @@
+stages:
+  - lint
+  - test
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+image: python:3.12
+
+before_script:
+  - pip install -r requirements.txt
+
+lint:
+  stage: lint
+  script:
+    - flake8 src
+    - black --check src
+
+unit-tests:
+  stage: test
+  script:
+    - python -m pytest tests

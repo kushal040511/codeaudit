@@ -99,6 +99,11 @@ class Scan(Base):
     )
     # Why enrichment was skipped, degraded or failed. Never makes the scan invalid.
     enrichment_error: Mapped[str | None] = mapped_column(Text)
+    # Experimental rubric-1.1 signals: {name: SignalReport.as_dict()}. Collected only
+    # with EXPERIMENTAL_SIGNALS_ENABLED; scored only when their rubric flag is on.
+    signal_metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Naming and comment metrics: shown and given to the architecture review, never scored.
+    advisory_metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     findings: Mapped[list["Finding"]] = relationship(
         back_populates="scan", cascade="all, delete-orphan", passive_deletes=True

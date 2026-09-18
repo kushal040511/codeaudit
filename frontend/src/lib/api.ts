@@ -110,10 +110,18 @@ export type Scan = {
   score: ScoreSummary | null
 }
 
+export type ScoreDeduction = {
+  signal: string | null
+  label: string
+  signal_score?: number | null
+  penalty?: number | null
+  points: number
+}
+
 export type ScoreSummary = { overall: number | null; grade: string | null; incomplete: boolean; rubric_version: string }
 
 export type CategoryScore = {
-  category: 'security' | 'dependencies' | 'architecture' | 'code_health'
+  category: 'security' | 'dependencies' | 'architecture' | 'code_health' | 'process'
   label: string
   /** null: excluded (not applicable, or its analyzer failed). */
   score: number | null
@@ -122,10 +130,14 @@ export type CategoryScore = {
   finding_count: number
   excluded_reason: string | null
   rationale: string[]
+  // Experimental signals applied to this category (rubric 1.1.0); absent on older scores.
+  deductions?: ScoreDeduction[]
 }
 
 export type ScanScore = {
   rubric_version: string
+  /** Experimental signals scored ("base" = none). */
+  rubric_config?: string
   overall: number | null
   grade: string | null
   incomplete: boolean

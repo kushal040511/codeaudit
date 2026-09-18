@@ -45,8 +45,41 @@ ANALYZER_CLASSES: tuple[type[Analyzer], ...] = (
     ArchitectureAnalyzer,
 )
 
-DISPLAY_NAMES: dict[str, str] = {cls.name: cls.display_name for cls in ANALYZER_CLASSES}
+
+def experimental_classes() -> tuple[type[Analyzer], ...]:
+    """Rubric-1.1 signal analyzers (imported lazily: only needed when enabled)."""
+    from app.services.analyzers.advisory import AdvisoryAnalyzer
+    from app.services.analyzers.ci_quality import CIQualityAnalyzer
+    from app.services.analyzers.dep_health import DepHealthAnalyzer
+    from app.services.analyzers.error_handling import ErrorHandlingAnalyzer
+    from app.services.analyzers.git_history import GitHistoryAnalyzer
+    from app.services.analyzers.test_quality import TestQualityAnalyzer
+
+    return (
+        ErrorHandlingAnalyzer,
+        TestQualityAnalyzer,
+        CIQualityAnalyzer,
+        AdvisoryAnalyzer,
+        DepHealthAnalyzer,
+        GitHistoryAnalyzer,
+    )
+
+
+DISPLAY_NAMES: dict[str, str] = {
+    **{cls.name: cls.display_name for cls in ANALYZER_CLASSES},
+    "error_handling": "Error handling",
+    "test_quality": "Test quality",
+    "ci_quality": "CI pipeline",
+    "advisory": "Naming & comments (advisory)",
+    "dep_health": "Dependency health",
+    "git_history": "Git history",
+}
 
 
 def default_registry() -> AnalyzerRegistry:
-    return AnalyzerRegistry(cls() for cls in ANALYZER_CLASSES)
+    from app.config import get_settings
+
+    classes = ANALYZER_CLASSES
+    if get_settings().experimental_signals_enabled:
+        classes = (*classes, *experimental_classes())
+    return AnalyzerRegistry(cls() for cls in classes)

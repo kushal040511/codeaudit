@@ -314,6 +314,21 @@ The dependencies score of 100 is a real assessment. CodeAudit commits `uv.lock` 
 
 ---
 
+## 7. Experimental signals (rubric 1.1.0)
+
+Five candidate signals were tested against the same labels: error handling, dependency health, git history, CI substance and test quality. Every one is flag-gated and off. Full write-up: [signals.md](signals.md).
+
+| | Overall ρ (baseline 0.66) | Paired Δ 95% CI | Verdict |
+|---|---|---|---|
+| Error handling | 0.59 | −0.26 … +0.08 | drop |
+| CI substance | 0.56 (in architecture) | −0.35 … +0.07 | drop |
+| Git history, without recency/activity | 0.73 | 0.00 … +0.20 | candidate |
+| Test quality | 0.70 (code health, same 13 repos: 0.34 → 0.74) | −0.15 … +0.23 | candidate |
+| Dependency health | 0.71 | 0.00 … +0.16 | borderline |
+
+- **Best subset:** 0.81 in sample, but it fails an out-of-bag re-selection check (it beats the baseline in 54% of resamples).
+- **Fitted dimension weights:** they overfit (leave-one-out 0.46 vs hand-picked 0.66), and give architecture zero weight.
+
 ## What I would do with more time
 
 1. **A held-out rubric set with more than one labeller.** 40+ repositories, labelled blind to project names by two or three people from a written rubric, with inter-rater agreement (Krippendorff's α). E1, E3, E4 and damping exponent 1.0 should be tested there before any of them ships as v1.1.

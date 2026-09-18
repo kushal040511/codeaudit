@@ -3,6 +3,16 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class DeductionRead(BaseModel):
+    """One experimental signal applied to a category (rubric 1.1.0)."""
+
+    signal: str | None  # None: the signal was enabled but didn't apply (label says why)
+    label: str
+    signal_score: float | None = None  # 0-1, 1 = best
+    penalty: float | None = None
+    points: float  # category points lost, in order of application
+
+
 class CategoryScoreRead(BaseModel):
     category: str
     label: str
@@ -12,12 +22,14 @@ class CategoryScoreRead(BaseModel):
     finding_count: int
     excluded_reason: str | None
     rationale: list[str]
+    deductions: list[DeductionRead] = []  # absent in scores stored before rubric 1.1.0
 
 
 class ScoreRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     rubric_version: str
+    rubric_config: str = "base"  # experimental signals scored; "base" = none
     overall: float | None
     grade: str | None
     incomplete: bool

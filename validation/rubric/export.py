@@ -9,8 +9,10 @@ contains no source code. Run inside the worker container:
         < scans.jsonl > findings.jsonl        # see README.md for the exact command
 """
 
+import hashlib
 import json
 import os
+import re
 import sys
 import uuid
 
@@ -21,6 +23,24 @@ from app.models import Finding, Scan
 from app.models.architecture import ArchitectureIssue, ArchitectureSummary
 from app.services.scoring.service import context_for_scan
 from sqlalchemy import select
+
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def redact(value: object) -> object:
+    """Replace e-mail addresses (git authors) with a stable hash before they're committed."""
+
+    def sub(text: str) -> str:
+        return EMAIL.sub(
+            lambda m: "author-" + hashlib.sha256(m.group(0).lower().encode()).hexdigest()[:10], text
+        )
+
+    if isinstance(value, dict):
+        return {sub(k) if isinstance(k, str) else k: redact(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact(v) for v in value]
+    return sub(value) if isinstance(value, str) else value
+
 
 scans = [json.loads(line) for line in os.environ["SCANS_JSONL"].splitlines() if line.strip()]
 with SessionLocal() as db:
@@ -83,6 +103,9 @@ with SessionLocal() as db:
                         if db.get(ArchitectureSummary, scan.id)
                         else None
                     ),
+                    # Experimental rubric-1.1 signals as stored (SignalReport.as_dict()).
+                    "signals": redact(scan.signal_metrics or {}),
+                    "advisory_metrics": scan.advisory_metrics,
                     "cycle_components": [
                         {"size": len(c["modules"]), "cycles": len(c["severities"]),
                          "severity": "error" if "error" in c["severities"] else c["severities"][0]}

@@ -222,6 +222,38 @@ class Settings(BaseSettings):
     # Runs in a child process of the worker (tree-sitter parsing, no sandbox container).
     architecture_timeout_seconds: int = 300
 
+    # --- Experimental signals (rubric 1.1.0) ---
+    # Collect the experimental signals (error handling, dependency health, git history,
+    # CI, test quality, advisory naming/comment metrics). Collecting never changes the
+    # score; each signal only affects it when its RUBRIC_SIGNAL_* flag is on as well.
+    experimental_signals_enabled: bool = False
+    rubric_signal_error_handling: bool = False
+    rubric_signal_dep_health: bool = False
+    rubric_signal_git_history: bool = False
+    rubric_signal_ci_quality: bool = False
+    rubric_signal_test_quality: bool = False
+    # Score git history and CI in their own "process" dimension instead of architecture.
+    rubric_process_dimension: bool = False
+    # Where dependency health's supply-chain part (count, freshness, depth, trivial
+    # packages) is scored: "dependencies" or "security". Unused/phantom dependencies
+    # always go to architecture.
+    rubric_dep_health_target: str = "dependencies"
+    experimental_timeout_seconds: int = 180
+    # Commits fetched for URL scans (the clone was --depth 1). 0 disables history.
+    git_history_depth: int = 200
+    # Package registry lookups for dependency freshness and size (PyPI, npm).
+    dep_health_registry_enabled: bool = True
+    dep_health_registry_timeout_seconds: float = 5.0
+    dep_health_registry_cache_hours: int = 72
+    dep_health_max_registry_lookups: int = 150
+    # Direct (runtime + dev) dependency count considered normal per ecosystem: the
+    # median over the rubric study's repositories that have a manifest (13 PyPI, 8 npm),
+    # computed without labels. See docs/signals.md.
+    dep_health_baseline_pypi: int = 23
+    dep_health_baseline_npm: int = 44
+    # A direct dependency is "trivial" below this unpacked size (npm) / wheel size (PyPI).
+    dep_health_trivial_bytes: int = 4096
+
     @property
     def max_upload_bytes(self) -> int:
         return self.max_upload_size_mb * MB

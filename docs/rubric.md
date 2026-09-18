@@ -72,6 +72,14 @@ Tests are in [`tests/unit/scoring/`](../backend/tests/unit/scoring/); all 25 pas
 
 Architecture findings are excluded; the architecture review covers them. The fixes CodeAudit suggests are therefore the ones worth the most points.
 
+## Rubric 1.1.0: experimental signals (all off)
+
+`RUBRIC_VERSION` is 1.1.0. It adds five flag-gated signals. Each adds one deduction line to its dimension:
+
+`penalty = half-life × (1 − signal score)`
+
+There's also an optional *Process* dimension. **With every flag off, which is the default, 1.1.0 scores exactly like 1.0.** The configuration used is stored with each score (`rubric_config`). Measurements and verdicts are in [signals.md](signals.md).
+
 ## Where the weights came from
 
 The weights, half-lives and curve are **hand-set priors**. They were chosen to make the property tests and the fixture benchmark hold, and tuned on two real scans (pydantic and the vulnerable polyglot fixture). **They were not fitted to labelled data.** The first external check was the pre-registered 20-repository study on 2026-09-18; see below.

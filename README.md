@@ -66,6 +66,7 @@ flowchart LR
 - [docs/architecture.md](docs/architecture.md): the full system diagram, the scan lifecycle sequence, and a map of the components to the code.
 - [docs/adr/](docs/adr/): why Semgrep's rules instead of a custom taint engine, why a module-level graph, why per-analyzer failure isolation, why PRs need explicit confirmation.
 - [docs/rubric.md](docs/rubric.md): the scoring method in full, including weights, normalisation and curves.
+- [docs/signals.md](docs/signals.md): the rubric 1.1.0 signal experiment, covering what was tried, what it measured and what to drop.
 - [docs/security.md](docs/security.md): the threat model, covering untrusted code, SSRF, tokens, the LLM and multi-tenancy.
 - [docs/reference.md](docs/reference.md): analyzers, the API, configuration, deployment and operations.
 
@@ -85,6 +86,7 @@ These are stated up front rather than left for someone to discover.
 - **Examples and docs count as production code:** Express's `examples/` alone drove its security score to 38.
 - **Weights are hand-set priors.** Sensitivity analysis shows the ranking depends far more on *counting* choices (repeat damping, what counts as test code) than on the 40/20/20/20 weights.
 - **Not a benchmark.** Scores are comparable only within a rubric version, and only between complete scans.
+- **Experimental signals are off.** Rubric 1.1.0 adds error handling, dependency health, git history, CI and test-quality signals behind flags. None of them clearly improves ranking at n = 20. Error handling and CI made it worse. See [docs/signals.md](docs/signals.md).
 
 **The LLM**
 - **Local 7B model:** it produces an applicable patch 14.5% of the time, and 2–4% for code-level security fixes (Semgrep 1/63, Bandit 1/27). About half of the failures (65 of 124) aren't diffs at all. The validator catches them, and they're shown as "not verified", never offered as fixes.

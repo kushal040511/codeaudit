@@ -1,0 +1,5 @@
+# Runtime dependencies
+requests==2.31.0
+PyYAML>=6.0
+flask>=2.0,<3
+boto3==1.28.0  # declared, never imported
