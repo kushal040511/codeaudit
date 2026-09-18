@@ -300,7 +300,17 @@ Every scan produced identical findings. CPU is the bottleneck (Semgrep): doublin
 
 ## 6. CodeAudit on itself
 
-> **SELF_SCAN_PENDING**
+[`scripts/selfscan.py`](../scripts/selfscan.py) archives the committed tree (`git archive`), drops the intentionally vulnerable `backend/tests/fixtures/` and `demo/sample-repo/`, and scans it through the API. Output: [`docs/self-scan.json`](self-scan.json).
+
+| | 2026-09-17 (after hardening, [security-review.md](security-review.md)) | 2026-09-18 at `38b63f3` |
+|---|---|---|
+| Overall | 78.5 (C) | **74.6 (C)** |
+| Security / Dependencies / Architecture / Code health | 52.0 / 100 / 88.7 / 99.7 | 42.6 / 100 / 88.6 / 99.2 |
+| Findings: critical / error / warning / info | 0 / 0 / 49 / 1,259 | 0 / 0 / 67 / 1,322 |
+
+**Why it dropped.** This commit added the validation, load-test and demo scripts. They call the local API with `urllib` on built URLs (Semgrep `dynamic-urllib-use-detected`, Bandit B310) and shell out to `gh`/`git`/`docker`. They account for 7 of the 8 Semgrep and 7 of the 8 Bandit urllib warnings; the eighth of each is the GitHub Action. Rescored without `scripts/` and `validation/`, the same scan gives **79.0** (security 52.9), in line with the day before. That is diagnosis #3 again: developer tooling is scored as production code.
+
+The dependencies score of 100 is a real assessment. CodeAudit commits `uv.lock` and `package-lock.json`, and OSV-Scanner found no advisories in either.
 
 ---
 
