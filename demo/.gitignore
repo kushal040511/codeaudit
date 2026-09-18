@@ -1,0 +1,3 @@
+snapshot/
+# Contains a live phishing URL once seeded.
+state.json

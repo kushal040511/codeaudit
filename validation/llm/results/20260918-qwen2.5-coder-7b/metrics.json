@@ -1,0 +1,277 @@
+{
+  "architecture_reviews": {
+    "citations_invalid": 0,
+    "citations_total": 56,
+    "completed": 6,
+    "edge_claims_rejected": 0,
+    "evidence_rejected": 0,
+    "evidence_total": 38,
+    "issues_dropped": 0,
+    "issues_kept": 9,
+    "pooled_hallucination_rate": 0.0,
+    "rejected_evidence_rate": 0.0,
+    "reviews": [
+      {
+        "citations_invalid": 0,
+        "citations_total": 0,
+        "edge_claims_rejected": 0,
+        "error": "Unusable model output after one correction attempt: invalid JSON: Expecting value at line 1 column 1",
+        "evidence_rejected": 0,
+        "evidence_total": 0,
+        "hallucination_rate": null,
+        "issues_dropped": 0,
+        "issues_kept": 0,
+        "repo": "adeyosemanputra/pygoat",
+        "status": "failed",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 0,
+        "edge_claims_rejected": 0,
+        "error": "Unusable model output after one correction attempt: invalid JSON: Expecting value at line 1 column 1",
+        "evidence_rejected": 0,
+        "evidence_total": 0,
+        "hallucination_rate": null,
+        "issues_dropped": 0,
+        "issues_kept": 0,
+        "repo": "anxolerd/dvpwa",
+        "status": "failed",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 4,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 4,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 1,
+        "repo": "we45/Vulnerable-Flask-App",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 7,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 7,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 2,
+        "repo": "appsecco/dvna",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 3,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 3,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 1,
+        "repo": "OWASP/NodeGoat",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 0,
+        "edge_claims_rejected": 0,
+        "error": "Unusable model output after one correction attempt: invalid JSON: Expecting value at line 1 column 1",
+        "evidence_rejected": 0,
+        "evidence_total": 0,
+        "hallucination_rate": null,
+        "issues_dropped": 0,
+        "issues_kept": 0,
+        "repo": "gothinkster/flask-realworld-example-app",
+        "status": "failed",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 9,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 7,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 2,
+        "repo": "gothinkster/django-realworld-example-app",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 28,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 14,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 1,
+        "repo": "miguelgrinberg/microblog",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 5,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 3,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 2,
+        "repo": "mjhea0/flaskr-tdd",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      }
+    ],
+    "unverified_prose_mentions": 0
+  },
+  "fix_suggestions": {
+    "by_analyzer": {
+      "bandit": {
+        "failed_to_apply": 26,
+        "no_patch": 9,
+        "not_validated": 4,
+        "valid": 1
+      },
+      "dependency": {
+        "failed_to_apply": 21,
+        "not_validated": 1,
+        "valid": 17
+      },
+      "ruff": {
+        "failed_to_apply": 15,
+        "no_patch": 3,
+        "not_validated": 6,
+        "valid": 2
+      },
+      "semgrep": {
+        "failed_to_apply": 62,
+        "no_patch": 2,
+        "not_validated": 1,
+        "valid": 1
+      }
+    },
+    "by_extension": {
+      "html": {
+        "failed_to_apply": 8,
+        "no_patch": 2
+      },
+      "ipynb": {
+        "no_patch": 1
+      },
+      "js": {
+        "failed_to_apply": 22,
+        "not_validated": 1,
+        "valid": 1
+      },
+      "json": {
+        "failed_to_apply": 4,
+        "not_validated": 1
+      },
+      "key": {
+        "failed_to_apply": 1
+      },
+      "lock": {
+        "failed_to_apply": 3
+      },
+      "py": {
+        "failed_to_apply": 72,
+        "no_patch": 11,
+        "not_validated": 10,
+        "valid": 3
+      },
+      "txt": {
+        "failed_to_apply": 14,
+        "valid": 17
+      }
+    },
+    "by_repo": {
+      "OWASP/NodeGoat": {
+        "failed_to_apply": 19,
+        "not_validated": 1
+      },
+      "adeyosemanputra/pygoat": {
+        "failed_to_apply": 18,
+        "no_patch": 1,
+        "not_validated": 1
+      },
+      "anxolerd/dvpwa": {
+        "failed_to_apply": 11,
+        "no_patch": 2,
+        "not_validated": 5,
+        "valid": 2
+      },
+      "appsecco/dvna": {
+        "failed_to_apply": 9,
+        "not_validated": 1,
+        "valid": 1
+      },
+      "gothinkster/django-realworld-example-app": {
+        "failed_to_apply": 10,
+        "valid": 10
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "failed_to_apply": 18,
+        "no_patch": 1,
+        "valid": 1
+      },
+      "miguelgrinberg/microblog": {
+        "failed_to_apply": 18,
+        "no_patch": 2
+      },
+      "mjhea0/flaskr-tdd": {
+        "failed_to_apply": 7,
+        "no_patch": 8,
+        "valid": 5
+      },
+      "we45/Vulnerable-Flask-App": {
+        "failed_to_apply": 14,
+        "not_validated": 4,
+        "valid": 2
+      }
+    },
+    "by_status": {
+      "failed_to_apply": 124,
+      "no_patch": 14,
+      "not_validated": 12,
+      "valid": 21
+    },
+    "failure_reasons": {
+      "context does not match the file": 42,
+      "corrupt patch": 13,
+      "not a unified diff": 65,
+      "touches a file it may not": 4
+    },
+    "pass_rate_of_all": 0.12280701754385964,
+    "pass_rate_of_patches": 0.14482758620689656,
+    "total": 171,
+    "valid": 21,
+    "with_patch": 145
+  },
+  "llm_calls": {
+    "failed": 18,
+    "fix_call_latency_s_p50": 11.157,
+    "fix_call_latency_s_p95": 32.37380000000001,
+    "output_tokens_median": 324,
+    "total": 131
+  },
+  "models": [
+    "ollama/qwen2.5-coder:7b"
+  ],
+  "scans": 9
+}

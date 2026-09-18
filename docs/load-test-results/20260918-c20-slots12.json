@@ -1,0 +1,803 @@
+{
+  "summary": {
+    "label": "20 concurrent, 12 sandbox slots, worker concurrency 8",
+    "zip_bytes": 10923649,
+    "concurrency": 20,
+    "completed": 20,
+    "not_completed": 0,
+    "statuses": [
+      "completed"
+    ],
+    "wall_clock_s": 49.2,
+    "scans_per_minute": 24.4,
+    "end_to_end_s": {
+      "p50": 38.17,
+      "p95": 48.23
+    },
+    "queued_s": {
+      "p50": 19.08,
+      "p95": 36.56
+    },
+    "running_s": {
+      "p50": 18.81,
+      "p95": 20.8
+    },
+    "upload_s": {
+      "p50": 1.04,
+      "max": 1.32
+    },
+    "analyzer_s": {
+      "architecture": {
+        "p50": 1.53,
+        "p95": 2.04
+      },
+      "bandit": {
+        "p50": 3.1,
+        "p95": 5.99
+      },
+      "dependency": {
+        "p50": 0.88,
+        "p95": 4.04
+      },
+      "ruff": {
+        "p50": 0.66,
+        "p95": 4.36
+      },
+      "semgrep": {
+        "p50": 17.55,
+        "p95": 19.49
+      }
+    },
+    "identical_findings": true,
+    "peak_cpu_percent": 1259.5,
+    "peak_mem_mib": 4825.8,
+    "findings_by_severity": {
+      "critical": 0,
+      "error": 1,
+      "info": 2359,
+      "warning": 176
+    }
+  },
+  "runs": [
+    {
+      "scan_id": "2e196d1d-7888-4c5f-8629-0ef277205dd7",
+      "status": "completed",
+      "upload_s": 0.78,
+      "end_to_end_s": 21.35,
+      "queued_s": 0.16,
+      "running_s": 19.72,
+      "finished_at_s": 21.35,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 18300
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2754
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 650
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 1474
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1606
+        }
+      }
+    },
+    {
+      "scan_id": "c844f331-520a-436d-b44c-2fbd2ca6d503",
+      "status": "completed",
+      "upload_s": 0.81,
+      "end_to_end_s": 21.27,
+      "queued_s": 0.15,
+      "running_s": 19.77,
+      "finished_at_s": 21.27,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 18316
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3462
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 1271
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 1428
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1549
+        }
+      }
+    },
+    {
+      "scan_id": "6ac7cdab-31af-4f79-8dba-4051d603ac2e",
+      "status": "completed",
+      "upload_s": 1.1,
+      "end_to_end_s": 38.71,
+      "queued_s": 19.42,
+      "running_s": 17.36,
+      "finished_at_s": 38.71,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 16233
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3069
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 715
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 658
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1979
+        }
+      }
+    },
+    {
+      "scan_id": "b95efdbd-8560-403a-babc-a56256aab415",
+      "status": "completed",
+      "upload_s": 1.3,
+      "end_to_end_s": 41.1,
+      "queued_s": 19.58,
+      "running_s": 19.23,
+      "finished_at_s": 41.11,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 17948
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3489
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 919
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 983
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 2014
+        }
+      }
+    },
+    {
+      "scan_id": "f1e8156a-223b-44ff-84e0-1f3c034870d0",
+      "status": "completed",
+      "upload_s": 1.18,
+      "end_to_end_s": 41.74,
+      "queued_s": 19.54,
+      "running_s": 20.8,
+      "finished_at_s": 41.76,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 19747
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 5902
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 4286
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 1835
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 2449
+        }
+      }
+    },
+    {
+      "scan_id": "3ecf3d1a-d819-4abf-a32a-f895e6ab0e22",
+      "status": "completed",
+      "upload_s": 0.7,
+      "end_to_end_s": 20.1,
+      "queued_s": 0.06,
+      "running_s": 18.79,
+      "finished_at_s": 20.11,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 17478
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2649
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 667
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 714
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1393
+        }
+      }
+    },
+    {
+      "scan_id": "e14c1aad-7a0d-40bc-a6ca-8982e3b1f112",
+      "status": "completed",
+      "upload_s": 1.3,
+      "end_to_end_s": 40.08,
+      "queued_s": 20.52,
+      "running_s": 17.85,
+      "finished_at_s": 40.1,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 16250
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3227
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 648
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 952
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1973
+        }
+      }
+    },
+    {
+      "scan_id": "56fae920-65f9-448a-9918-5679bdb58877",
+      "status": "completed",
+      "upload_s": 0.72,
+      "end_to_end_s": 19.1,
+      "queued_s": 0.12,
+      "running_s": 17.71,
+      "finished_at_s": 19.11,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 16701
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2862
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 638
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 675
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1387
+        }
+      }
+    },
+    {
+      "scan_id": "0d3dca22-fb27-4269-9dbc-485243a956eb",
+      "status": "completed",
+      "upload_s": 0.78,
+      "end_to_end_s": 21.33,
+      "queued_s": 0.14,
+      "running_s": 19.59,
+      "finished_at_s": 21.35,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 18110
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2791
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 571
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 1457
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1254
+        }
+      }
+    },
+    {
+      "scan_id": "a5277a7d-588d-4290-be7e-6cf3c0b12593",
+      "status": "completed",
+      "upload_s": 1.0,
+      "end_to_end_s": 37.63,
+      "queued_s": 18.74,
+      "running_s": 17.72,
+      "finished_at_s": 37.65,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 16758
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2799
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 483
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 521
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1589
+        }
+      }
+    },
+    {
+      "scan_id": "26d6e876-6782-4935-abb4-60dda04d91aa",
+      "status": "completed",
+      "upload_s": 1.29,
+      "end_to_end_s": 48.18,
+      "queued_s": 35.99,
+      "running_s": 10.22,
+      "finished_at_s": 48.2,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 9031
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2795
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 465
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 481
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1583
+        }
+      }
+    },
+    {
+      "scan_id": "31d81ad8-646e-4009-9579-6e0777ffe28a",
+      "status": "completed",
+      "upload_s": 0.81,
+      "end_to_end_s": 21.33,
+      "queued_s": 0.15,
+      "running_s": 19.77,
+      "finished_at_s": 21.35,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 18151
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 4144
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 2640
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 3908
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1239
+        }
+      }
+    },
+    {
+      "scan_id": "606cebf7-1f57-48c7-a528-3e41c5f13486",
+      "status": "completed",
+      "upload_s": 0.84,
+      "end_to_end_s": 37.61,
+      "queued_s": 17.78,
+      "running_s": 18.83,
+      "finished_at_s": 37.64,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 17831
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2811
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 435
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 610
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1502
+        }
+      }
+    },
+    {
+      "scan_id": "85a3dc62-b2f3-4927-9f52-982456ed528c",
+      "status": "completed",
+      "upload_s": 1.28,
+      "end_to_end_s": 48.13,
+      "queued_s": 36.04,
+      "running_s": 10.58,
+      "finished_at_s": 48.16,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 9559
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2629
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 565
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 544
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1512
+        }
+      }
+    },
+    {
+      "scan_id": "f38643d8-3093-423c-9823-7c22fce5ea33",
+      "status": "completed",
+      "upload_s": 1.09,
+      "end_to_end_s": 39.7,
+      "queued_s": 19.54,
+      "running_s": 18.35,
+      "finished_at_s": 39.73,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 17201
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3135
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 540
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 633
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1928
+        }
+      }
+    },
+    {
+      "scan_id": "7fc46741-8e86-4197-870e-2957844533f4",
+      "status": "completed",
+      "upload_s": 1.32,
+      "end_to_end_s": 49.17,
+      "queued_s": 37.61,
+      "running_s": 9.37,
+      "finished_at_s": 49.22,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 8325
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 2476
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 658
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 684
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1109
+        }
+      }
+    },
+    {
+      "scan_id": "299577d8-bcd5-4900-ac82-8870da8f478b",
+      "status": "completed",
+      "upload_s": 1.24,
+      "end_to_end_s": 39.86,
+      "queued_s": 19.46,
+      "running_s": 18.95,
+      "finished_at_s": 39.9,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 17613
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 5160
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 1302
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 2949
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1843
+        }
+      }
+    },
+    {
+      "scan_id": "d5192f2e-2549-4b38-a0c4-b913e8dc4183",
+      "status": "completed",
+      "upload_s": 0.8,
+      "end_to_end_s": 21.33,
+      "queued_s": 0.15,
+      "running_s": 19.99,
+      "finished_at_s": 21.37,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 18613
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 5823
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 3895
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 3948
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1096
+        }
+      }
+    },
+    {
+      "scan_id": "8f2c354b-11db-4f6c-bc6d-88ad04efa385",
+      "status": "completed",
+      "upload_s": 0.8,
+      "end_to_end_s": 22.34,
+      "queued_s": 0.17,
+      "running_s": 20.86,
+      "finished_at_s": 22.39,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 19481
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 7586
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 5769
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 5766
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1106
+        }
+      }
+    },
+    {
+      "scan_id": "4e532a0b-d14a-4950-a103-fc51a645f0d3",
+      "status": "completed",
+      "upload_s": 1.31,
+      "end_to_end_s": 48.14,
+      "queued_s": 36.51,
+      "running_s": 10.23,
+      "finished_at_s": 48.2,
+      "findings": {
+        "critical": 0,
+        "error": 1,
+        "warning": 176,
+        "info": 2359
+      },
+      "analyzers": {
+        "semgrep": {
+          "status": "completed",
+          "duration_ms": 9130
+        },
+        "bandit": {
+          "status": "completed",
+          "duration_ms": 3129
+        },
+        "ruff": {
+          "status": "completed",
+          "duration_ms": 690
+        },
+        "dependency": {
+          "status": "completed",
+          "duration_ms": 806
+        },
+        "architecture": {
+          "status": "completed",
+          "duration_ms": 1466
+        }
+      }
+    }
+  ]
+}

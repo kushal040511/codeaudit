@@ -1,0 +1,3323 @@
+{
+  "by_group": {
+    "mature": {
+      "architecture": {
+        "n": 9,
+        "rho": -0.1304484830218009
+      },
+      "code_health": {
+        "n": 6,
+        "rho": 0.8280786712108252
+      },
+      "dependencies": {
+        "n": 9,
+        "rho": 0.0
+      },
+      "overall": {
+        "n": 9,
+        "rho": 0.41079191812887456
+      },
+      "security": {
+        "n": 9,
+        "rho": -0.5175491695067657
+      }
+    },
+    "tutorial": {
+      "architecture": {
+        "n": 5,
+        "rho": -0.7826237921249264
+      },
+      "code_health": {
+        "n": 4,
+        "rho": -0.2581988897471611
+      },
+      "dependencies": {
+        "n": 5,
+        "rho": 0.0
+      },
+      "overall": {
+        "n": 5,
+        "rho": -0.31622776601683794
+      },
+      "security": {
+        "n": 5,
+        "rho": -0.7071067811865475
+      }
+    },
+    "vulnerable": {
+      "architecture": {
+        "n": 6,
+        "rho": -0.6172133998483678
+      },
+      "code_health": {
+        "n": 3,
+        "rho": 0.5
+      },
+      "dependencies": {
+        "n": 6,
+        "rho": -0.2070196678027063
+      },
+      "overall": {
+        "n": 6,
+        "rho": null
+      },
+      "security": {
+        "n": 6,
+        "rho": null
+      }
+    }
+  },
+  "correlations": {
+    "architecture": {
+      "ci95": [
+        -0.6256034576445735,
+        0.2898918557794138
+      ],
+      "n": 20,
+      "p_one_sided": 0.749250149970006,
+      "rho": -0.15693936904101904
+    },
+    "code_health": {
+      "ci95": [
+        -0.3432394461709914,
+        0.7949647146801272
+      ],
+      "n": 13,
+      "p_one_sided": 0.12337532493501299,
+      "rho": 0.34394992570109195
+    },
+    "dependencies": {
+      "ci95": [
+        -0.03888317963726638,
+        0.8122360318955129
+      ],
+      "n": 20,
+      "p_one_sided": 0.03259348130373925,
+      "rho": 0.42957467187149573
+    },
+    "overall": {
+      "ci95": [
+        0.2966635327861279,
+        0.863441761462629
+      ],
+      "n": 20,
+      "p_one_sided": 0.0013997200559888023,
+      "rho": 0.6627046202743784
+    },
+    "security": {
+      "ci95": [
+        -0.21510747461953017,
+        0.7030143126576143
+      ],
+      "n": 20,
+      "p_one_sided": 0.08258348330333934,
+      "rho": 0.3227775725830252
+    }
+  },
+  "correlations_with_corrections": null,
+  "experiment_scores": {
+    "E1 unpinned dependencies not assessed": {
+      "OWASP/NodeGoat": {
+        "architecture": 97.11769491429452,
+        "code_health": null,
+        "dependencies": 4.922123814753154e-08,
+        "incomplete": false,
+        "overall": 33.1,
+        "security": 17.64904617554843
+      },
+      "adeyosemanputra/pygoat": {
+        "architecture": 95.74561613343697,
+        "code_health": 89.27649575957082,
+        "dependencies": 1.2337147065269985e-05,
+        "incomplete": false,
+        "overall": 37.12,
+        "security": 0.28197011966334073
+      },
+      "anxolerd/dvpwa": {
+        "architecture": 81.92424992371372,
+        "code_health": 95.64063091724363,
+        "dependencies": 0.50133824123551,
+        "incomplete": false,
+        "overall": 68.82,
+        "security": 83.00552455020356
+      },
+      "appsecco/dvna": {
+        "architecture": 97.27459077638028,
+        "code_health": null,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 45.65,
+        "security": 19.842513149602496
+      },
+      "axios/axios": {
+        "architecture": 98.82521430440426,
+        "code_health": null,
+        "dependencies": 8.373295849255182,
+        "incomplete": false,
+        "overall": 75.07,
+        "security": 96.53507547976656
+      },
+      "encode/django-rest-framework": {
+        "architecture": 90.42683213766321,
+        "code_health": 95.24125594827956,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 67.58,
+        "security": 42.326794501222196
+      },
+      "encode/httpx": {
+        "architecture": 96.07713081424983,
+        "code_health": 97.24741709586921,
+        "dependencies": 34.86859165876013,
+        "incomplete": false,
+        "overall": 73.46,
+        "security": 69.55374172885494
+      },
+      "encode/starlette": {
+        "architecture": 100.0,
+        "code_health": 96.06679484936488,
+        "dependencies": 75.78582832551992,
+        "incomplete": false,
+        "overall": 83.03,
+        "security": 71.65118762984402
+      },
+      "excalidraw/excalidraw": {
+        "architecture": 66.6473827843258,
+        "code_health": null,
+        "dependencies": 1.117895249310345e-12,
+        "incomplete": false,
+        "overall": 59.17,
+        "security": 85.00753376106856
+      },
+      "expressjs/express": {
+        "architecture": 100.0,
+        "code_health": null,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 58.76,
+        "security": 38.14399104905396
+      },
+      "fastapi/full-stack-fastapi-template": {
+        "architecture": 88.54965977855099,
+        "code_health": 98.22410996619631,
+        "dependencies": 2.033346649128022,
+        "incomplete": false,
+        "overall": 75.35,
+        "security": 93.97884038065925
+      },
+      "gothinkster/django-realworld-example-app": {
+        "architecture": 96.11759051136595,
+        "code_health": 90.39001989885372,
+        "dependencies": 7.080524283098745,
+        "incomplete": false,
+        "overall": 70.86,
+        "security": 80.36272025237895
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "architecture": 78.68117989053445,
+        "code_health": 98.7905760942851,
+        "dependencies": 0.11251375924941634,
+        "incomplete": false,
+        "overall": 65.36,
+        "security": 74.61008906079185
+      },
+      "gothinkster/node-express-realworld-example-app": {
+        "architecture": 78.03531369953735,
+        "code_health": null,
+        "dependencies": 0.051342163650801936,
+        "incomplete": false,
+        "overall": 69.52,
+        "security": 100.0
+      },
+      "miguelgrinberg/microblog": {
+        "architecture": 52.43904145379491,
+        "code_health": 98.38093447696676,
+        "dependencies": 1.437793204101367,
+        "incomplete": false,
+        "overall": 38.65,
+        "security": 20.505540679372476
+      },
+      "mjhea0/flaskr-tdd": {
+        "architecture": 82.64503181542116,
+        "code_health": 99.72312513520694,
+        "dependencies": 42.33726561812636,
+        "incomplete": false,
+        "overall": 75.97,
+        "security": 77.58170861924445
+      },
+      "pallets/flask": {
+        "architecture": 48.83351395052153,
+        "code_health": 97.4959925540413,
+        "dependencies": 24.31637368530714,
+        "incomplete": false,
+        "overall": 57.64,
+        "security": 58.774452322458195
+      },
+      "psf/requests": {
+        "architecture": 95.03155475329407,
+        "code_health": 92.57461694838797,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 83.88,
+        "security": 65.90834357542819
+      },
+      "snoopysecurity/dvws-node": {
+        "architecture": 85.39115963054311,
+        "code_health": null,
+        "dependencies": 0.07932152308166363,
+        "incomplete": false,
+        "overall": 37.98,
+        "security": 33.22444733860472
+      },
+      "we45/Vulnerable-Flask-App": {
+        "architecture": 98.2820598545251,
+        "code_health": 95.23881569545112,
+        "dependencies": 0.030057236653928614,
+        "incomplete": false,
+        "overall": 43.02,
+        "security": 10.782777552632032
+      }
+    },
+    "E1\u2013E4 combined": {
+      "OWASP/NodeGoat": {
+        "architecture": 97.11769491429452,
+        "code_health": null,
+        "dependencies": 2.6892068022761204e-05,
+        "incomplete": false,
+        "overall": 33.1,
+        "security": 17.64904617554843
+      },
+      "adeyosemanputra/pygoat": {
+        "architecture": 95.74561613343697,
+        "code_health": 89.27649575957082,
+        "dependencies": 0.21225701256811064,
+        "incomplete": false,
+        "overall": 37.16,
+        "security": 0.28197011966334073
+      },
+      "anxolerd/dvpwa": {
+        "architecture": 81.92424992371372,
+        "code_health": 95.64063091724363,
+        "dependencies": 15.876019444279757,
+        "incomplete": false,
+        "overall": 71.89,
+        "security": 83.00552455020356
+      },
+      "appsecco/dvna": {
+        "architecture": 97.27459077638028,
+        "code_health": null,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 45.65,
+        "security": 19.842513149602496
+      },
+      "axios/axios": {
+        "architecture": 98.82521430440426,
+        "code_health": null,
+        "dependencies": 20.29112944271644,
+        "incomplete": false,
+        "overall": 78.05,
+        "security": 96.53507547976656
+      },
+      "encode/django-rest-framework": {
+        "architecture": 95.37130706066749,
+        "code_health": 95.24125594827956,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 68.82,
+        "security": 42.326794501222196
+      },
+      "encode/httpx": {
+        "architecture": 96.07713081424983,
+        "code_health": 97.24741709586921,
+        "dependencies": 52.24479257047204,
+        "incomplete": false,
+        "overall": 78.01,
+        "security": 72.24828400766069
+      },
+      "encode/starlette": {
+        "architecture": 100.0,
+        "code_health": 96.06679484936488,
+        "dependencies": 75.78582832551992,
+        "incomplete": false,
+        "overall": 84.71,
+        "security": 75.85296939476297
+      },
+      "excalidraw/excalidraw": {
+        "architecture": 80.22016738869931,
+        "code_health": null,
+        "dependencies": 4.012940208381433e-06,
+        "incomplete": false,
+        "overall": 62.56,
+        "security": 85.00753376106856
+      },
+      "expressjs/express": {
+        "architecture": 100.0,
+        "code_health": null,
+        "dependencies": null,
+        "incomplete": false,
+        "overall": 88.31,
+        "security": 82.46795520655552
+      },
+      "fastapi/full-stack-fastapi-template": {
+        "architecture": 88.54965977855099,
+        "code_health": 98.22410996619631,
+        "dependencies": 8.330276302204743,
+        "incomplete": false,
+        "overall": 76.61,
+        "security": 93.97884038065925
+      },
+      "gothinkster/django-realworld-example-app": {
+        "architecture": 96.11759051136595,
+        "code_health": 90.39001989885372,
+        "dependencies": 28.18961755413435,
+        "incomplete": false,
+        "overall": 75.08,
+        "security": 80.36272025237895
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "architecture": 85.5869914589029,
+        "code_health": 98.7905760942851,
+        "dependencies": 1.2446391319053576,
+        "incomplete": false,
+        "overall": 66.97,
+        "security": 74.61008906079185
+      },
+      "gothinkster/node-express-realworld-example-app": {
+        "architecture": 78.03531369953735,
+        "code_health": null,
+        "dependencies": 0.9423778915340526,
+        "incomplete": false,
+        "overall": 69.74,
+        "security": 100.0
+      },
+      "miguelgrinberg/microblog": {
+        "architecture": 86.39888672467863,
+        "code_health": 98.38093447696676,
+        "dependencies": 4.706420551227975,
+        "incomplete": false,
+        "overall": 46.1,
+        "security": 20.505540679372476
+      },
+      "mjhea0/flaskr-tdd": {
+        "architecture": 82.64503181542116,
+        "code_health": 99.72312513520694,
+        "dependencies": 48.871431550376585,
+        "incomplete": false,
+        "overall": 77.28,
+        "security": 77.58170861924445
+      },
+      "pallets/flask": {
+        "architecture": 84.11725624777519,
+        "code_health": 97.5536309812757,
+        "dependencies": 73.87149149397254,
+        "incomplete": false,
+        "overall": 74.84,
+        "security": 59.33945823968185
+      },
+      "psf/requests": {
+        "architecture": 95.03155475329407,
+        "code_health": 92.57461694838797,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 87.76,
+        "security": 75.59363803747499
+      },
+      "snoopysecurity/dvws-node": {
+        "architecture": 85.39115963054311,
+        "code_health": null,
+        "dependencies": 1.3601291907524506,
+        "incomplete": false,
+        "overall": 38.3,
+        "security": 33.22444733860472
+      },
+      "we45/Vulnerable-Flask-App": {
+        "architecture": 98.2820598545251,
+        "code_health": 95.23881569545112,
+        "dependencies": 0.8553815873110098,
+        "incomplete": false,
+        "overall": 43.19,
+        "security": 10.782777552632032
+      }
+    },
+    "E2 advisories grouped per package": {
+      "OWASP/NodeGoat": {
+        "architecture": 97.11769491429452,
+        "code_health": null,
+        "dependencies": 2.6892068022761204e-05,
+        "incomplete": false,
+        "overall": 33.1,
+        "security": 17.64904617554843
+      },
+      "adeyosemanputra/pygoat": {
+        "architecture": 95.74561613343697,
+        "code_health": 89.27649575957082,
+        "dependencies": 0.21225701256811064,
+        "incomplete": false,
+        "overall": 37.16,
+        "security": 0.28197011966334073
+      },
+      "anxolerd/dvpwa": {
+        "architecture": 81.92424992371372,
+        "code_health": 95.64063091724363,
+        "dependencies": 15.876019444279757,
+        "incomplete": false,
+        "overall": 71.89,
+        "security": 83.00552455020356
+      },
+      "appsecco/dvna": {
+        "architecture": 97.27459077638028,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 59.24,
+        "security": 19.842513149602496
+      },
+      "axios/axios": {
+        "architecture": 98.82521430440426,
+        "code_health": null,
+        "dependencies": 17.48453420039269,
+        "incomplete": false,
+        "overall": 77.34,
+        "security": 96.53507547976656
+      },
+      "encode/django-rest-framework": {
+        "architecture": 90.42683213766321,
+        "code_health": 95.24125594827956,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 74.06,
+        "security": 42.326794501222196
+      },
+      "encode/httpx": {
+        "architecture": 96.07713081424983,
+        "code_health": 97.24741709586921,
+        "dependencies": 52.24479257047204,
+        "incomplete": false,
+        "overall": 76.94,
+        "security": 69.55374172885494
+      },
+      "encode/starlette": {
+        "architecture": 100.0,
+        "code_health": 96.06679484936488,
+        "dependencies": 75.78582832551992,
+        "incomplete": false,
+        "overall": 83.03,
+        "security": 71.65118762984402
+      },
+      "excalidraw/excalidraw": {
+        "architecture": 66.6473827843258,
+        "code_health": null,
+        "dependencies": 2.4936662079916844e-06,
+        "incomplete": false,
+        "overall": 59.17,
+        "security": 85.00753376106856
+      },
+      "expressjs/express": {
+        "architecture": 100.0,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 69.07,
+        "security": 38.14399104905396
+      },
+      "fastapi/full-stack-fastapi-template": {
+        "architecture": 88.54965977855099,
+        "code_health": 98.22410996619631,
+        "dependencies": 8.330276302204743,
+        "incomplete": false,
+        "overall": 76.61,
+        "security": 93.97884038065925
+      },
+      "gothinkster/django-realworld-example-app": {
+        "architecture": 96.11759051136595,
+        "code_health": 90.39001989885372,
+        "dependencies": 28.18961755413435,
+        "incomplete": false,
+        "overall": 75.08,
+        "security": 80.36272025237895
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "architecture": 78.68117989053445,
+        "code_health": 98.7905760942851,
+        "dependencies": 1.2446391319053576,
+        "incomplete": false,
+        "overall": 65.59,
+        "security": 74.61008906079185
+      },
+      "gothinkster/node-express-realworld-example-app": {
+        "architecture": 78.03531369953735,
+        "code_health": null,
+        "dependencies": 0.9423778915340526,
+        "incomplete": false,
+        "overall": 69.74,
+        "security": 100.0
+      },
+      "miguelgrinberg/microblog": {
+        "architecture": 52.43904145379491,
+        "code_health": 98.38093447696676,
+        "dependencies": 4.706420551227975,
+        "incomplete": false,
+        "overall": 39.31,
+        "security": 20.505540679372476
+      },
+      "mjhea0/flaskr-tdd": {
+        "architecture": 82.64503181542116,
+        "code_health": 99.72312513520694,
+        "dependencies": 48.871431550376585,
+        "incomplete": false,
+        "overall": 77.28,
+        "security": 77.58170861924445
+      },
+      "pallets/flask": {
+        "architecture": 48.83351395052153,
+        "code_health": 97.4959925540413,
+        "dependencies": 38.30084318241793,
+        "incomplete": false,
+        "overall": 60.44,
+        "security": 58.774452322458195
+      },
+      "psf/requests": {
+        "architecture": 95.03155475329407,
+        "code_health": 92.57461694838797,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 83.88,
+        "security": 65.90834357542819
+      },
+      "snoopysecurity/dvws-node": {
+        "architecture": 85.39115963054311,
+        "code_health": null,
+        "dependencies": 1.3601291907524506,
+        "incomplete": false,
+        "overall": 38.3,
+        "security": 33.22444733860472
+      },
+      "we45/Vulnerable-Flask-App": {
+        "architecture": 98.2820598545251,
+        "code_health": 95.23881569545112,
+        "dependencies": 0.8553815873110098,
+        "incomplete": false,
+        "overall": 43.19,
+        "security": 10.782777552632032
+      }
+    },
+    "E3 examples/docs weighted like tests": {
+      "OWASP/NodeGoat": {
+        "architecture": 97.11769491429452,
+        "code_health": null,
+        "dependencies": 4.922123814753154e-08,
+        "incomplete": false,
+        "overall": 33.1,
+        "security": 17.64904617554843
+      },
+      "adeyosemanputra/pygoat": {
+        "architecture": 95.74561613343697,
+        "code_health": 89.27649575957082,
+        "dependencies": 1.2337147065269985e-05,
+        "incomplete": false,
+        "overall": 37.12,
+        "security": 0.28197011966334073
+      },
+      "anxolerd/dvpwa": {
+        "architecture": 81.92424992371372,
+        "code_health": 95.64063091724363,
+        "dependencies": 0.50133824123551,
+        "incomplete": false,
+        "overall": 68.82,
+        "security": 83.00552455020356
+      },
+      "appsecco/dvna": {
+        "architecture": 97.27459077638028,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 59.24,
+        "security": 19.842513149602496
+      },
+      "axios/axios": {
+        "architecture": 98.82521430440426,
+        "code_health": null,
+        "dependencies": 10.223346366695052,
+        "incomplete": false,
+        "overall": 75.53,
+        "security": 96.53507547976656
+      },
+      "encode/django-rest-framework": {
+        "architecture": 90.42683213766321,
+        "code_health": 95.24125594827956,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 74.06,
+        "security": 42.326794501222196
+      },
+      "encode/httpx": {
+        "architecture": 96.07713081424983,
+        "code_health": 97.24741709586921,
+        "dependencies": 34.86859165876013,
+        "incomplete": false,
+        "overall": 74.54,
+        "security": 72.24828400766069
+      },
+      "encode/starlette": {
+        "architecture": 100.0,
+        "code_health": 96.06679484936488,
+        "dependencies": 75.78582832551992,
+        "incomplete": false,
+        "overall": 84.71,
+        "security": 75.85296939476297
+      },
+      "excalidraw/excalidraw": {
+        "architecture": 66.6473827843258,
+        "code_health": null,
+        "dependencies": 8.260118823082071e-12,
+        "incomplete": false,
+        "overall": 59.17,
+        "security": 85.00753376106856
+      },
+      "expressjs/express": {
+        "architecture": 100.0,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 91.23,
+        "security": 82.46795520655552
+      },
+      "fastapi/full-stack-fastapi-template": {
+        "architecture": 88.54965977855099,
+        "code_health": 98.22410996619631,
+        "dependencies": 2.033346649128022,
+        "incomplete": false,
+        "overall": 75.35,
+        "security": 93.97884038065925
+      },
+      "gothinkster/django-realworld-example-app": {
+        "architecture": 96.11759051136595,
+        "code_health": 90.39001989885372,
+        "dependencies": 7.080524283098745,
+        "incomplete": false,
+        "overall": 70.86,
+        "security": 80.36272025237895
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "architecture": 78.68117989053445,
+        "code_health": 98.7905760942851,
+        "dependencies": 0.11251375924941634,
+        "incomplete": false,
+        "overall": 65.36,
+        "security": 74.61008906079185
+      },
+      "gothinkster/node-express-realworld-example-app": {
+        "architecture": 78.03531369953735,
+        "code_health": null,
+        "dependencies": 0.051342163650801936,
+        "incomplete": false,
+        "overall": 69.52,
+        "security": 100.0
+      },
+      "miguelgrinberg/microblog": {
+        "architecture": 52.43904145379491,
+        "code_health": 98.38093447696676,
+        "dependencies": 1.437793204101367,
+        "incomplete": false,
+        "overall": 38.65,
+        "security": 20.505540679372476
+      },
+      "mjhea0/flaskr-tdd": {
+        "architecture": 82.64503181542116,
+        "code_health": 99.72312513520694,
+        "dependencies": 42.33726561812636,
+        "incomplete": false,
+        "overall": 75.97,
+        "security": 77.58170861924445
+      },
+      "pallets/flask": {
+        "architecture": 48.970124209504185,
+        "code_health": 97.5536309812757,
+        "dependencies": 67.45512671698494,
+        "incomplete": false,
+        "overall": 66.53,
+        "security": 59.33945823968185
+      },
+      "psf/requests": {
+        "architecture": 95.03155475329407,
+        "code_health": 92.57461694838797,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 87.76,
+        "security": 75.59363803747499
+      },
+      "snoopysecurity/dvws-node": {
+        "architecture": 85.39115963054311,
+        "code_health": null,
+        "dependencies": 0.07932152308166363,
+        "incomplete": false,
+        "overall": 37.98,
+        "security": 33.22444733860472
+      },
+      "we45/Vulnerable-Flask-App": {
+        "architecture": 98.2820598545251,
+        "code_health": 95.23881569545112,
+        "dependencies": 0.030057236653928614,
+        "incomplete": false,
+        "overall": 43.02,
+        "security": 10.782777552632032
+      }
+    },
+    "E4 cycles counted per component": {
+      "OWASP/NodeGoat": {
+        "architecture": 97.11769491429452,
+        "code_health": null,
+        "dependencies": 4.922123814753154e-08,
+        "incomplete": false,
+        "overall": 33.1,
+        "security": 17.64904617554843
+      },
+      "adeyosemanputra/pygoat": {
+        "architecture": 95.74561613343697,
+        "code_health": 89.27649575957082,
+        "dependencies": 1.2337147065269985e-05,
+        "incomplete": false,
+        "overall": 37.12,
+        "security": 0.28197011966334073
+      },
+      "anxolerd/dvpwa": {
+        "architecture": 81.92424992371372,
+        "code_health": 95.64063091724363,
+        "dependencies": 0.50133824123551,
+        "incomplete": false,
+        "overall": 68.82,
+        "security": 83.00552455020356
+      },
+      "appsecco/dvna": {
+        "architecture": 97.27459077638028,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 59.24,
+        "security": 19.842513149602496
+      },
+      "axios/axios": {
+        "architecture": 98.82521430440426,
+        "code_health": null,
+        "dependencies": 8.373295849255182,
+        "incomplete": false,
+        "overall": 75.07,
+        "security": 96.53507547976656
+      },
+      "encode/django-rest-framework": {
+        "architecture": 95.37130706066749,
+        "code_health": 95.24125594827956,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 75.05,
+        "security": 42.326794501222196
+      },
+      "encode/httpx": {
+        "architecture": 96.07713081424983,
+        "code_health": 97.24741709586921,
+        "dependencies": 34.86859165876013,
+        "incomplete": false,
+        "overall": 73.46,
+        "security": 69.55374172885494
+      },
+      "encode/starlette": {
+        "architecture": 100.0,
+        "code_health": 96.06679484936488,
+        "dependencies": 75.78582832551992,
+        "incomplete": false,
+        "overall": 83.03,
+        "security": 71.65118762984402
+      },
+      "excalidraw/excalidraw": {
+        "architecture": 80.22016738869931,
+        "code_health": null,
+        "dependencies": 1.117895249310345e-12,
+        "incomplete": false,
+        "overall": 62.56,
+        "security": 85.00753376106856
+      },
+      "expressjs/express": {
+        "architecture": 100.0,
+        "code_health": null,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 69.07,
+        "security": 38.14399104905396
+      },
+      "fastapi/full-stack-fastapi-template": {
+        "architecture": 88.54965977855099,
+        "code_health": 98.22410996619631,
+        "dependencies": 2.033346649128022,
+        "incomplete": false,
+        "overall": 75.35,
+        "security": 93.97884038065925
+      },
+      "gothinkster/django-realworld-example-app": {
+        "architecture": 96.11759051136595,
+        "code_health": 90.39001989885372,
+        "dependencies": 7.080524283098745,
+        "incomplete": false,
+        "overall": 70.86,
+        "security": 80.36272025237895
+      },
+      "gothinkster/flask-realworld-example-app": {
+        "architecture": 85.5869914589029,
+        "code_health": 98.7905760942851,
+        "dependencies": 0.11251375924941634,
+        "incomplete": false,
+        "overall": 66.74,
+        "security": 74.61008906079185
+      },
+      "gothinkster/node-express-realworld-example-app": {
+        "architecture": 78.03531369953735,
+        "code_health": null,
+        "dependencies": 0.051342163650801936,
+        "incomplete": false,
+        "overall": 69.52,
+        "security": 100.0
+      },
+      "miguelgrinberg/microblog": {
+        "architecture": 86.39888672467863,
+        "code_health": 98.38093447696676,
+        "dependencies": 1.437793204101367,
+        "incomplete": false,
+        "overall": 45.45,
+        "security": 20.505540679372476
+      },
+      "mjhea0/flaskr-tdd": {
+        "architecture": 82.64503181542116,
+        "code_health": 99.72312513520694,
+        "dependencies": 42.33726561812636,
+        "incomplete": false,
+        "overall": 75.97,
+        "security": 77.58170861924445
+      },
+      "pallets/flask": {
+        "architecture": 84.11725624777519,
+        "code_health": 97.4959925540413,
+        "dependencies": 24.31637368530714,
+        "incomplete": false,
+        "overall": 64.7,
+        "security": 58.774452322458195
+      },
+      "psf/requests": {
+        "architecture": 95.03155475329407,
+        "code_health": 92.57461694838797,
+        "dependencies": 100.0,
+        "incomplete": false,
+        "overall": 83.88,
+        "security": 65.90834357542819
+      },
+      "snoopysecurity/dvws-node": {
+        "architecture": 85.39115963054311,
+        "code_health": null,
+        "dependencies": 0.07932152308166363,
+        "incomplete": false,
+        "overall": 37.98,
+        "security": 33.22444733860472
+      },
+      "we45/Vulnerable-Flask-App": {
+        "architecture": 98.2820598545251,
+        "code_health": 95.23881569545112,
+        "dependencies": 0.030057236653928614,
+        "incomplete": false,
+        "overall": 43.02,
+        "security": 10.782777552632032
+      }
+    }
+  },
+  "experiments": [
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.49145224979568,
+      "experiment": "E1 unpinned dependencies not assessed",
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 17,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6074792352515136,
+      "security": 0.3227775725830252
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.38756829251874797,
+      "experiment": "E2 advisories grouped per package",
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.6579710158438471,
+      "security": 0.3227775725830252
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.4470112821688627,
+      "experiment": "E3 examples/docs weighted like tests",
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7415980274498997,
+      "security": 0.389370032946028
+    },
+    {
+      "architecture": -0.02275620851094776,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "experiment": "E4 cycles counted per component",
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 20,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7163521371537327,
+      "security": 0.3227775725830252
+    },
+    {
+      "architecture": -0.02275620851094776,
+      "ci95": {
+        "architecture": [
+          -0.4905177853011083,
+          0.4078177358256556
+        ],
+        "code_health": [
+          -0.3432394461709914,
+          0.7949647146801272
+        ],
+        "dependencies": [
+          -0.0789340885911503,
+          0.8507147121986192
+        ],
+        "overall": [
+          0.5013431005387435,
+          0.9089143169667107
+        ],
+        "security": [
+          -0.12395569940194653,
+          0.7392811930972719
+        ]
+      },
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.4545296714431548,
+      "experiment": "E1\u2013E4 combined",
+      "inversions": 115,
+      "n": {
+        "architecture": 20,
+        "code_health": 13,
+        "dependencies": 17,
+        "overall": 20,
+        "security": 20
+      },
+      "overall": 0.7778889947506394,
+      "security": 0.389370032946028,
+      "within_group": {
+        "mature": {
+          "architecture": {
+            "n": 9,
+            "rho": -0.04348282767393363
+          },
+          "code_health": {
+            "n": 6,
+            "rho": 0.8280786712108252
+          },
+          "dependencies": {
+            "n": 7,
+            "rho": 0.0
+          },
+          "overall": {
+            "n": 9,
+            "rho": 0.5477225575051661
+          },
+          "security": {
+            "n": 9,
+            "rho": -0.5175491695067657
+          }
+        },
+        "tutorial": {
+          "architecture": {
+            "n": 5,
+            "rho": -0.11180339887498947
+          },
+          "code_health": {
+            "n": 4,
+            "rho": -0.2581988897471611
+          },
+          "dependencies": {
+            "n": 5,
+            "rho": 0.0
+          },
+          "overall": {
+            "n": 5,
+            "rho": -0.31622776601683794
+          },
+          "security": {
+            "n": 5,
+            "rho": -0.7071067811865475
+          }
+        },
+        "vulnerable": {
+          "architecture": {
+            "n": 6,
+            "rho": -0.6172133998483678
+          },
+          "code_health": {
+            "n": 3,
+            "rho": 0.5
+          },
+          "dependencies": {
+            "n": 5,
+            "rho": 0.0
+          },
+          "overall": {
+            "n": 6,
+            "rho": null
+          },
+          "security": {
+            "n": 6,
+            "rho": null
+          }
+        }
+      }
+    }
+  ],
+  "group_medians": {
+    "mature": {
+      "architecture": 95.03155475329407,
+      "code_health": 96.65710597261705,
+      "dependencies": 34.86859165876013,
+      "overall": 74.06,
+      "security": 69.55374172885494
+    },
+    "tutorial": {
+      "architecture": 78.68117989053445,
+      "code_health": 98.58575528562594,
+      "dependencies": 1.437793204101367,
+      "overall": 69.52,
+      "security": 77.58170861924445
+    },
+    "vulnerable": {
+      "architecture": 96.43165552386574,
+      "code_health": 95.23881569545112,
+      "dependencies": 0.05468937986779612,
+      "overall": 40.5,
+      "security": 18.745779662575465
+    }
+  },
+  "inversions": [
+    {
+      "dimension": "security",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        71.7,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        69.6,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        58.8,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        42.3,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        38.1,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        74.6,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        20.5,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "gothinkster/django-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        80.4,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "mjhea0/flaskr-tdd",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        77.6,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "psf/requests",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        65.9,
+        83.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        20.5,
+        33.2
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        71.7,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        71.7,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        71.7,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        71.7,
+        77.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        69.6,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        69.6,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        69.6,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        69.6,
+        77.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        58.8,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        58.8,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        58.8,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        58.8,
+        77.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        42.3,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        42.3,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        42.3,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        42.3,
+        77.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        38.1,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        38.1,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        38.1,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        38.1,
+        77.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "axios/axios",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        96.5,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "psf/requests",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        65.9,
+        74.6
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "psf/requests",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        65.9,
+        100.0
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "psf/requests",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        65.9,
+        80.4
+      ]
+    },
+    {
+      "dimension": "security",
+      "higher_label": "psf/requests",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        65.9,
+        77.6
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        0.0,
+        0.5
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        0.1,
+        0.5
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        75.8,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "encode/httpx",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        34.9,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        24.3,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "axios/axios",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        8.4,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        0.0,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        0.1,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        1.4,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "mjhea0/flaskr-tdd",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        42.3,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        2.0,
+        100.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        0.0,
+        0.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "OWASP/NodeGoat",
+      "scores": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        24.3,
+        42.3
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "axios/axios",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        8.4,
+        42.3
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        0.0,
+        0.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        0.0,
+        0.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "miguelgrinberg/microblog",
+      "scores": [
+        0.0,
+        1.4
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        0.0,
+        7.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        0.0,
+        42.3
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        0.1,
+        0.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        0.1,
+        7.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        1.4,
+        7.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        2.0,
+        7.1
+      ]
+    },
+    {
+      "dimension": "dependencies",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        2.0,
+        42.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        48.8,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        90.4,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        66.6,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        78.7,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        78.0,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        52.4,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "psf/requests",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        95.0,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "adeyosemanputra/pygoat",
+      "scores": [
+        88.5,
+        95.7
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "anxolerd/dvpwa",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        81.9,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "OWASP/NodeGoat",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        97.1,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        96.1,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        48.8,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        90.4,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        66.6,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        78.7,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        78.0,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        52.4,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/django-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        96.1,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "psf/requests",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        95.0,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        88.5,
+        98.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        48.8,
+        81.9
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        96.1,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        48.8,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        90.4,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        66.6,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        78.7,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        78.0,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        52.4,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "psf/requests",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        95.0,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        88.5,
+        97.3
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        48.8,
+        85.4
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        66.6,
+        85.4
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        78.7,
+        85.4
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        78.0,
+        85.4
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "snoopysecurity/dvws-node",
+      "scores": [
+        52.4,
+        85.4
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "OWASP/NodeGoat",
+      "scores": [
+        96.1,
+        97.1
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "OWASP/NodeGoat",
+      "scores": [
+        48.8,
+        97.1
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "OWASP/NodeGoat",
+      "scores": [
+        88.5,
+        97.1
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        96.1,
+        96.1
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        48.8,
+        96.1
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        48.8,
+        82.6
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        66.6,
+        82.6
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/flask-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        78.7,
+        82.6
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "gothinkster/node-express-realworld-example-app",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        78.0,
+        82.6
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        52.4,
+        82.6
+      ]
+    },
+    {
+      "dimension": "architecture",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        88.5,
+        96.1
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "gothinkster/django-realworld-example-app",
+      "labels": [
+        3.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        90.4,
+        95.2
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "psf/requests",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        92.6,
+        95.2
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        96.1,
+        98.8
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "encode/starlette",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        96.1,
+        99.7
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        97.2,
+        98.8
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        97.2,
+        99.7
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        97.5,
+        98.8
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        97.5,
+        99.7
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        98.2,
+        98.8
+      ]
+    },
+    {
+      "dimension": "code_health",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        98.2,
+        99.7
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "we45/Vulnerable-Flask-App",
+      "scores": [
+        38.6,
+        43.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        57.6,
+        68.8
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        59.2,
+        68.8
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "anxolerd/dvpwa",
+      "scores": [
+        38.6,
+        68.8
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        57.6,
+        59.2
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        59.2,
+        59.2
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        1.0
+      ],
+      "lower_label": "appsecco/dvna",
+      "scores": [
+        38.6,
+        59.2
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "encode/httpx",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        73.5,
+        76.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        57.6,
+        65.4
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        57.6,
+        69.5
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        57.6,
+        70.9
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "pallets/flask",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        57.6,
+        76.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "encode/django-rest-framework",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        74.1,
+        76.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "gothinkster/node-express-realworld-example-app",
+      "scores": [
+        69.1,
+        69.5
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        69.1,
+        70.9
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "expressjs/express",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        69.1,
+        76.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "axios/axios",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        75.1,
+        76.0
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        59.2,
+        65.4
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "excalidraw/excalidraw",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        59.2,
+        70.9
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/flask-realworld-example-app",
+      "scores": [
+        38.6,
+        65.4
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "miguelgrinberg/microblog",
+      "labels": [
+        4.0,
+        2.0
+      ],
+      "lower_label": "gothinkster/django-realworld-example-app",
+      "scores": [
+        38.6,
+        70.9
+      ]
+    },
+    {
+      "dimension": "overall",
+      "higher_label": "fastapi/full-stack-fastapi-template",
+      "labels": [
+        5.0,
+        3.0
+      ],
+      "lower_label": "mjhea0/flaskr-tdd",
+      "scores": [
+        75.3,
+        76.0
+      ]
+    }
+  ],
+  "label_corrections": [],
+  "n_scans": 20,
+  "rubric_version": "1.0",
+  "scores": {
+    "OWASP/NodeGoat": {
+      "architecture": 97.11769491429452,
+      "code_health": null,
+      "dependencies": 4.922123814753154e-08,
+      "incomplete": false,
+      "overall": 33.1,
+      "security": 17.64904617554843
+    },
+    "adeyosemanputra/pygoat": {
+      "architecture": 95.74561613343697,
+      "code_health": 89.27649575957082,
+      "dependencies": 1.2337147065269985e-05,
+      "incomplete": false,
+      "overall": 37.12,
+      "security": 0.28197011966334073
+    },
+    "anxolerd/dvpwa": {
+      "architecture": 81.92424992371372,
+      "code_health": 95.64063091724363,
+      "dependencies": 0.50133824123551,
+      "incomplete": false,
+      "overall": 68.82,
+      "security": 83.00552455020356
+    },
+    "appsecco/dvna": {
+      "architecture": 97.27459077638028,
+      "code_health": null,
+      "dependencies": 100.0,
+      "incomplete": false,
+      "overall": 59.24,
+      "security": 19.842513149602496
+    },
+    "axios/axios": {
+      "architecture": 98.82521430440426,
+      "code_health": null,
+      "dependencies": 8.373295849255182,
+      "incomplete": false,
+      "overall": 75.07,
+      "security": 96.53507547976656
+    },
+    "encode/django-rest-framework": {
+      "architecture": 90.42683213766321,
+      "code_health": 95.24125594827956,
+      "dependencies": 100.0,
+      "incomplete": false,
+      "overall": 74.06,
+      "security": 42.326794501222196
+    },
+    "encode/httpx": {
+      "architecture": 96.07713081424983,
+      "code_health": 97.24741709586921,
+      "dependencies": 34.86859165876013,
+      "incomplete": false,
+      "overall": 73.46,
+      "security": 69.55374172885494
+    },
+    "encode/starlette": {
+      "architecture": 100.0,
+      "code_health": 96.06679484936488,
+      "dependencies": 75.78582832551992,
+      "incomplete": false,
+      "overall": 83.03,
+      "security": 71.65118762984402
+    },
+    "excalidraw/excalidraw": {
+      "architecture": 66.6473827843258,
+      "code_health": null,
+      "dependencies": 1.117895249310345e-12,
+      "incomplete": false,
+      "overall": 59.17,
+      "security": 85.00753376106856
+    },
+    "expressjs/express": {
+      "architecture": 100.0,
+      "code_health": null,
+      "dependencies": 100.0,
+      "incomplete": false,
+      "overall": 69.07,
+      "security": 38.14399104905396
+    },
+    "fastapi/full-stack-fastapi-template": {
+      "architecture": 88.54965977855099,
+      "code_health": 98.22410996619631,
+      "dependencies": 2.033346649128022,
+      "incomplete": false,
+      "overall": 75.35,
+      "security": 93.97884038065925
+    },
+    "gothinkster/django-realworld-example-app": {
+      "architecture": 96.11759051136595,
+      "code_health": 90.39001989885372,
+      "dependencies": 7.080524283098745,
+      "incomplete": false,
+      "overall": 70.86,
+      "security": 80.36272025237895
+    },
+    "gothinkster/flask-realworld-example-app": {
+      "architecture": 78.68117989053445,
+      "code_health": 98.7905760942851,
+      "dependencies": 0.11251375924941634,
+      "incomplete": false,
+      "overall": 65.36,
+      "security": 74.61008906079185
+    },
+    "gothinkster/node-express-realworld-example-app": {
+      "architecture": 78.03531369953735,
+      "code_health": null,
+      "dependencies": 0.051342163650801936,
+      "incomplete": false,
+      "overall": 69.52,
+      "security": 100.0
+    },
+    "miguelgrinberg/microblog": {
+      "architecture": 52.43904145379491,
+      "code_health": 98.38093447696676,
+      "dependencies": 1.437793204101367,
+      "incomplete": false,
+      "overall": 38.65,
+      "security": 20.505540679372476
+    },
+    "mjhea0/flaskr-tdd": {
+      "architecture": 82.64503181542116,
+      "code_health": 99.72312513520694,
+      "dependencies": 42.33726561812636,
+      "incomplete": false,
+      "overall": 75.97,
+      "security": 77.58170861924445
+    },
+    "pallets/flask": {
+      "architecture": 48.83351395052153,
+      "code_health": 97.4959925540413,
+      "dependencies": 24.31637368530714,
+      "incomplete": false,
+      "overall": 57.64,
+      "security": 58.774452322458195
+    },
+    "psf/requests": {
+      "architecture": 95.03155475329407,
+      "code_health": 92.57461694838797,
+      "dependencies": 100.0,
+      "incomplete": false,
+      "overall": 83.88,
+      "security": 65.90834357542819
+    },
+    "snoopysecurity/dvws-node": {
+      "architecture": 85.39115963054311,
+      "code_health": null,
+      "dependencies": 0.07932152308166363,
+      "incomplete": false,
+      "overall": 37.98,
+      "security": 33.22444733860472
+    },
+    "we45/Vulnerable-Flask-App": {
+      "architecture": 98.2820598545251,
+      "code_health": 95.23881569545112,
+      "dependencies": 0.030057236653928614,
+      "incomplete": false,
+      "overall": 43.02,
+      "security": 10.782777552632032
+    }
+  },
+  "sensitivity": [
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6027456308209822,
+      "security": 0.3227775725830252,
+      "variant": "security weight \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.616946444112576,
+      "security": 0.3227775725830252,
+      "variant": "security half-life \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6090571033950238,
+      "security": 0.3227775725830252,
+      "variant": "security weight \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6847947742835243,
+      "security": 0.3227775725830252,
+      "variant": "security half-life \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.5806554768118363,
+      "security": 0.3227775725830252,
+      "variant": "dependencies weight \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6705939609919306,
+      "security": 0.3227775725830252,
+      "variant": "dependencies half-life \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6816390379965035,
+      "security": 0.3227775725830252,
+      "variant": "dependencies weight \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6705939609919306,
+      "security": 0.3227775725830252,
+      "variant": "dependencies half-life \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6989955875751181,
+      "security": 0.3227775725830252,
+      "variant": "architecture weight \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6611267521308679,
+      "security": 0.3227775725830252,
+      "variant": "architecture half-life \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6469259388392741,
+      "security": 0.3227775725830252,
+      "variant": "architecture weight \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6784833017094826,
+      "security": 0.3227775725830252,
+      "variant": "architecture half-life \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6658603565613992,
+      "security": 0.3227775725830252,
+      "variant": "code_health weight \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6658603565613992,
+      "security": 0.3227775725830252,
+      "variant": "code_health half-life \u00d70.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6611267521308679,
+      "security": 0.3227775725830252,
+      "variant": "code_health weight \u00d71.5"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6421923344087428,
+      "security": 0.3227775725830252,
+      "variant": "code_health half-life \u00d71.5"
+    },
+    {
+      "architecture": -0.1161351330903541,
+      "code_health": 0.24446027777102405,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.545942377654607,
+      "security": 0.2749876892636938,
+      "variant": "repeat damping exponent 0.5"
+    },
+    {
+      "architecture": -0.16557103433827508,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.732130818588837,
+      "security": 0.3360960646556258,
+      "variant": "repeat damping exponent 1.0"
+    },
+    {
+      "architecture": -0.1789108807067617,
+      "code_health": 0.12507270025494255,
+      "dependencies": 0.40896776879278923,
+      "overall": 0.10098356118466718,
+      "security": -0.2514844679591046,
+      "variant": "no repeat damping (exponent 0)"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.36384785528710556,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.702151323862139,
+      "security": 0.3227775725830252,
+      "variant": "test-path factor 0.05"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.2046644185989969,
+      "dependencies": 0.312273838961936,
+      "overall": 0.6027456308209822,
+      "security": 0.3227775725830252,
+      "variant": "test-path factor 1.0"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6327251255476803,
+      "security": 0.30945908051042464,
+      "variant": "corroboration factor 1.0"
+    },
+    {
+      "architecture": -0.15693936904101904,
+      "code_health": 0.34394992570109195,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.6027456308209822,
+      "security": 0.3227775725830252,
+      "variant": "equal category weights"
+    },
+    {
+      "architecture": 0.0651298381520229,
+      "code_health": 0.2046644185989969,
+      "dependencies": 0.4192712203321425,
+      "overall": 0.6769054335659722,
+      "security": 0.12691739504478175,
+      "variant": "flat severity weights"
+    },
+    {
+      "architecture": -0.28074044356341493,
+      "code_health": -0.14212806847152562,
+      "dependencies": 0.42957467187149573,
+      "overall": 0.35975393672037687,
+      "security": 0.14180276853768825,
+      "variant": "no size normalisation"
+    }
+  ]
+}

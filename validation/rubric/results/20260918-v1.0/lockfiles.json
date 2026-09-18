@@ -1,0 +1,152 @@
+{
+  "OWASP/NodeGoat": {
+    "lockfiles": [
+      "package-lock.json"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "adeyosemanputra/pygoat": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "dockerized_labs/broken_auth_lab/requirements.txt",
+      "dockerized_labs/insec_des_lab/requirements.txt",
+      "dockerized_labs/sensitive_data_exposure/requirements.txt",
+      "requirements.txt"
+    ]
+  },
+  "anxolerd/dvpwa": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "requirements.txt"
+    ]
+  },
+  "appsecco/dvna": {
+    "lockfiles": [],
+    "pinned": false,
+    "pinned_requirements": []
+  },
+  "axios/axios": {
+    "lockfiles": [
+      "docs/package-lock.json",
+      "package-lock.json",
+      "tests/module/cjs/package-lock.json",
+      "tests/module/esm/package-lock.json",
+      "tests/smoke/bun/bun.lock",
+      "tests/smoke/cjs/package-lock.json",
+      "tests/smoke/esm/package-lock.json"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "encode/django-rest-framework": {
+    "lockfiles": [],
+    "pinned": false,
+    "pinned_requirements": []
+  },
+  "encode/httpx": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "requirements.txt"
+    ]
+  },
+  "encode/starlette": {
+    "lockfiles": [
+      "uv.lock"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "excalidraw/excalidraw": {
+    "lockfiles": [
+      "dev-docs/yarn.lock",
+      "examples/with-nextjs/yarn.lock",
+      "yarn.lock"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "expressjs/express": {
+    "lockfiles": [],
+    "pinned": false,
+    "pinned_requirements": []
+  },
+  "fastapi/full-stack-fastapi-template": {
+    "lockfiles": [
+      "bun.lock",
+      "uv.lock"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "gothinkster/django-realworld-example-app": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "requirements.txt"
+    ]
+  },
+  "gothinkster/flask-realworld-example-app": {
+    "lockfiles": [
+      "Pipfile.lock"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "gothinkster/node-express-realworld-example-app": {
+    "lockfiles": [
+      "package-lock.json"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "miguelgrinberg/microblog": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "requirements.txt"
+    ]
+  },
+  "mjhea0/flaskr-tdd": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "requirements.txt"
+    ]
+  },
+  "pallets/flask": {
+    "lockfiles": [
+      "uv.lock"
+    ],
+    "pinned": true,
+    "pinned_requirements": [
+      "examples/celery/requirements.txt"
+    ]
+  },
+  "psf/requests": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "docs/requirements.txt",
+      "requirements-dev.txt"
+    ]
+  },
+  "snoopysecurity/dvws-node": {
+    "lockfiles": [
+      "frontend/package-lock.json",
+      "package-lock.json"
+    ],
+    "pinned": true,
+    "pinned_requirements": []
+  },
+  "we45/Vulnerable-Flask-App": {
+    "lockfiles": [],
+    "pinned": true,
+    "pinned_requirements": [
+      "app/requirements.txt"
+    ]
+  }
+}

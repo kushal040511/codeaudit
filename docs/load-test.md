@@ -1,45 +1,55 @@
 # Load test: 20 concurrent scans
 
-**Date:** 2026-09-17. **Host:** Docker Desktop VM, 14 CPUs and 12.5 GB RAM. Other projects' containers were stopped for the run and restarted afterwards.
-**Stack:** `docker compose` dev stack (one API, one worker with `--concurrency=8`, Postgres, Redis, MinIO). LLM enrichment was off (no API key), so these numbers cover analysis only.
-**Input:** `encode/django-rest-framework` at `main`: a 10.9 MB zip with 758 files (Python, HTML/JS, translations). It was uploaded 20 times at once through `POST /api/scans`, with `SCAN_CACHE_TTL_SECONDS=0` so each upload was analyzed rather than served from the cache. Anonymous quotas were raised for the run.
-**Driver:** a Python script that uploads from 20 threads, polls every scan to a final state, and samples queue length, unacked tasks, sandbox slots, `docker stats` memory and CPU about every 3 s. Worker-side numbers come from the worker's `/metrics`.
+**Regenerated 2026-09-18** with the committed driver [`scripts/loadtest/run.py`](../scripts/loadtest/run.py). Raw per-scan results are in [`docs/load-test-results/`](load-test-results/). The first run (2026-09-17) used a driver that was never committed. Its numbers are kept at the bottom for comparison, and the new run reproduces its conclusions.
+
+## Setup
+
+- **Host:** MacBook, Docker Desktop VM with 14 CPUs and 12.5 GB RAM. Other projects' containers were stopped for the run. Ollama was idle.
+- **Stack:** the dev `docker compose` stack, with one API, one worker at `CELERY_CONCURRENCY=8`, and Postgres, Redis and MinIO.
+- **Measurement override:** LLM enrichment off, `SCAN_CACHE_TTL_SECONDS=0` so every upload is analyzed, and anonymous quotas raised.
+- **Input:** `encode/django-rest-framework` at `b92edf5`, a 10.9 MB zip with 758 files, fetched with `gh api repos/encode/django-rest-framework/zipball/b92edf5…`.
+- **Driver:** uploads the zip from N threads at once and polls every scan to a final state. It samples `docker stats` (summed over all running containers, sandboxes included) about every 2 s.
+
+```sh
+CELERY_CONCURRENCY=8 docker compose -f docker-compose.yml -f measure.override.yml up -d --wait
+python scripts/loadtest/run.py --zip drf.zip --concurrency 1  --out docs/load-test-results/<date>-baseline.json
+python scripts/loadtest/run.py --zip drf.zip --concurrency 20 --out docs/load-test-results/<date>-c20-slots6.json
+# 12 slots: add MAX_CONCURRENT_SANDBOXES=12 to the worker's environment and repeat
+```
 
 ## Results
 
-| | 1 scan (baseline) | 20 concurrent, 6 sandbox slots (default) | 20 concurrent, 12 slots |
+| | 1 scan | 20 concurrent, 6 sandbox slots (default) | 20 concurrent, 12 slots |
 |---|---|---|---|
-| Scans completed / failed | 1 / 0 | **20 / 0** | 20 / 0 |
-| Wall clock for all scans | 7.6 s | **51 s** | 51 s |
-| End-to-end per scan (upload → completed), p50 / p95 | 7.6 s | **33.0 s / 47.1 s** | 39.4 s / 49.4 s |
-| Waiting in the Celery queue, p50 / p95 | 0 | 12.1 s / 34.1 s | — |
-| Running (claimed → completed), p50 / p95 | 7.6 s | 12.1 s / 46.8 s | 20.2 s / 20.9 s |
-| Semgrep run, p50 / p95 | 6.9 s | 10.9 s / 45.6 s | 18.6 s / 19.4 s |
-| Ruff run, p50 / p95 | 0.3 s | 0.7 s / 17.6 s | 0.7 s / 6.0 s |
-| Peak queued tasks / running tasks | 0 / 1 | 12 / 8 | 12 / 8 |
-| Peak sandbox slots held | 1 | **6 (the cap)** | 11 |
-| Sandbox slot wait (sum over all sandbox runs) | 0 | 343 s over 84 runs; 38 got a slot in under 0.5 s, 2 waited 30–60 s | 106 s over 80 runs |
-| Peak memory, all containers (idle baseline 1.65 GB) | 2.1 GB | **4.1 GB** (sandboxes 1.5 GB, worker 1.3 GB) | 5.2 GB |
-| Peak CPU (1400% = 14 cores) | — | 922% | **1256%** |
-| Upload request time, p50 / max | 0.33 s | 1.5 s / 1.9 s | 1.5 s / 1.8 s |
+| Completed / failed | 1 / 0 | **20 / 0** | 20 / 0 |
+| Wall clock for all scans | 7.2 s | **44.4 s** | 49.2 s |
+| Throughput | — | **27.0 scans/min** | 24.4 scans/min |
+| End to end per scan (upload → completed), p50 / p95 | 7.2 s | **30.8 s / 44.4 s** | 38.2 s / 48.2 s |
+| Waiting in the queue, p50 / p95 | 0.03 s | 11.4 s / 30.3 s | 19.1 s / 36.6 s |
+| Running (claimed → completed), p50 / p95 | 6.6 s | 12.5 s / 42.9 s | 18.8 s / 20.8 s |
+| Semgrep run, p50 / p95 | 5.8 s | 11.3 s / 42.0 s | 17.6 s / 19.5 s |
+| Ruff run, p50 / p95 | 0.23 s | 1.4 s / 12.1 s | 0.7 s / 4.4 s |
+| Upload request, p50 / max | 0.13 s | 1.2 s / 1.4 s | 1.0 s / 1.3 s |
+| Peak CPU, all containers (1400% = 14 cores) | 246% | 882% | **1260%** |
+| Peak memory, all containers | 1.7 GB | 3.7 GB | 4.8 GB |
 
-All 20 scans produced identical results: 1 error, 176 warnings, 2,359 info, with every analyzer `completed`. Running concurrently didn't change or drop any findings.
+Every scan in every run produced identical findings: 1 error, 176 warnings and 2,359 info. Concurrency didn't change or drop anything.
 
-## Queue behavior
+## What it shows
 
-The worker ran 8 tasks and 12 waited in Redis (`LLEN celery` peaked at 12, with 8 unacked). Tasks are acknowledged after completion (`acks_late`), one message is fetched at a time, and they drained in order. The last scan waited 34 s before a worker claimed it. Every scan acquired its claim exactly once, with no `duplicate_delivery` skips.
+- **Throughput is limited by CPU, specifically Semgrep.** With the default 6 slots, CPU peaked at 63% of the machine. Doubling the slots to 12 pushed CPU to 90% and made the run *slower* (49.2 s vs 44.4 s): Semgrep's median time rose from 11.3 s to 17.6 s because more containers shared the same cores.
+- **With 6 slots, the queue is the visible bottleneck.** Short analyzers wait for a slot: Ruff normally takes 0.2 s but reached 12.1 s at p95. With 12 slots, analyzers wait less and scans run longer, so the latency moves around but the total doesn't improve.
+- **The right slot count is about `cores ÷ SEMGREP_CPUS`** (14 ÷ 2 = 7), so the default of 6 fits this host. To scale out, add worker VMs. The slot semaphore is global, so raise `MAX_CONCURRENT_SANDBOXES` by the same amount for each VM.
+- **Memory never limited anything:** peak was 4.8 GB of 12.5 GB.
 
-## Container concurrency
+## First run (2026-09-17), for comparison
 
-With the default `MAX_CONCURRENT_SANDBOXES=6`, the Redis semaphore held exactly 6 slots at peak across 8 running scans. Each scan wants up to 4 sandboxes at once, so up to 32 were requested. The rest waited with backoff, which shows up as inflated per-analyzer durations. Ruff normally takes 0.3 s but reached 17.6 s at p95, and that was almost entirely slot wait. No containers were left behind (`docker ps --filter label=codeaudit.sandbox` was empty afterwards), and the reaper had nothing to do.
+The same repository at `main` (identical findings), the same stack settings and an uncommitted driver.
 
-## Memory ceiling
+| | 1 scan | 20 concurrent, 6 slots | 20 concurrent, 12 slots |
+|---|---|---|---|
+| Wall clock | 7.6 s | 51 s | 51 s |
+| End to end p50 / p95 | 7.6 s | 33.0 s / 47.1 s | 39.4 s / 49.4 s |
+| Peak CPU | — | 922% | 1256% |
 
-Peak was 4.1 GB of 12.5 GB with 6 slots and 5.2 GB with 12. Memory was never close to binding. The worst-case per-sandbox limits (Semgrep 2 GB, OSV 2 GB, Bandit 1 GB, Ruff 512 MB, clone 1 GB) cap the theoretical sandbox ceiling at about 6 × 2 GB = 12 GB with 6 slots. Actual Semgrep use on this repo was far below its limit.
-
-## First real bottleneck: CPU, specifically Semgrep
-
-- At 6 slots the queue for sandbox slots is what you see first. CPU was at 66%, so the slots were not yet saturating the machine.
-- Doubling slots to 12 **did not improve throughput**: the wall clock stayed at 51 s. Semgrep's own run time rose from 10.9 s to 18.6 s (p50) and CPU reached 90% of all cores. Semgrep is CPU-bound (`SEMGREP_CPUS=2`), so more parallel Semgrep containers just share the same cores.
-- **Conclusion:** this host's throughput limit is CPU, at about 20 mid-size scans in 51 s (roughly 23 per minute). The right slot count is about `cores ÷ SEMGREP_CPUS` (14 ÷ 2 = 7), so the default of 6 is correctly sized. Scale by adding worker VMs: the slot semaphore is global, so raise `MAX_CONCURRENT_SANDBOXES` by the same amount per VM. Adding Celery concurrency or slots on one host won't help.
-- Next in line: Postgres persist was 11 s total over 21 scans (bulk `INSERT … ON CONFLICT` of about 2,500 findings each), and upload handling (1.5 s p50 under 20 parallel 11 MB uploads) is bounded by the single API process. Neither was close to limiting.
+The rerun is 13% faster in wall clock (44.4 s vs 51 s), with the same shape and the same conclusion. Two runs aren't enough for an error bar. On a laptop, thermal state, Docker Desktop's VM and background load all move these numbers, so treat them as approximate.

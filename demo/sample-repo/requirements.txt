@@ -1,0 +1,5 @@
+flask==2.0.1
+werkzeug==2.0.1
+jinja2==2.11.2
+pyyaml==5.3
+requests==2.19.1
