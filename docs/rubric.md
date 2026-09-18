@@ -23,7 +23,7 @@ Validation results, including where it fails, are summarised at the end and cove
 
 `weight = severity weight × 1.25 if corroborated × 0.2 if in test code`
 
-- **Corroborated** means another analyzer reported the same issue (see *Deduplication* in the README).
+- **Corroborated** means another analyzer reported the same issue (see [Deduplication](reference.md#deduplication) in the reference).
 - **Test code** is matched by path: `tests/`, `__tests__/`, `spec/`, `e2e/`, `test_*.py`, `*_test.py`, `*.test.ts`, `*.spec.js`, `conftest.py`.
 
 **2. Repeat damping, within one rule.** Sort the rule's findings by weight, heaviest first. The i-th finding counts `weight × i^−0.75`. So:
@@ -32,7 +32,7 @@ Validation results, including where it fails, are summarised at the end and cove
 - 100 count about 9.2×
 - 15,000 count about 40.8×
 
-A pattern repeated 500 times is worse than once, but not 500 times worse. For example, pydantic's 14,723 test `assert`s (Bandit B101: info-level at 0.5, in test code at ×0.2) add a raw penalty of about 0.1 × 40.8 ≈ 4. That's less than a single error-level finding (5), or about two warnings. The README and the rubric docstring describe this as "about four real findings", which is loose.
+A pattern repeated 500 times is worse than once, but not 500 times worse. For example, Starlette's 1,776 Bandit B101 `assert` findings are info-level (0.5), and 1,659 of them are in test code (×0.2). Together they add a raw penalty of **6.1** (224 without damping), which is about one error-level finding (5). Source: the rubric study snapshot. The rubric docstring's claim that 15,000 test asserts cost "about four real findings" is loose: 15,000 test asserts come to about 0.1 × 40.8 ≈ 4, about two warnings.
 
 **3. Size normalisation.** The rule penalties are summed, then divided by the size factor.
 - **Security** uses ∛KLOC, capped, because a SQL injection is an absolute risk that a bigger codebase barely dilutes.

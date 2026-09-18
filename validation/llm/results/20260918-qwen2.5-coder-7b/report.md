@@ -51,4 +51,10 @@ Stricter view: 0 of 38 evidence citations were rejected (**0.0%**), of which 0 c
 | mjhea0/flaskr-tdd | ready | 5 | 0 | 0.0% | 0/3 | 2 | 0 |
 | we45/Vulnerable-Flask-App | ready | 4 | 0 | 0.0% | 0/4 | 1 | 0 |
 
+Failed LLM calls by reason:
+
+- invalid_output: schema validation failed: fixes.0.breaking_risk: Field required: 9
+- invalid_output: invalid JSON: Expecting value at line 1 column 1: 8
+- max_tokens: Output hit the 4,096 token limit.: 1
+
 LLM calls: 131 (18 failed). Fix-suggestion call latency p50 11 s, p95 32 s.

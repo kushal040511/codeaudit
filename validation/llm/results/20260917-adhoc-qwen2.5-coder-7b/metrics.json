@@ -1,0 +1,185 @@
+{
+  "architecture_reviews": {
+    "citations_invalid": 0,
+    "citations_total": 52,
+    "completed": 4,
+    "edge_claims_rejected": 0,
+    "evidence_rejected": 0,
+    "evidence_total": 28,
+    "issues_dropped": 1,
+    "issues_kept": 5,
+    "pooled_hallucination_rate": 0.0,
+    "rejected_evidence_rate": 0.0,
+    "reviews": [
+      {
+        "citations_invalid": 0,
+        "citations_total": 1,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 1,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 1,
+        "repo": "adhoc-456fedfa",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 1,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 1,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 1,
+        "issues_kept": 1,
+        "repo": "adhoc-f849c614",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 2,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 2,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 2,
+        "repo": "adhoc-7dea999f",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 48,
+        "edge_claims_rejected": 0,
+        "error": null,
+        "evidence_rejected": 0,
+        "evidence_total": 24,
+        "hallucination_rate": 0.0,
+        "issues_dropped": 0,
+        "issues_kept": 1,
+        "repo": "adhoc-33554202",
+        "status": "ready",
+        "unverified_prose_mentions": 0
+      },
+      {
+        "citations_invalid": 0,
+        "citations_total": 0,
+        "edge_claims_rejected": 0,
+        "error": "Unusable model output after one correction attempt: invalid JSON: Expecting valu",
+        "evidence_rejected": 0,
+        "evidence_total": 0,
+        "hallucination_rate": null,
+        "issues_dropped": 0,
+        "issues_kept": 0,
+        "repo": "adhoc-4ee367b5",
+        "status": "failed",
+        "unverified_prose_mentions": 0
+      }
+    ],
+    "unverified_prose_mentions": 0
+  },
+  "fix_suggestions": {
+    "by_analyzer": {
+      "bandit": {
+        "failed_to_apply": 14,
+        "no_patch": 2,
+        "not_validated": 6,
+        "valid": 3
+      },
+      "dependency": {
+        "failed_to_apply": 23,
+        "valid": 17
+      },
+      "ruff": {
+        "failed_to_apply": 14
+      },
+      "semgrep": {
+        "failed_to_apply": 12,
+        "valid": 3
+      }
+    },
+    "by_extension": {
+      "json": {
+        "failed_to_apply": 20
+      },
+      "py": {
+        "failed_to_apply": 40,
+        "no_patch": 2,
+        "not_validated": 6,
+        "valid": 6
+      },
+      "txt": {
+        "failed_to_apply": 3,
+        "valid": 17
+      }
+    },
+    "by_repo": {
+      "adhoc-33554202": {
+        "failed_to_apply": 18,
+        "valid": 2
+      },
+      "adhoc-456fedfa": {
+        "failed_to_apply": 4,
+        "valid": 4
+      },
+      "adhoc-4ee367b5": {
+        "failed_to_apply": 20
+      },
+      "adhoc-7dea999f": {
+        "failed_to_apply": 14,
+        "no_patch": 1,
+        "not_validated": 5
+      },
+      "adhoc-d0f0997c": {
+        "failed_to_apply": 6,
+        "no_patch": 1,
+        "valid": 13
+      },
+      "adhoc-f849c614": {
+        "failed_to_apply": 1,
+        "not_validated": 1,
+        "valid": 4
+      }
+    },
+    "by_status": {
+      "failed_to_apply": 63,
+      "no_patch": 2,
+      "not_validated": 6,
+      "valid": 23
+    },
+    "failure_reasons": {
+      "context does not match the file": 42,
+      "not a unified diff": 21
+    },
+    "pass_rate_of_all": 0.24468085106382978,
+    "pass_rate_of_patches": 0.26744186046511625,
+    "total": 94,
+    "valid": 23,
+    "with_patch": 86
+  },
+  "llm_calls": {
+    "failed": 6,
+    "failure_reasons": {
+      "None: ": 1,
+      "interrupted: The worker restarted while this request was running.": 1,
+      "invalid_output: invalid JSON: Expecting value at line 1 column 1": 2,
+      "max_tokens: Output hit the 16,000 token limit.": 1,
+      "max_tokens: Output hit the 4,096 token limit.": 1
+    },
+    "fix_call_latency_s_p50": 8.941,
+    "fix_call_latency_s_p95": 18.6734,
+    "output_tokens_median": 310.5,
+    "total": 76
+  },
+  "models": [
+    "ollama/qwen2.5-coder:7b"
+  ],
+  "note": "Ad-hoc scans of the author's other projects (2026-09-17/18, before the controlled run). Citation lists withheld (they name files in those projects); counts only. Reproducible only against the database they were scanned into.",
+  "scans": 6
+}

@@ -20,16 +20,16 @@ Nodes are modules (source files), and edges are imports between them.
 
 Positive:
 
-- Imports are syntactic and explicit in all three languages, so tree-sitter plus path resolution is enough. The README's measured resolution coverage (README, "Architecture graph", **Measured** table, one run each on a MacBook) is 99.6% for pydantic @7b15a78 (454 files, 143k LOC), 99.8% for excalidraw @a918648 (670 files, 186k LOC) and 100% for full-stack-fastapi-template @cb740b6.
-- It's fast enough to run on every scan. The same table reports totals of 1.04 s (pydantic), 1.24 s (excalidraw) and 96 ms (full-stack-fastapi-template) for `analyze_architecture`. Through the whole stack, the README reports the architecture run at 2.1 s including process start-up for pydantic.
+- Imports are syntactic and explicit in all three languages, so tree-sitter plus path resolution is enough. Across the 20 repositories of the rubric study, import resolution coverage was 100% at the median and 95.3% at worst (NodeGoat). Source: [rubric report, *Import resolution coverage*](../../validation/rubric/results/20260918-v1.0/report.md).
+- It's fast enough to run on every scan. In the same study scans, the architecture analyzer took 0.6 s for Flask, 0.8 s for DRF and axios, and 2.0 s for excalidraw (672 modules), including child-process start-up. Source: `analyzer_runs` in [`scans.jsonl`](../../validation/rubric/results/20260918-v1.0/scans.jsonl).
 - Cycles, layering and coupling are defined naturally at module level, and each issue cites concrete import statements. That lets the LLM review's citations be checked against `graph_nodes` and `graph_edges` (`verify_review` in `architect.py`).
 
 Negative:
 
 - No function-level or call-level information. A cycle between two modules isn't broken down into which functions cause it, beyond the import statements.
-- Modules loaded by string (plugins, Celery `include`, framework conventions) have no edge and show up as orphans at info severity (README, "Known limits").
+- Modules loaded by string (plugins, Celery `include`, framework conventions) have no edge and show up as orphans at info severity ([reference.md](../reference.md), "Known limits").
 - Layers are path heuristics (`layers.py`), not derived from call behaviour.
-- Non-literal dynamic imports stay `unresolved`. These account for most of the unresolved imports in the README's measurements.
+- Non-literal dynamic imports stay `unresolved`. They're the most common unresolved reason in the rubric study scans (20 of 45 unresolved imports across the 20 repos).
 
 ## Alternatives considered
 

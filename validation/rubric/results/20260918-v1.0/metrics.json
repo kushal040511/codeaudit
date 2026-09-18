@@ -1118,6 +1118,72 @@
       "security": 18.745779662575465
     }
   },
+  "import_resolution": {
+    "median": 1.0,
+    "min": 0.9531,
+    "per_repo": {
+      "OWASP/NodeGoat": 0.9531,
+      "adeyosemanputra/pygoat": 1.0,
+      "anxolerd/dvpwa": 1.0,
+      "appsecco/dvna": 1.0,
+      "axios/axios": 0.9903,
+      "encode/django-rest-framework": 0.9981,
+      "encode/httpx": 1.0,
+      "encode/starlette": 1.0,
+      "excalidraw/excalidraw": 0.9982,
+      "expressjs/express": 0.9926,
+      "fastapi/full-stack-fastapi-template": 1.0,
+      "gothinkster/django-realworld-example-app": 1.0,
+      "gothinkster/flask-realworld-example-app": 1.0,
+      "gothinkster/node-express-realworld-example-app": 1.0,
+      "miguelgrinberg/microblog": 1.0,
+      "mjhea0/flaskr-tdd": 1.0,
+      "pallets/flask": 0.9708,
+      "psf/requests": 0.9936,
+      "snoopysecurity/dvws-node": 1.0,
+      "we45/Vulnerable-Flask-App": 1.0
+    },
+    "unresolved_by_reason": {
+      "OWASP/NodeGoat": {
+        "dynamic import with a non-literal specifier": 2,
+        "file not found": 1
+      },
+      "adeyosemanputra/pygoat": {},
+      "anxolerd/dvpwa": {},
+      "appsecco/dvna": {},
+      "axios/axios": {
+        "dynamic import with a non-literal specifier": 1,
+        "file not found": 6
+      },
+      "encode/django-rest-framework": {
+        "dynamic import with a non-literal module name": 2
+      },
+      "encode/httpx": {},
+      "encode/starlette": {},
+      "excalidraw/excalidraw": {
+        "dynamic import with a non-literal specifier": 8,
+        "file not found": 1
+      },
+      "expressjs/express": {
+        "dynamic import with a non-literal specifier": 3
+      },
+      "fastapi/full-stack-fastapi-template": {},
+      "gothinkster/django-realworld-example-app": {},
+      "gothinkster/flask-realworld-example-app": {},
+      "gothinkster/node-express-realworld-example-app": {},
+      "miguelgrinberg/microblog": {},
+      "mjhea0/flaskr-tdd": {},
+      "pallets/flask": {
+        "dynamic import with a non-literal module name": 2,
+        "relative import beyond the top-level package": 17
+      },
+      "psf/requests": {
+        "dynamic import with a non-literal module name": 2
+      },
+      "snoopysecurity/dvws-node": {},
+      "we45/Vulnerable-Flask-App": {}
+    }
+  },
   "inversions": [
     {
       "dimension": "security",

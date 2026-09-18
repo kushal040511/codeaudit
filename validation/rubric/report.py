@@ -443,6 +443,22 @@ def main() -> None:
         lines += ["", "## With label corrections", "", "| Dimension | ρ (original labels) | ρ (corrected) |", "|---|---|---|"]
         for d in DIMENSIONS:
             lines.append(f"| {d} | {fmt(main_corr[d]['rho'])} | {fmt(corrected_corr[d]['rho'])} |")
+    resolution = {
+        scan["repo"]: scan.get("import_resolution") or {} for scan in snapshot if scan.get("import_resolution")
+    }
+    if resolution:
+        coverages = sorted((r.get("coverage"), repo) for repo, r in resolution.items() if r.get("coverage") is not None)
+        values = [c for c, _ in coverages]
+        metrics["import_resolution"] = {
+            "median": float(np.median(values)), "min": min(values), "per_repo": {r: c for c, r in coverages},
+            "unresolved_by_reason": {repo: r.get("unresolved_by_reason") for repo, r in resolution.items()},
+        }
+        (out / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n")
+        lines += ["", "## Import resolution coverage (architecture analyzer)", "",
+                  f"Median {np.median(values):.1%}, lowest {min(values):.1%}.", "",
+                  "| Repository | Coverage | Unresolved by reason |", "|---|---|---|"]
+        for c, repo in coverages:
+            lines.append(f"| {repo} | {c:.1%} | {json.dumps(resolution[repo].get('unresolved_by_reason') or {})} |")
     (out / "report.md").write_text("\n".join(lines) + "\n")
     print((out / "report.md").read_text())
 

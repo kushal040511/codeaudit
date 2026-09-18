@@ -95,9 +95,9 @@ The boundaries that matter most:
 | Uploaded `ruff.toml` / `pyproject.toml` chooses rules or uses `extend` to read arbitrary paths | Ruff runs with `--isolated` and an explicit `--select`. `backend/app/services/analyzers/ruff.py` | Inline `# noqa` comments are still honoured (`--ignore-noqa` is not passed). |
 | Uploaded Semgrep or OSV-Scanner config suppresses findings | Semgrep only runs the rule packs mounted by the worker (`--config=/rules/...`), with `--metrics=off`. `backend/app/services/analyzers/semgrep.py`. OSV-Scanner runs `--offline --no-resolve --no-call-analysis=all`. `backend/app/services/analyzers/dependency.py` | Neither command overrides the tools' own suppression mechanisms: Semgrep's `nosemgrep` comments and `.semgrepignore`, and an `osv-scanner.toml` in the upload. An uploader can hide findings from their own scan (this affects the scan's honesty, not isolation). |
 | Crash or hang in tree-sitter (native code) takes down the worker | Parsing runs in a child process (`run_isolated`) with a kill timeout; a crash becomes a failed analyzer run. `backend/app/services/graph/isolated.py` | The child runs as the worker user with the worker's network and no resource limits beyond the timeout (known gap 4). A memory-corruption exploit in the parser runs as the worker. |
-| Malicious repo attacks git during clone | Clone runs in a sandbox (`backend/app/services/github/clone.py`): fixed script, coordinates passed as env vars and re-validated (`OWNER`, `REPO`, `SHA` regexes), `protocol.allow=never` except https, `http.followRedirects=false`, `core.hooksPath=/dev/null`, `core.symlinks=false`, `fetch.recurseSubmodules=false`, no system/global git config, LFS smudge skipped, `umask 0007`, `.git` removed. The tree is then checked for symlinks and against the upload size limits (`enforce_tree_limits`). Repos over `GITHUB_MAX_REPO_SIZE_MB` are refused up front using GitHub's reported size (`backend/app/services/scan_creation.py`). | The clone container is on `bridge` with general egress (known gap 5). `assert_public_host("github.com")` checks DNS from the worker, not from inside the container. Block private ranges and metadata with `DOCKER-USER` rules (README, "Deploying"). |
+| Malicious repo attacks git during clone | Clone runs in a sandbox (`backend/app/services/github/clone.py`): fixed script, coordinates passed as env vars and re-validated (`OWNER`, `REPO`, `SHA` regexes), `protocol.allow=never` except https, `http.followRedirects=false`, `core.hooksPath=/dev/null`, `core.symlinks=false`, `fetch.recurseSubmodules=false`, no system/global git config, LFS smudge skipped, `umask 0007`, `.git` removed. The tree is then checked for symlinks and against the upload size limits (`enforce_tree_limits`). Repos over `GITHUB_MAX_REPO_SIZE_MB` are refused up front using GitHub's reported size (`backend/app/services/scan_creation.py`). | The clone container is on `bridge` with general egress (known gap 5). `assert_public_host("github.com")` checks DNS from the worker, not from inside the container. Block private ranges and metadata with `DOCKER-USER` rules ([reference.md, "Deploying"](reference.md#deploying)). |
 | Compromise of the worker process | Worker is non-root (uid 10001), read-only root fs, `cap_drop: ALL`, `no-new-privileges` in `docker-compose.prod.yml`. | **The worker mounts the Docker socket, which is root-equivalent on the host** (known gap 1). |
-| Kernel exploit from inside a sandbox | Non-root, no capabilities, no-new-privileges. | Shared kernel (known gap 2). gVisor (`runsc`) as the default runtime is recommended in README "Deploying"; nothing in code enforces it. |
+| Kernel exploit from inside a sandbox | Non-root, no capabilities, no-new-privileges. | Shared kernel (known gap 2). gVisor (`runsc`) as the default runtime is recommended in [reference.md](reference.md#deploying); nothing in code enforces it. |
 | Leftover containers after a crash | Removed in `finally`; `cleanup_after_crash` on worker start (`backend/app/workers/tasks.py`); beat reaper every 5 min (`reap_expired_sandboxes`, scheduled in `backend/app/core/celery_app.py`). | None known. |
 
 ## 2. SSRF
@@ -177,13 +177,13 @@ The boundaries that matter most:
 
 ## Known gaps
 
-From README "Sandboxing" (verified against the code):
+From [reference.md, "Sandboxing"](reference.md#sandboxing-whats-done-and-what-isnt) (verified against the code):
 
 1. **The worker mounts the Docker socket** (`docker-compose.yml`, `docker-compose.prod.yml`). That is root-equivalent on the Docker host: compromising the worker process (not the sandbox) owns the host. Fix: a small runner service with a fixed API, a rootless daemon, or Kubernetes Jobs.
 2. **Containers share the host kernel.** Add gVisor (`runsc`) or Kata for a stronger boundary.
 3. **Rule and vulnerability-database downloads run in the worker, which has network access** (`backend/app/services/analyzers/semgrep_rules.py`, `backend/app/services/analyzers/osv_db.py`). Pin rule versions or bake them into a versioned image.
 4. **Extraction and tree-sitter parsing run outside the sandbox**: extraction in the worker, parsing in a child process without network isolation or resource limits beyond a timeout.
-5. **The git clone container has general network egress.** Restrict it on the worker VM with `DOCKER-USER` rules (README, "Deploying").
+5. **The git clone container has general network egress.** Restrict it on the worker VM with `DOCKER-USER` rules ([reference.md, "Deploying"](reference.md#deploying)).
 
 Found while writing this document:
 

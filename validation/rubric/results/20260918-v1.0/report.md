@@ -244,3 +244,30 @@ Labels column order: security, dependencies, architecture, code_health, overall.
 Combined, with 95% bootstrap CIs: security 0.39 [-0.12, 0.74]; dependencies 0.45 [-0.08, 0.85]; architecture -0.02 [-0.49, 0.41]; code_health 0.34 [-0.34, 0.79]; overall 0.78 [0.50, 0.91]. Inversions: 115 (as shipped: 141).
 
 Combined, within groups: vulnerable: overall n/a, security n/a; tutorial: overall -0.32, security -0.71; mature: overall 0.55, security -0.52.
+
+## Import resolution coverage (architecture analyzer)
+
+Median 100.0%, lowest 95.3%.
+
+| Repository | Coverage | Unresolved by reason |
+|---|---|---|
+| OWASP/NodeGoat | 95.3% | {"file not found": 1, "dynamic import with a non-literal specifier": 2} |
+| pallets/flask | 97.1% | {"relative import beyond the top-level package": 17, "dynamic import with a non-literal module name": 2} |
+| axios/axios | 99.0% | {"file not found": 6, "dynamic import with a non-literal specifier": 1} |
+| expressjs/express | 99.3% | {"dynamic import with a non-literal specifier": 3} |
+| psf/requests | 99.4% | {"dynamic import with a non-literal module name": 2} |
+| encode/django-rest-framework | 99.8% | {"dynamic import with a non-literal module name": 2} |
+| excalidraw/excalidraw | 99.8% | {"file not found": 1, "dynamic import with a non-literal specifier": 8} |
+| adeyosemanputra/pygoat | 100.0% | {} |
+| anxolerd/dvpwa | 100.0% | {} |
+| appsecco/dvna | 100.0% | {} |
+| encode/httpx | 100.0% | {} |
+| encode/starlette | 100.0% | {} |
+| fastapi/full-stack-fastapi-template | 100.0% | {} |
+| gothinkster/django-realworld-example-app | 100.0% | {} |
+| gothinkster/flask-realworld-example-app | 100.0% | {} |
+| gothinkster/node-express-realworld-example-app | 100.0% | {} |
+| miguelgrinberg/microblog | 100.0% | {} |
+| mjhea0/flaskr-tdd | 100.0% | {} |
+| snoopysecurity/dvws-node | 100.0% | {} |
+| we45/Vulnerable-Flask-App | 100.0% | {} |

@@ -2,6 +2,8 @@
 
 The detailed reference that used to be the README: how each stage works, the API, configuration, deployment and operations. Start with the [README](../README.md) for an overview.
 
+> ⚠ **Measurements in this file weren't regenerated.** That covers the architecture timing table (pydantic, excalidraw, the FastAPI template), the pydantic scan time and calibration scores, and the fixture scores. They come from development runs on 2026-09-16/17, and their raw data wasn't kept. The numbers regenerated on 2026-09-18, with scripts and data, are in [validation.md](validation.md), [load-test.md](load-test.md) and [rubric.md](rubric.md).
+
 ## Stack
 
 | Layer | Tech |

@@ -9,6 +9,8 @@ scan quotas raised; see scripts/loadtest/README.md.
 """
 
 import argparse
+import hashlib
+import io
 import json
 import statistics
 import subprocess
@@ -16,6 +18,7 @@ import threading
 import time
 import urllib.request
 import uuid
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -140,6 +143,11 @@ def main() -> None:
     summary = {
         "label": args.label,
         "zip_bytes": len(data),
+        "zip_sha256": hashlib.sha256(data).hexdigest(),
+        "zip_files": sum(1 for i in zipfile.ZipFile(io.BytesIO(data)).infolist() if not i.is_dir()),
+        "docker_host": json.loads(subprocess.run(
+            ["docker", "info", "--format", '{"ncpu": {{.NCPU}}, "mem_total_bytes": {{.MemTotal}}, "server": "{{.ServerVersion}}"}'],
+            capture_output=True, text=True, check=False).stdout or "{}"),
         "concurrency": args.concurrency,
         "completed": len(ok),
         "not_completed": len(runs) - len(ok),

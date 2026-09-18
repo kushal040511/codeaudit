@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-18",
+  "input": {
+    "repo": "encode/django-rest-framework",
+    "commit": "b92edf53e21b2de16af5d13529591f1c0d415f93",
+    "fetched_with": "gh api repos/encode/django-rest-framework/zipball/b92edf53e21b2de16af5d13529591f1c0d415f93",
+    "zip_sha256": "4de732fa5116b5bd1aa784ec762a212a725f42ff13474af3df972614f84e2265",
+    "zip_bytes": 10923649,
+    "files": 585
+  },
+  "docker": {
+    "server_version": "29.7.2",
+    "ncpu": 14,
+    "mem_total_bytes": 12525842432,
+    "os": "Docker Desktop"
+  },
+  "stack": {
+    "CELERY_CONCURRENCY": 8,
+    "MAX_CONCURRENT_SANDBOXES": "6 (default) or 12",
+    "LLM_ENABLED": false,
+    "SCAN_CACHE_TTL_SECONDS": 0
+  }
+}

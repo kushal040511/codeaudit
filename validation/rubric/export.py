@@ -18,7 +18,7 @@ sys.path.insert(0, "/app")
 
 from app.core.db import SessionLocal
 from app.models import Finding, Scan
-from app.models.architecture import ArchitectureIssue
+from app.models.architecture import ArchitectureIssue, ArchitectureSummary
 from app.services.scoring.service import context_for_scan
 from sqlalchemy import select
 
@@ -78,6 +78,11 @@ with SessionLocal() as db:
                         for f in findings
                         if f.analyzer == "dependency"
                     },
+                    "import_resolution": (
+                        (db.get(ArchitectureSummary, scan.id).summary or {}).get("resolution", {})
+                        if db.get(ArchitectureSummary, scan.id)
+                        else None
+                    ),
                     "cycle_components": [
                         {"size": len(c["modules"]), "cycles": len(c["severities"]),
                          "severity": "error" if "error" in c["severities"] else c["severities"][0]}

@@ -93,6 +93,8 @@ review_rows = [
         "unverified_prose_mentions": sum(len(i.get("unverified_mentions", [])) for i in [*(r.issues or []), *(r.dropped_issues or [])]),
         "issues_dropped": len(r.dropped_issues or []),
         "error": r.error_message,
+        # What was actually cited, so qualitative claims about the reviews can be checked.
+        "kept_issues": [{"title": i.get("title"), "evidence": i.get("evidence", [])} for i in (r.issues or [])],
     }
     for r in reviews
 ]
@@ -132,6 +134,9 @@ metrics = {
     "llm_calls": {
         "total": len(calls),
         "failed": sum(not c.success for c in calls),
+        "failure_reasons": dict(
+            Counter(f"{c.error_type}: {(c.error_message or '')[:70]}" for c in calls if not c.success).most_common()
+        ),
         "fix_call_latency_s_p50": (pct([c.duration_ms / 1000 for c in fix_calls if c.duration_ms], 50)),
         "fix_call_latency_s_p95": (pct([c.duration_ms / 1000 for c in fix_calls if c.duration_ms], 95)),
         "output_tokens_median": statistics.median([c.output_tokens or 0 for c in calls]) if calls else None,
@@ -196,6 +201,10 @@ for r in sorted(a["reviews"], key=lambda r: r["repo"]):
     lines.append(f"| {r['repo']} | {r['status']} | {r['citations_total']} | {r['citations_invalid']} | {rate} | {r['evidence_rejected']}/{r['evidence_total']} | {r['issues_kept']} | {r['issues_dropped']} |")
 c = metrics["llm_calls"]
 lines += [
+    "",
+    "Failed LLM calls by reason:",
+    "",
+    *[f"- {k}: {v}" for k, v in c["failure_reasons"].items()],
     "",
     f"LLM calls: {c['total']} ({c['failed']} failed). Fix-suggestion call latency p50 "
     f"{(c['fix_call_latency_s_p50'] or 0):.0f} s, p95 {(c['fix_call_latency_s_p95'] or 0):.0f} s.",

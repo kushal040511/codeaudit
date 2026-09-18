@@ -34,10 +34,10 @@ Negative:
 - Two round trips, and previews expire after 30 minutes.
 - A worker dying mid-write can leave a partial branch. The beat reaper marks the row `failed` with `interrupted` after 15 minutes and tells the user to check the repository (`workers/maintenance.py`).
 - The static test only recognises direct calls and `delay`/`apply_async`/signature calls on the task name. Indirect dispatch, such as `send_task` by string name, wouldn't be caught.
-- API tokens (`cat_…`) can't open pull requests (README, "Security"). Pull requests need a browser session.
+- API tokens (`cat_…`) can't open pull requests ([reference.md](../reference.md), "Security"). Pull requests need a browser session.
 
 ## Alternatives considered
 
 - **Create the PR automatically after enrichment.** Rejected because it writes to a user's repository without review and uses unverified or stale patches.
 - **One-step confirm without a preview fingerprint.** The user could approve a diff that is no longer what gets pushed.
-- **Include unverified patches marked as drafts.** Contradicts the rule that only `valid` patches are offered as fixes (README, "Patch validation").
+- **Include unverified patches marked as drafts.** Contradicts the rule that only `valid` patches are offered as fixes ([reference.md](../reference.md), "Patch validation").

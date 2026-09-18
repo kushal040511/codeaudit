@@ -21,6 +21,7 @@
         "hallucination_rate": null,
         "issues_dropped": 0,
         "issues_kept": 0,
+        "kept_issues": [],
         "repo": "adeyosemanputra/pygoat",
         "status": "failed",
         "unverified_prose_mentions": 0
@@ -35,6 +36,7 @@
         "hallucination_rate": null,
         "issues_dropped": 0,
         "issues_kept": 0,
+        "kept_issues": [],
         "repo": "anxolerd/dvpwa",
         "status": "failed",
         "unverified_prose_mentions": 0
@@ -49,6 +51,17 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 1,
+        "kept_issues": [
+          {
+            "evidence": [
+              "we45-Vulnerable-Flask-App-b6a4f97/app/__init__.py",
+              "we45-Vulnerable-Flask-App-b6a4f97/app/app.py",
+              "we45-Vulnerable-Flask-App-b6a4f97/app/static/loader.js",
+              "we45-Vulnerable-Flask-App-b6a4f97/tests/e2e_zap.py"
+            ],
+            "title": "Unlayered architecture"
+          }
+        ],
         "repo": "we45/Vulnerable-Flask-App",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -63,6 +76,25 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 2,
+        "kept_issues": [
+          {
+            "evidence": [
+              "appsecco-dvna-9ba473a/core/authHandler.js",
+              "appsecco-dvna-9ba473a/core/passport.js",
+              "appsecco-dvna-9ba473a/core/appHandler.js"
+            ],
+            "title": "Centralized Modules"
+          },
+          {
+            "evidence": [
+              "appsecco-dvna-9ba473a/config/server.js",
+              "appsecco-dvna-9ba473a/config/vulns.js",
+              "appsecco-dvna-9ba473a/core/passport.js",
+              "appsecco-dvna-9ba473a/server.js"
+            ],
+            "title": "Unlayered Modules"
+          }
+        ],
         "repo": "appsecco/dvna",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -77,6 +109,16 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 1,
+        "kept_issues": [
+          {
+            "evidence": [
+              "OWASP-NodeGoat-c5cb68a/Gruntfile.js",
+              "OWASP-NodeGoat-c5cb68a/app/assets/js/chart/chart-data-morris.js",
+              "OWASP-NodeGoat-c5cb68a/artifacts/db-reset.js"
+            ],
+            "title": "Large unlayered section"
+          }
+        ],
         "repo": "OWASP/NodeGoat",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -91,6 +133,7 @@
         "hallucination_rate": null,
         "issues_dropped": 0,
         "issues_kept": 0,
+        "kept_issues": [],
         "repo": "gothinkster/flask-realworld-example-app",
         "status": "failed",
         "unverified_prose_mentions": 0
@@ -105,6 +148,25 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 2,
+        "kept_issues": [
+          {
+            "evidence": [
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/core/renderers.py",
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/profiles/serializers.py",
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/articles/relations.py",
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/articles/renderers.py",
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/articles/serializers.py"
+            ],
+            "title": "Unlayered modules"
+          },
+          {
+            "evidence": [
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/articles/serializers.py -> gothinkster-django-realworld-example-app-29c9d42/conduit/apps/articles/models.py",
+              "gothinkster-django-realworld-example-app-29c9d42/conduit/apps/authentication/serializers.py -> gothinkster-django-realworld-example-app-29c9d42/conduit/apps/authentication/models.py"
+            ],
+            "title": "Potential import cycles"
+          }
+        ],
         "repo": "gothinkster/django-realworld-example-app",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -119,6 +181,27 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 1,
+        "kept_issues": [
+          {
+            "evidence": [
+              "miguelgrinberg-microblog-a975ef6/app/__init__.py -> miguelgrinberg-microblog-a975ef6/app/models.py",
+              "miguelgrinberg-microblog-a975ef6/app/models.py -> miguelgrinberg-microblog-a975ef6/app/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/__init__.py -> miguelgrinberg-microblog-a975ef6/app/api/errors.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/errors.py -> miguelgrinberg-microblog-a975ef6/app/api/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/__init__.py -> miguelgrinberg-microblog-a975ef6/app/api/tokens.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/tokens.py -> miguelgrinberg-microblog-a975ef6/app/api/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/__init__.py -> miguelgrinberg-microblog-a975ef6/app/api/users.py",
+              "miguelgrinberg-microblog-a975ef6/app/api/users.py -> miguelgrinberg-microblog-a975ef6/app/api/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/auth/__init__.py -> miguelgrinberg-microblog-a975ef6/app/auth/routes.py",
+              "miguelgrinberg-microblog-a975ef6/app/auth/routes.py -> miguelgrinberg-microblog-a975ef6/app/auth/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/errors/__init__.py -> miguelgrinberg-microblog-a975ef6/app/errors/handlers.py",
+              "miguelgrinberg-microblog-a975ef6/app/errors/handlers.py -> miguelgrinberg-microblog-a975ef6/app/errors/__init__.py",
+              "miguelgrinberg-microblog-a975ef6/app/main/__init__.py -> miguelgrinberg-microblog-a975ef6/app/main/routes.py",
+              "miguelgrinberg-microblog-a975ef6/app/main/routes.py -> miguelgrinberg-microblog-a975ef6/app/main/__init__.py"
+            ],
+            "title": "Import Cycles"
+          }
+        ],
         "repo": "miguelgrinberg/microblog",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -133,6 +216,21 @@
         "hallucination_rate": 0.0,
         "issues_dropped": 0,
         "issues_kept": 2,
+        "kept_issues": [
+          {
+            "evidence": [
+              "mjhea0-flaskr-tdd-305122f/project/app.py -> mjhea0-flaskr-tdd-305122f/project/models.py",
+              "mjhea0-flaskr-tdd-305122f/project/models.py -> mjhea0-flaskr-tdd-305122f/project/app.py"
+            ],
+            "title": "Cyclic Dependency"
+          },
+          {
+            "evidence": [
+              "mjhea0-flaskr-tdd-305122f/create_db.py"
+            ],
+            "title": "Orphan Module"
+          }
+        ],
         "repo": "mjhea0/flaskr-tdd",
         "status": "ready",
         "unverified_prose_mentions": 0
@@ -265,6 +363,11 @@
   },
   "llm_calls": {
     "failed": 18,
+    "failure_reasons": {
+      "invalid_output: invalid JSON: Expecting value at line 1 column 1": 8,
+      "invalid_output: schema validation failed: fixes.0.breaking_risk: Field required": 9,
+      "max_tokens: Output hit the 4,096 token limit.": 1
+    },
     "fix_call_latency_s_p50": 11.157,
     "fix_call_latency_s_p95": 32.37380000000001,
     "output_tokens_median": 324,
