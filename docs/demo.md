@@ -43,10 +43,10 @@ The scores, counts and percentages quoted below come from the 2026-09-18 seed, r
 
 | Failure | What still works | Do this |
 |---|---|---|
-| **No network** | Everything local: scans, graph, fixes, projections, seeded site analyses. | Show the PR from [`docs/assets/demo-pr.gif`](assets/demo-pr.gif) instead of github.com. |
+| **No network** | Everything local: scans, graph, fixes, projections, seeded site analyses. | Show the PR from `docs/assets/demo-pr.gif` instead of github.com (see *Pending* below). |
 | **Ollama or the Anthropic API down** | Everything seeded: suggestions and reviews are already stored. Only *Regenerate* fails, and it fails with a clear 503. | Don't click Regenerate. |
 | **Postgres/MinIO state lost, or the wrong machine** | — | `scripts/demo/restore.sh demo/snapshot`, then reload. The database restore was tested into a scratch database on 2026-09-18. Uploading the bucket back to MinIO wasn't tested or timed, and it's slow if the snapshot contains large uploads (1.1 GB here, because of the load test). Snapshot a clean stack for demo machines. |
-| **Docker won't start** | — | Play the three GIFs in `docs/assets/` in order and narrate the same script. |
+| **Docker won't start** | — | Play the GIFs in `docs/assets/` in order and narrate the same script. |
 | **A seeded phishing page shows `failed`** | The design analysis and code scans. | Re-run `seed.py --phishing-from-openphish` before the demo, never during it. |
 | **GitHub rate limit (URL scans)** | Zip uploads. | Seed with the default zip upload. Only the PR step needs a GitHub scan. |
 
@@ -58,4 +58,14 @@ Regenerate against the seeded stack with `cd backend && uv run python ../scripts
 |---|---|
 | [`demo-graph.gif`](assets/demo-graph.gif) | The architecture tab, with the 3-module cycle clicked and highlighted |
 | [`demo-fixes.gif`](assets/demo-fixes.gif) | Verified fixes being selected, with the projected score and delta updating |
-| [`demo-pr.gif`](assets/demo-pr.gif) | The pull request CodeAudit opened on codeaudit-demo: description, then the diff |
+| `demo-pr.gif` (**pending**) | The pull request CodeAudit opened on codeaudit-demo: description, then the diff |
+
+### Pending: the PR GIF
+
+The PR has to be opened from a signed-in browser session with an explicit Confirm, so it can't be scripted. Once it exists:
+
+```sh
+cd backend && uv run python ../scripts/demo/make_gifs.py --only pr --pr-url https://github.com/kushal040511/codeaudit-demo/pull/<n>
+```
+
+Then add `![…](docs/assets/demo-pr.gif)` to the README's *More demo GIFs*.
