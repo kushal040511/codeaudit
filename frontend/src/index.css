@@ -1,22 +1,25 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource-variable/manrope";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: 'Archivo Variable', 'Arial Narrow', sans-serif;
-    --font-sans: 'Archivo Variable', system-ui, sans-serif;
+    --font-heading: 'Manrope Variable', system-ui, sans-serif;
+    --font-sans: 'Manrope Variable', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    --color-vellum: var(--vellum);
-    --color-ink: var(--ink);
-    --color-graphite: var(--graphite);
-    --color-blueprint: var(--blueprint);
-    --color-pencil: var(--pencil);
-    --color-gridline: var(--gridline);
+    --color-steel: var(--steel);
+    --color-navy-deep: var(--navy-deep);
+    --color-navy: var(--navy);
+    --color-slate: var(--slate);
+    --color-mist: var(--mist);
+    --color-haze: var(--haze);
+    --color-surface: var(--surface);
+    --color-flare: var(--flare);
+    --color-ember: var(--ember);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -55,84 +58,89 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    --ease-instrument: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
-    /* Drafting-table palette: vellum sheets, drafting ink, blueprint lines, red pencil. */
-    --vellum: #e9eff4;
-    --sheet: #f7fafc;
-    --ink: #10243a;
-    --graphite: #56687a;
-    --blueprint: #1e5aa0;
-    --pencil: #cc3b28;
-    --gridline: #cfdbe5;
+    /* Instrument palette: structural navy for the apparatus, orange for what is burning.
+       Orange carries severity and nothing else — never decoration. */
+    --steel: #1e201f;
+    --navy-deep: #232b30;
+    --navy: #37607e;
+    --slate: #46586b;
+    --mist: #8ca8ba;
+    --haze: #c1d5df;
+    --surface: #f1f5f5;
+    --flare: #e35b0e;
+    --ember: #e9874f;
 
-    --background: var(--vellum);
-    --foreground: var(--ink);
-    --card: oklch(0.985 0.004 240 / 0.9);
-    --card-foreground: var(--ink);
-    --popover: var(--sheet);
-    --popover-foreground: var(--ink);
-    --primary: var(--blueprint);
-    --primary-foreground: #f7fafc;
-    --secondary: #dde7ef;
-    --secondary-foreground: var(--ink);
-    --muted: #dfe8ef;
-    --muted-foreground: var(--graphite);
-    --accent: #d8e5f1;
-    --accent-foreground: var(--ink);
-    --destructive: var(--pencil);
-    --border: #c7d4df;
-    --input: #b9c9d6;
-    --ring: var(--blueprint);
-    --chart-1: #1e5aa0;
-    --chart-2: #4f86c6;
-    --chart-3: #8fb3d9;
-    --chart-4: #56687a;
-    --chart-5: #cc3b28;
-    --radius: 0.5rem;
-    --sidebar: var(--sheet);
-    --sidebar-foreground: var(--ink);
-    --sidebar-primary: var(--blueprint);
-    --sidebar-primary-foreground: #f7fafc;
-    --sidebar-accent: #dde7ef;
-    --sidebar-accent-foreground: var(--ink);
-    --sidebar-border: #c7d4df;
-    --sidebar-ring: var(--blueprint);
+    --background: var(--surface);
+    --foreground: var(--steel);
+    --card: #ffffff;
+    --card-foreground: var(--steel);
+    --popover: #ffffff;
+    --popover-foreground: var(--steel);
+    --primary: var(--navy);
+    --primary-foreground: #f1f5f5;
+    --secondary: #e2eaee;
+    --secondary-foreground: var(--steel);
+    --muted: #e5ecee;
+    --muted-foreground: var(--slate);
+    --accent: #dbe6ea;
+    --accent-foreground: var(--steel);
+    --destructive: var(--flare);
+    --border: var(--haze);
+    --input: #aec4d0;
+    --ring: var(--navy);
+    --chart-1: var(--navy);
+    --chart-2: #5a83a0;
+    --chart-3: var(--mist);
+    --chart-4: var(--slate);
+    --chart-5: var(--flare);
+    --radius: 0.125rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: var(--steel);
+    --sidebar-primary: var(--navy);
+    --sidebar-primary-foreground: #f1f5f5;
+    --sidebar-accent: #e2eaee;
+    --sidebar-accent-foreground: var(--steel);
+    --sidebar-border: var(--haze);
+    --sidebar-ring: var(--navy);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: var(--steel);
+    --foreground: #e8eef0;
+    --card: var(--navy-deep);
+    --card-foreground: #e8eef0;
+    --popover: var(--navy-deep);
+    --popover-foreground: #e8eef0;
+    --primary: var(--mist);
+    --primary-foreground: var(--steel);
+    --secondary: #2c3940;
+    --secondary-foreground: #e8eef0;
+    --muted: #2c3940;
+    --muted-foreground: #a9bcc6;
+    --accent: #33556e;
+    --accent-foreground: #e8eef0;
+    /* Ember, not flare: #e35b0e loses too much contrast against the steel ground. */
+    --destructive: var(--ember);
+    --border: color-mix(in oklab, var(--haze) 16%, transparent);
+    --input: color-mix(in oklab, var(--haze) 24%, transparent);
+    --ring: var(--mist);
+    --chart-1: var(--mist);
+    --chart-2: #5a83a0;
+    --chart-3: var(--haze);
+    --chart-4: #7d8f9c;
+    --chart-5: var(--ember);
+    --sidebar: var(--navy-deep);
+    --sidebar-foreground: #e8eef0;
+    --sidebar-primary: var(--mist);
+    --sidebar-primary-foreground: var(--steel);
+    --sidebar-accent: #2c3940;
+    --sidebar-accent-foreground: #e8eef0;
+    --sidebar-border: color-mix(in oklab, var(--haze) 16%, transparent);
+    --sidebar-ring: var(--mist);
 }
 
 @layer base {
@@ -147,24 +155,31 @@
     font-optical-sizing: auto;
     }
   body {
-    background-color: var(--vellum);
-    font-stretch: 100%;
     line-height: 1.55;
   }
+  /* Large type sits light, not heavy — the weight climbs as the size drops. */
   h1, h2, h3 {
     font-family: var(--font-heading);
-    font-stretch: 78%;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+  }
+  h1 {
+    font-weight: 300;
+  }
+  h2, h3 {
+    font-weight: 500;
   }
   code, pre, kbd, samp {
     font-family: var(--font-mono);
   }
   ::selection {
-    background: color-mix(in oklab, var(--blueprint) 22%, transparent);
+    background: color-mix(in oklab, var(--navy) 22%, transparent);
   }
   :focus-visible {
-    outline: 2px solid var(--blueprint);
+    outline: 2px solid var(--navy);
     outline-offset: 2px;
+  }
+  .dark :focus-visible {
+    outline-color: var(--mist);
   }
 }
 

@@ -64,9 +64,9 @@ function AuditBox() {
       </label>
       <div
         className={cn(
-          'flex flex-col gap-2 rounded-lg border-2 bg-[var(--sheet)] p-2 shadow-[0_1px_0_var(--gridline),0_18px_40px_-24px_color-mix(in_oklab,var(--ink)_45%,transparent)] transition-colors sm:flex-row',
-          target.kind === 'repository' && 'border-[var(--ink)]',
-          target.kind === 'website' && 'border-[var(--blueprint)]',
+          'flex flex-col gap-2 rounded-lg border-2 bg-[var(--card)] p-2 shadow-[0_1px_0_var(--haze),0_18px_40px_-24px_color-mix(in_oklab,var(--steel)_45%,transparent)] transition-colors sm:flex-row',
+          target.kind === 'repository' && 'border-[var(--steel)]',
+          target.kind === 'website' && 'border-[var(--navy)]',
           target.kind === 'none' && 'border-[var(--input)]',
         )}
       >
@@ -81,22 +81,22 @@ function AuditBox() {
           autoComplete="off"
           spellCheck={false}
           inputMode="url"
-          className="h-12 min-w-0 flex-1 bg-transparent px-3 font-mono text-[15px] text-foreground outline-none placeholder:text-[var(--graphite)]/70"
+          className="h-12 min-w-0 flex-1 bg-transparent px-3 font-mono text-[15px] text-foreground outline-none placeholder:text-[var(--slate)]/70"
         />
         <button
           type="submit"
           disabled={target.kind === 'none' || start.isPending}
           className={cn(
-            'h-12 shrink-0 rounded-md px-5 font-heading text-base font-semibold [font-stretch:85%] text-[var(--sheet)] transition-[background-color,transform] active:translate-y-px disabled:cursor-not-allowed',
-            target.kind === 'repository' ? 'bg-[var(--ink)] hover:bg-[#1c3753]' : 'bg-[var(--blueprint)] hover:bg-[#184c88]',
-            target.kind === 'none' && 'bg-[var(--graphite)]/40 text-[var(--sheet)]',
+            'h-12 shrink-0 rounded-md px-5 font-heading text-base font-semibold text-[var(--card)] transition-[background-color,transform] active:translate-y-px disabled:cursor-not-allowed',
+            target.kind === 'repository' ? 'bg-[var(--steel)] hover:bg-[#2c3940]' : 'bg-[var(--navy)] hover:bg-[#2c4c63]',
+            target.kind === 'none' && 'bg-[var(--slate)]/40 text-[var(--card)]',
           )}
         >
           {start.isPending ? (target.kind === 'repository' ? 'Starting scan…' : 'Starting analysis…') : action}
         </button>
       </div>
       <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">
-        {start.isError ? <span className="text-[var(--pencil)]">{start.error.message}</span> : hint}
+        {start.isError ? <span className="text-[var(--flare)]">{start.error.message}</span> : hint}
       </p>
       {!value && (
         <p className="mt-2 text-sm text-muted-foreground">
@@ -107,7 +107,7 @@ function AuditBox() {
               <button
                 type="button"
                 onClick={() => setValue(example.value)}
-                className="rounded font-mono text-[13px] text-foreground underline decoration-[var(--gridline)] decoration-2 underline-offset-4 hover:decoration-[var(--blueprint)]"
+                className="rounded font-mono text-[13px] text-foreground underline decoration-[var(--haze)] decoration-2 underline-offset-4 hover:decoration-[var(--navy)]"
                 title={`Fill in ${example.label}`}
               >
                 {example.value}
@@ -115,7 +115,7 @@ function AuditBox() {
             </span>
           ))}
           , or{' '}
-          <Link to="/upload" className="underline decoration-[var(--gridline)] decoration-2 underline-offset-4 hover:decoration-[var(--blueprint)]">
+          <Link to="/upload" className="underline decoration-[var(--haze)] decoration-2 underline-offset-4 hover:decoration-[var(--navy)]">
             upload a .zip
           </Link>
           .
@@ -138,8 +138,8 @@ function ServiceStatus() {
           className={cn(
             'size-2 rounded-full',
             state === 'ok' && 'bg-emerald-600',
-            state === 'checking' && 'bg-[var(--graphite)]',
-            (state === 'degraded' || state === 'down') && 'bg-[var(--pencil)]',
+            state === 'checking' && 'bg-[var(--slate)]',
+            (state === 'degraded' || state === 'down') && 'bg-[var(--flare)]',
           )}
         />
         {state === 'ok' && `All services running (API v${health.data?.version})`}
@@ -151,7 +151,7 @@ function ServiceStatus() {
         {checks.map(([name, check]) => (
           <li key={name} className="flex justify-between gap-3">
             <span className="capitalize">{name}</span>
-            <span className={check.status === 'ok' ? '' : 'text-[var(--pencil)]'}>
+            <span className={check.status === 'ok' ? '' : 'text-[var(--flare)]'}>
               {check.status === 'ok' ? `${check.latency_ms} ms` : (check.detail ?? 'error')}
             </span>
           </li>
@@ -165,10 +165,10 @@ export function HomePage() {
   return (
     <div className="flex min-h-[calc(100svh-10rem)] flex-col justify-between gap-16">
       <section className="flex flex-col items-start gap-8 pt-[8vh]">
-        <h1 className="max-w-[16ch] font-heading text-[clamp(2.75rem,7vw,5.25rem)] leading-[0.95] font-semibold text-[var(--ink)] [font-stretch:68%] [letter-spacing:-0.02em]">
+        <h1 className="max-w-[16ch] font-heading text-[clamp(2.75rem,7vw,5.25rem)] leading-[0.95] font-light text-[var(--steel)] [letter-spacing:-0.02em]">
           Find what’s wrong in a codebase or a website.
         </h1>
-        <p className="max-w-[58ch] text-lg text-[var(--graphite)]">
+        <p className="max-w-[58ch] text-lg text-[var(--slate)]">
           CodeAudit reads your repository the way a reviewer would: security issues, risky dependencies and tangled
           architecture, each with the fix and its effect on the score. Give it a website instead and it checks for
           signs of a phishing clone and pulls out the design system.

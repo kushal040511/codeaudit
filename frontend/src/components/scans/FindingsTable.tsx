@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ArrowRight, CircleX, LoaderCircle, ShieldCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { FindingDrawer } from '@/components/fixes/FindingDrawer'
-import { SeverityBadge } from '@/components/scans/SeverityBadge'
+import { SEVERITY_COLOR, SEVERITY_WEIGHT, SeverityBadge } from '@/components/scans/SeverityBadge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { describeFailures } from '@/lib/analyzers'
@@ -31,7 +31,7 @@ function toggle<T>(values: T[], value: T): T[] {
 function FixBadge({ finding }: { finding: Finding }) {
   if (finding.fix_status === 'generating') {
     return (
-      <span className="inline-flex items-center gap-1 text-violet-700 dark:text-violet-400">
+      <span className="inline-flex items-center gap-1 text-primary">
         <LoaderCircle aria-hidden className="size-3.5 animate-spin" /> Generating fix
       </span>
     )
@@ -39,15 +39,15 @@ function FixBadge({ finding }: { finding: Finding }) {
   if (finding.fix_status !== 'ready') return null
   if (finding.fix_validation_status === 'valid') {
     return (
-      <span className="inline-flex items-center gap-1 text-violet-700 dark:text-violet-400">
-        <Sparkles aria-hidden className="size-3.5" /> Verified fix
+      <span className="inline-flex items-center gap-1 font-medium text-primary">
+        <Sparkles aria-hidden className="size-3.5" /> Applies cleanly
       </span>
     )
   }
-  if (finding.fix_validation_status === 'no_patch') return <span>AI explanation</span>
+  if (finding.fix_validation_status === 'no_patch') return <span>Explanation only</span>
   return (
-    <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">
-      <CircleX aria-hidden className="size-3.5" /> Fix not verified
+    <span className="inline-flex items-center gap-1 text-destructive">
+      <CircleX aria-hidden className="size-3.5" /> Fix did not apply
     </span>
   )
 }
@@ -65,7 +65,7 @@ function FindingDetails({ finding, displayName }: { finding: Finding; displayNam
           {dep.fixed_version ? (
             <>
               <ArrowRight aria-label="upgrade to" className="size-3" />
-              <span className="text-emerald-700 dark:text-emerald-400">{dep.fixed_version}</span>
+              <span className="font-medium text-foreground">{dep.fixed_version}</span>
             </>
           ) : (
             <span className="text-muted-foreground">(no fix available)</span>
@@ -78,7 +78,7 @@ function FindingDetails({ finding, displayName }: { finding: Finding; displayNam
         <span className="font-mono break-all">{finding.rule_id}</span>
         {finding.corroborated_by.length > 0 && (
           <span
-            className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400"
+            className="inline-flex items-center gap-1 text-primary"
             title={finding.merged_from.map((m) => `${displayName(m.analyzer)}: ${m.rule_id}`).join('\n')}
           >
             <ShieldCheck aria-hidden className="size-3.5" />
@@ -190,7 +190,7 @@ export function FindingsTable({ scan }: { scan: Scan }) {
       ) : !data ? (
         <p className="text-sm text-muted-foreground">Loading findings…</p>
       ) : data.total === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <div className="border border-dashed p-10 text-center text-sm text-muted-foreground">
           {filtered
             ? 'No findings match the selected filters.'
             : scan.status === 'partial'
@@ -199,7 +199,7 @@ export function FindingsTable({ scan }: { scan: Scan }) {
         </div>
       ) : (
         <>
-          <div className="rounded-lg border">
+          <div className="border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -214,10 +214,15 @@ export function FindingsTable({ scan }: { scan: Scan }) {
                   <TableRow
                     key={finding.id}
                     className="cursor-pointer"
+                    style={{
+                      borderLeftStyle: 'solid',
+                      borderLeftWidth: SEVERITY_WEIGHT[finding.severity],
+                      borderLeftColor: SEVERITY_COLOR[finding.severity],
+                    }}
                     onClick={() => setSelected(finding)}
                   >
                     <TableCell className="align-top">
-                      <SeverityBadge severity={finding.severity} />
+                      <SeverityBadge severity={finding.severity} rule={false} />
                     </TableCell>
                     <TableCell className="align-top font-mono text-xs break-all whitespace-normal">
                       {finding.file_path}

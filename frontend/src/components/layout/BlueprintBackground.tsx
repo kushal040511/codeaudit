@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * The site's background: a drafting grid with a slowly drifting module graph, like
+ * The site's background: a measured grid with a slowly drifting module graph, like
  * the dependency graphs CodeAudit draws of your code.
  *
  * - Moving the pointer traces imports: nearby modules light up and their edges draw in.
  * - Clicking empty space sends a scan pulse along the edges; some modules it reaches
- *   get flagged in red pencil, then fade.
+ *   get flagged in orange, then fade.
  * - Scrolling shifts the graph slightly (parallax).
  *
  * Rendered to one canvas behind everything; ignores clicks on interactive elements,
@@ -46,11 +46,11 @@ function readPalette() {
   const style = getComputedStyle(document.documentElement)
   const get = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
   return {
-    grid: get('--gridline', '#cfdbe5'),
-    ink: get('--ink', '#10243a'),
-    blueprint: get('--blueprint', '#1e5aa0'),
-    pencil: get('--pencil', '#cc3b28'),
-    graphite: get('--graphite', '#56687a'),
+    grid: get('--haze', '#c1d5df'),
+    ink: get('--slate', '#46586b'),
+    blueprint: get('--navy', '#37607e'),
+    pencil: get('--flare', '#e35b0e'),
+    graphite: get('--mist', '#8ca8ba'),
   }
 }
 
@@ -242,12 +242,13 @@ export function BlueprintBackground() {
         const size = node.size + node.glow * 2.5
         ctx.fillRect(node.x - size / 2, node.y - size / 2, size, size)
         if (node.flag > 0) {
-          // A red-pencil ring, drawn slightly off like a hand mark.
+          // A square bracket closing on the flagged module, like a measurement being taken.
           ctx.globalAlpha = node.flag * intro
           ctx.strokeStyle = palette.pencil
-          ctx.lineWidth = 1.8
+          ctx.lineWidth = 1.6
+          const reach = 9 + (1 - node.flag) * 7
           ctx.beginPath()
-          ctx.ellipse(node.x + 1, node.y - 1, 11 + (1 - node.flag) * 6, 9 + (1 - node.flag) * 5, 0.3, 0.2, Math.PI * 2.05)
+          ctx.strokeRect(node.x - reach, node.y - reach, reach * 2, reach * 2)
           ctx.stroke()
         }
       }
